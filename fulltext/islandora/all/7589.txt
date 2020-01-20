@@ -1,0 +1,1544 @@
+EFFICIENT COMPRESSED SENSING RECONSTRUCTION FRAMEWORKS FOR ACCELERATED CARDIAC MAGNETIC RESONANCE IMAGING
+
+by Azar Tolouee MSc, K. N. Toosi University of Technology, Tehran, Iran, 2009 BSc, Amir Kabir University of Technology, Tehran, Iran, 2006
+
+A dissertation presented to Ryerson University in partial fulfillment of the requirements for the degree of Doctor of Philosophy in the Program of Electrical & Computer Engineering
+
+Toronto, Ontario, Canada, 2018 © Azar Tolouee 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A DISSERTATION
+
+I hereby declare that I am the sole author of this dissertation. This is a true copy of the dissertation, including any required final revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this dissertation to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this dissertation by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+ii
+
+Efficient Compressed Sensing Reconstruction Frameworks for Accelerated Cardiac Magnetic Resonance Imaging Doctor of Philosophy, June 2018 Azar Tolouee Electrical & Computer Engineering Ryerson University
+
+Abstract
+Dynamic magnetic resonance imaging requires rapid data acquisition to provide an appropriate combination of spatial and temporal resolution, and volumetric coverage for clinical studies. In the most challenging clinical situations, conventional dynamic MR scanners are often incapable of simultaneously providing images with sufficient temporal resolution and high spatial resolution. In practice, clinicians are often forced to compromise between these parameters, often resulting in sub-optimal performance. Cardiac MRI is the most challenging and inspiring dynamic MRI application. In cardiac MRI, the main challenge is the sensitivity of reconstruction methods to large inter frame motion. The reconstructions often suffer from temporal blurring and motion related artifacts at high acceleration factors. In this dissertation, three novel approaches are proposed specifically designed to minimize the sensitivity of the reconstructions to inter frame motion. First, a compressed sensing (CS) based image reconstruction method in conjunction with spiral sampling is developed for the iii
+
+reconstruction of dynamic MRI data from highly accelerated / under-sampled Fourier measurements. In the second algorithm, the problem of motion artifacts including respiratory motion and cardiac motion in compressed sensing reconstructions is addressed. A motion estimation/motion compensation algorithm based on a modified search that aids block matching and results in improved residual reconstruction is incorporated into the CS reconstruction for dynamic MRI. In the third algorithm, a novel formulation for the joint estimation of the deformation and the dynamic images in cardiac cine MR imaging is introduced. The motion estimation algorithm estimates the deformation by registering the dynamic data to a reference dataset that is free of respiratory motion, which is derived from the measurements themselves. A variable splitting framework is used to minimize the objective function, and thus derive the deformation and the dynamic images. The validation of the proposed algorithms is illustrated using a numerical phantom and in-vivo cine MRI data to show the feasibility in precisely recovering cardiac MRI data from extensively under-sampled data.
+
+iv
+
+Dedication
+
+To my family, for their infinite love and support.
+
+v
+
+Acknowledgments
+
+I would like to thank Dr. Javad Alirezaie and Dr. Paul Babyn. I am very grateful to have advice from both of them in my PhD study. Dr. Alirezaie's enthusiasm for research and his passion in both teaching and presentation are very impressive and encouraging to inspire me throughout my whole PhD study. Dr. Alirezaie gave me tremendous freedom and kept encouraging me to actively think and test my own ideas for research. He always gave me great feedback to guide my research towards the direction that could solve practical problems. All of these enabled me to grow rapidly and helped me develop good research independence. He is such a wonderful advisor that all the students can rely upon. On the other hand, Dr. Babyn is really a wonderful mentor who taught me lots of hands-on skills and helped me with all the details in my research. My PhD study in the past many years would not have been so productive without the support from Dr. Babyn and it was such a fabulous experience working with him. I enjoyed all the discussion with him, in which his critical thinking and depth of knowledge were extremely helpful in my research. I am also thankful to the past and present lab mates in the CVIP lab: Pooya Sobhebidari, Samira Ghadrdan, and Omid Badr for the friendly and stimulating work environment. Finally, my greatest gratitude goes to my parents and all my other family members. I would not have been able to finish my study without their infinite support, encouragement and love.
+
+vi
+
+Table of Contents
+Abstract .................................................................................................................................. iii Dedication .............................................................................................................................. v Acknowledgements ................................................................................................................ vi List of Tables ......................................................................................................................... x List of Figures ........................................................................................................................ xi List of Symbols ...................................................................................................................... xvii List of Abbreviations ............................................................................................................. xviii
+
+Chapter
+1. Introduction ................................................................................................................ 1 1.1 Overview and Motivation ........................................................................................ 1 1.2 Overall objective ...................................................................................................... 7 1.3 Main contributions ................................................................................................... 7 1.4 Thesis Outline ........................................................................................................ 10 2. Background ............................................................................................................... 12 2.1 Basics of MRI System ........................................................................................... 12 2.1.1 2.1.2 Signal equation ............................................................................................. 13 K-space trajectories ..................................................................................... 15
+
+2.2 Compressed Sensing .............................................................................................. 17 2.2.1 Discrete Methods .......................................................................................... 19 vii
+
+2.2.2 Convex Programs .......................................................................................... 20 2.2.3 Majorize-Minimize Methods ........................................................................ 21 3. Accelerating Dynamic Cardiac MRI ...................................................................... 23 3.1 Dynamic Cardiac MRI........................................................................................... 23 3.2 Literature review and challenges with existing acceleration schemes .................. 24 4. Compressed sensing reconstruction of cardiac cine MRI using golden angle spiral trajectories ................................................................................................... 32 4.1 Introduction............................................................................................................ 32 4.2 Materials and methods ........................................................................................... 33 4.2.1 Spatial-temporal sparsifying transform ........................................................... 33 4.2.2 k-t space sampling scheme .............................................................................. 35 4.2.3 Reconstruction................................................................................................. 39 4.3 Experimental results .............................................................................................. 40 5. Motion Compensated Data Decomposition Algorithm to Accelerate Dynamic Cardiac MRI........................................................................................................... 52 5.1 Introduction............................................................................................................ 52 5.2 Materials and methods ........................................................................................... 53 5.2.1 Background and Dynamic Decomposition ..................................................... 53 5.2.2 Motion Estimation and Compensation ............................................................ 56 5.2.3 Motion-compensated CS for dynamic MRI .................................................... 59 5.2.4 MCDD algorithm ............................................................................................ 61 5.3 Experimental Results ............................................................................................. 63
+
+viii
+
+6. Nonrigid Motion Compensation in Compressed Sensing Reconstruction of Cardiac Cine MRI ............................................................................................ 76 6.1 Introduction............................................................................................................ 76 6.2 Theory .................................................................................................................... 77 6.3 Methods ................................................................................................................. 80 6.3.1 data acquisition................................................................................................ 80 6.3.2 Implementation details .................................................................................... 81 6.4 Experimental Results ............................................................................................. 82 7. Conclusion and Future work ................................................................................... 88 References ..................................................................................................................... 93
+
+ix
+
+List of Tables
+
+Table5.1: quantitative comparison of different methods using PSNR, MSE and HFEN metrics .... ....................................................................................................................................................... 75 Table6.1: quantitative comparison of different methods using SER and SSIM metrics on the multicoil data set ................................................................................................................................... 87
+
+x
+
+List of Figures
+
+Fig. 1.1: MRI is a compromise between three tradeoff factors: scan time, resolution, and SNR..... .......................................................................................................................................... 2 Fig. 1.2: The relation between image domain and k-space. The two domains can form a Fourier transform pair. The sampling parameters are inversely proportional. Specifically, = 1/ ,  =  1/ . The coverage of the k-space samples ( ) determines the spatial resolution of the image. The sampling density in k-space determines the image FOV ....................................... 4 Fig. 1.3: Classical dynamic cardiac MRI. (a) depicts the ECG gated breath-holding imaging protocol. For a frame of the cardiac image, the k-space data are collected during different cardiac cycle. As shown in (c), each line of the k-space samples corresponds to one heartbeat. The corresponding reconstructed image is presented in (d). However, the conditions of data sharing (periodic heartbeats and breath-holds) usually are not satisfied, shown in (b), which leads to artifacts in the recovered image, as (e) shows. ............................................................................... 5 Fig. 1.4: In the first row, several sampling schemes to acquire k-space data are shown. In the second row, reconstructed images from samples using k-space trajectories are shown as in the figures above. According to sampling theory, we can recover the original image from the fully sampled (above or equal to Nyquist rate) Fourier data. However, if the k-space is downsampled uniformly thus acquire only one portion of the k-space data, aliasing artifacts contaminate the reconstructed images. Since the main subject, brain, completely becomes indistinguishable in the reconstructed image, this kind of aliasing artifacts need to be avoided. On the other hand, if the k-
+
+xi
+
+space is randomly sampled and collected the same numbers of samples, the artifacts show less pattern and we can still identify the brain image ............................................................................ 6 Fig. 2.1: In the presence of an external magnetic field B0, the protons will be polarized and generate a magnetization M0, as shown in (a). Applying a RF excitation field B1 along x direction, the magnetization tips away from M0, producing two components, i.e. longitudinal magnetization Mz and transverse magnetization Mxy, as shown in (b). ..................................................................... 13 Fig. 2.2: Illustration of slice selection. The linear gradient field  is exerted to change the resonant frequencies linearly. When the RF pulse centered at  with bandwidth of  is applied, the protons with the corresponding resonant frequency at a slice of the body are excited. A higher gradient or a larger bandwidth results in thicker selected slice .................................................... 14 Fig. 2.3: Illustration of two classical Cartesian MRI sampling schemes. In Fig. 2.3(a) the most straight forwards sampling pattern in MRI is shown. After each excitation, it collects one single line in  , the readout direction. Therefore multiple excitations is needed until it cover the whole k-space. While, in Fig.2.3 (b), the MRI scanner applies a much faster data acquisition method: EPI. It collects data along a zigzag trajectory to cover the k-space in one excitation .................. 16 Fig. 2.4: Two classical non-Cartesian sampling pattern of MRI scanner: radial scan Fig. 2.4 (a) and spiral scan Fig. 2.4(b) are shown. The trajectories begin at the center of the k-space and proceed to the edge along straight lines in radial scan and curve lines in spiral scan .................. 17 Fig. 2.5: Illustration of MM algorithm. The goal is to minimize the cost function C(f). Using a surrogate function S(m)(f) to maximize C(f), the minimization of the surrogate function is used to find the next iteration. By successively minimizing the surrogate function, the minima of C(f) can be obtained .................................................................................................................................... 21 Fig. 4.1: sparsifying transform ...................................................................................................... 34 xii
+
+Fig. 4.2: (a) The phantom dynamic data (b) The x-t cross section of the dataset corresponding to the horizontal line in (a), and (c) the transform domain of the cross section ............................... 34 Fig. 4.3: Stack of interleaved variable density spirals in k-space ................................................. 37 Fig 4.4: (a) 4 consecutive interleaves of the 16 interleaved spiral trajectory, with constant rotation of 2/ between interleaves and (b) 4 consecutive interleaves of the 16 interleaved spiral trajectory, with with golden ratio angle rotation between interleaves .......................................... 38 Fig. 4.5: Simulation results comparing the (a) fully sampled data to the retrospectively 4 fold undersampled reconstruction results using four different sparsifying transforms: (b) spatial DWT+temporal TV, (c) spatial DCT+temporal FFT, (d) spatial DCT+temporal TV, and (e) spatial DWT+temporal FFT. (First row) end-systolic reconstructed images, (second row) error images, (third row) spatial-temporal profile of the images ........................................................................ 42 Fig. 4.6: Average PSNR as a function of acceleration factor for the phantom data .................... 43 Fig. 4.7: Average PSNR as a function of acceleration factor for the cardiac cine MRI data ........... ........................................................................................................................................ 43 Fig. 4.8: Performance of the proposed algorithm (bottom) in comparison with the 2D scheme (top) on the phantom data. Reconstructed images (left), error images (right) ...................................... 44 Fig. 4.9: Comparisons for the cardiac cine MRI data. 2D algorithm (top), our proposed algorithm (bottom), reconstructed images (left), error images (right) .......................................................... 44 Fig. 4.10: Quantitative comparison of our proposed algorithm, k-t FOCUSS and k-t FOCUSS with ME/MC at a range of accelerations on cardiac MRI data ............................................................. 45 Fig. 4.11: The frame-by-frame MSE plot for each method .......................................................... 46 Fig. 4.12: The reconstructed and error images for (a) k-t FOCUSS (b) k-t FOCUSS with ME/MC, and (c) the proposed algorithm ..................................................................................................... 46 xiii
+
+Fig. 4.13: Temporal variation analysis. At the top, y-t slices of fully sampled image is shown. The reconstructed y-t slices using (a) k-t FOCUSS, (b) k-t FOCUSS with ME/MC, and (c) proposed algorithm are shown at the bottom................................................................................................ 47 Fig. 4.14. Reconstruction results of the dynamic cardiac data. The acceleration ratio is x6. Box (A) represents the 8th frame images of the ground-truth, the first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images. Each column represents ground truth, k-t SPARSE, iGRASP algorithm and Proposed algorithm, respectively ................................................................................................................................... 49 Fig. 4.15. Reconstruction results of the dynamic cardiac data applied on a ROI. The acceleration ratio is x6. Box (A) represents the 8th frame images of the ground-truth, the first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images. Each column represents ground truth, k-t SPARSE, iGRASP algorithm and Proposed algorithm, respectively .................................................................................................. 50 Fig. 4.16: MSE and PSNR values for each time frame ................................................................ 50 Fig. 5.1: Sequence of operations for the k-th iteration of the low-rank plus sparse decomposition algorithm [64] ............................................................................................................................... 55 Fig. 5.2: The proposed algorithm .................................................................................................. 62 Fig. 5.3. Reconstruction results of the PINCAT dynamic cardiac phantom. The -space data was obtained in Cartesian coordinates, and the acceleration ratio was x4. Box (A) represents the 24th frame images of the ground-truth, the first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images. Each column represents ground truth, direct IFFT, L+S algorithm, DC-CS algorithm, and proposed algorithm, respectively. .................................................................................................................................. 66 xiv
+
+Fig. 5.4: MSE, HFEN, and PSNR values for each time frame ..................................................... 67 Fig. 5.5: Reconstructed images at 4 acceleration: Boxes (A) and (B) represent frames from the systole and diastole phases, respectively. (C) represents temporal slice profile images. Each column represents ground truth, direct IFFT, L+S algorithm, DC-CS algorithm, and proposed algorithm, respectively.................................................................................................................. 68 Fig. 5.6: PSNR, MSE, and HFEN values for each time frame for single-coil cardiac MRI data ..... ........................................................................................................................................ 70 Fig. 5.7: (a) PSNR, (b) MSE, and (c) HFEN in function of acceleration factor ........................... 71 Fig. 5.8: Systolic-phase images and y-t plots corresponding to reconstruction of multi-coil cardiac cine data with simulated 8-fold undersampling using low-rank plus sparse (L+S) decomposition, deformation correction compressed sensing (DC-CS) algorithm, and the proposed algorithm ....... ........................................................................................................................................ 72 Fig. 5.9: PSNR in function of acceleration factor for multi-coil MRI data .................................. 73 Fig. 5.10: Recovery of a retrospectively undersampled Cine dataset using proposed algorithm (second row; b1&b2), MC-CS algorithm (third row; c1&c2), and L+S algorithm (forth row; d1&d2). The 128×128×16 dynamic dataset, which is acquired using 12 coils, is retrospectively undersampled by factor of 4 using Cartesian sampling pattern. The cardiac images of the fully sampled data corresponding to peak diastole and systole cardiac phases are shown in (a1) and (a2). The sampling patterns for corresponding frames are shown in (a3&a4). The reconstructed images are shown in the first two columns, while their error images are shown in the last two columns. .. ........................................................................................................................................ 74 Fig. 6.1. : Reconstructed images of the PINCAT dynamic cardiac phantom at 12-fold acceleration. Box (A) represents the 24th frame images of the ground-truth. The first row represents image xv
+
+frames, and the second row represents difference frames. Box (B) represents temporal slice profile images at the location indicated by red line. Each column represents ground truth, direct IFFT, MCDD algorithm, GW-CS algorithm, and proposed algorithm, respectively. ............................ 82 Fig. 6.2: SER and SSIM values for each time frame .................................................................... 83 Fig. 6.3. Recovery of a retrospectively undersampled single coil Cine dataset at 12-fold acceleration: Boxes (A) and (B) represent frames from systole and diastole, respectively. (C) represents the temporal profile images at the location indicated by red line. Each column represents ground truth, direct IFFT, MCDD algorithm, GW-CS algorithm, and proposed algorithm, respectively. .................................................................................................................................. 84 Fig. 6.4: SER and SSIM values for each time frame for single-coil cardiac MRI data ............... 85 Fig. 6.5: SER and SSIM in function of acceleration factor. ......................................................... 85 Fig. 6.6: Reconstructed images at 12-fold acceleration using proposed algorithm (second row; b1&b2), GW-CS algorithm (third row; c1&c2), and MCDD algorithm (fourth row; d1&d2). (a1) and (a2) represent the cardiac images of the fully sampled data corresponding to peak diastole and systole cardiac phases respectively. The sampling patterns for corresponding frames are shown in (a3&a4). The reconstructed images are shown in the first two columns, while their error images are shown in the last two columns. ............................................................................................... 86
+
+xvi
+
+List of Symbols
+  . 
+LoG
+
+E
+
+gyromagnetic ratio undersampled Non-Uniform FFT  norm Laplacian of Gaussian encoding or acquisition operator
+
+xvii
+
+List of Abbreviations
+MRI NMR CT PET FDA FOV ECG PSF NUFFT MCDD CS 2D TR PNS RIP MP LP SDP EM ISTA FISTA CMRI LV S-T SNR TVI PE TSS RPCA ME-MC BH VD FSA PSNR MAD MSE GOP PINCAT DC-CS HFEN GW-CS SSIM magnetic resonance imaging nuclear magnetic resonance computed tomography positron emission tomography food and drug administration field of view electrocardiogram point spread function non uniform fast Fourier transform Motion Compensated Data Decomposition compressed sensing two-dimensional repetition time peripheral nerve stimulation restricted isometric property matching pursuit linear program semidefinite programs expectation maximization iterative shrinkage thresholding algorithm fast ISTA cardiac MR imaging left ventricular spatio-temporal signal-to-noise ratio time-varying image phase-encode time sequential sampling robust principal component analysis motion estimation and compensation breath-hold Variable density fixed spiral approach peak signal to noise ratio mean absolute difference mean squared error group of pictures physiologically improved non-uniform cardiac torso deformation correction compressed sensing high frequency normalized error norm group wise compressed sensing Structural Similarity index xviii
+
+Introduction
+1.1. Overview and Motivation
+Magnetic resonance imaging (MRI) is a widely-used medical imaging technique, which uses nuclear magnetic resonance (NMR) to image the nuclei of water atoms within the human body. MRI has become a popular diagnostic tool for clinical purposes due to the following advantages: First of all, MRI, in comparison with other imaging tools such as computed tomography (CT) or positron emission tomography (PET), provides non-invasive (no ionizing radiation but only intense magnetic field) images with high resolution and contrast. Secondly, while X-rays are effective when looking at bones, MRI provides improved visualization of soft tissues, organs, ligaments and the circulatory system compared with CT. Therefore, it serves as a powerful diagnostic tool. By changing the parameters of its impulse sequences, MRI can provide various tissue contrast images useful for differential diagnosis. For example, T1-weighted MRI images have high contrast between gray matter and white matter in the brain, and it is useful for accurate assessment of myelination, while T2-weighted MRI increases the contrast of myocardial edema. Many physicians have recognized MRI as an indispensable imaging diagnosis tool in practice. However the technology of MRI is still in its infancy, and a faster dynamic MRI is desirable in the clinic. The current application of MRI is limited due to its long data acquisition time. By reducing scan time, faster MRI techniques could considerably improve the patient's comfort levels. More importantly, the development of a faster MRI technique could also expand its application and scope. For example, dynamic MRI, by providing continuous imaging with much shorter scan 1
+
+times, would allow physicians to better access real time vascular information for tumor and coronary artery disease diagnosis. Dynamic MRI schemes are used to image the body at different time points to visualize temporal change. For example, cardiac MRI provides images of both still and moving heart and nearby vessels, both of which are helpful in diagnosis. Due to its high contrast spatial resolution of MRI images, cardiac MRI is often preferred to diagnose and evaluate a number of diseases and conditions, including: coronary artery disease, congenital heart defects, heart tumors and valvular disease. The key technical difficulty in dynamic MRI is to shorten image acquisition time while still maintaining image quality. Conventional MR scanners are limited in providing images with both high temporal resolution and high spatial resolution. Clinicians are often forced to compromise between spatial resolution, SNR, and scan time, often resulting in sub-optimal performance. Fig. 1.1 illustrates the three-way tradeoff among the three factors in MRI.
+
+Fig. 1.1: MRI is a compromise between three tradeoff factors: the scan time, resolution, and the SNR1.
+
+1
+
+http://hdl.handle.net/1802/28286
+
+2
+
+1. Tradeoff between SNR and scan time: SNR is one of the most important parameters of image quality. Theoretically, increasing field strength leads to a linearly increased SNR [1]. However, as the main magnetic field (B0 field) strength increases, the scanner becomes considerably more expensive and the scan time gets longer. In addition, a higher B0 field strength leads to increment of both B0 field inhomogeneity and RF magnetic field (B1 field) inhomogeneity. As a result, it is often difficult to get excellent compromise between the two factors. 2. Tradeoff between SNR and resolution: If the scan time remains unchanged, the resolution can be increased by either using higher gradient field or less signal averaging. Both approaches lead to a reduction of SNR. Moreover, increased gradient field strength can cause undesirable peripheral nerve stimulation [2, 3]. In fact, the US Food and Drug Administration (FDA) has strict limits on the gradient strength, which limits the compromise between SNR and resolution. 3. Tradeoff between scan time and resolution: It is known that MRI scanners acquire samples of the images in the Fourier domain, which is termed as k-space. According to Nyquist theorem, the extension of the k-space region determines the spatial resolution, while the density of the samples in k-space determines the field of view (FOV). Fig. 1.2 shows the relationship between image domain and k-space. An effective way to shorten the scan time is to undersample k-space. However, undersampling violates the Nyquist criterion, which can lead to aliasing artifacts in the recovered image.
+
+3
+
+2 spatial resolution of the image. The sampling density in k-space determines the image FOV .
+
+are inversely proportional. Specifically,  = 1/,    1/ . The coverage of the k-space samples ( ) determines the
+
+Fig. 1.2: The relation between image domain and k-space. The two domains form a Fourier transform pair. The sampling parameters
+
+Dynamic imaging provides the biggest challenge for MRI due to the above mentioned tradeoffs. There are several applications for dynamic MR imaging such as cardiac, perfusion, and vocal tract imaging, etc. Various efforts have been made to simultaneously achieve high spatio-temporal resolution. For example, in cardiac MRI, the periodicity of the heartbeats is exploited to enable data sharing in k-space. Subsets of k-space are filled within each heartbeat and the image is reconstructed by combining the k-space samples from different heartbeats. This is possible when the heart is beating periodically, where the motion is captured by electrocardiogram (ECG) gating. Another physiological motion, i.e. respiratory motion, can be minimized by the subjects holding their breath. Fig. 1.3 (a) shows an ECG gated breath-holding cardiac MRI, with a k-space sampling pattern in (c) and the reconstructed heart image in (d). Good reconstruction is only possible when
+
+2
+
+http://hdl.handle.net/1802/28286
+
+4
+
+the ECG gating is perfect and patients are holding their breaths. However the assumptions of data sharing (periodic heartbeats and breath-holds) are often not met in many clinical scenarios. For instance, patients with arrhythmia have high variability in their heart rates. Pediatric patients and other patients suffering from asthma, dyspneic respiration or congestive heart failure may not be able to comply with the strict breath-hold demands. This results in inconsistent data sharing, shown in Fig. 1.3 (b), and leads to blurring and other motion related artifacts in reconstruction as demonstrated in (e).
+
+Fig. 1.3: Classical dynamic cardiac MRI. (a) depicts the ECG gated breath-holding imaging protocol. For a frame of the cardiac image, the k-space data are collected during different cardiac cycle. As shown in (c), each line of k-space samples corresponds to one heartbeat. The corresponding reconstructed image is presented in (d). However, the conditions of data sharing (periodic heartbeats and breath3 holds) usually are not satisfied, shown in (b), which leads to artifacts in the recovered image, as (e) shows .
+
+3
+
+http://hdl.handle.net/1802/28286
+
+5
+
+Therefore, dynamic cardiac MRI is one of the most challenging and demanding MRI application. Scan time is a crucial parameter in the development of dynamic cardiac MRI. Many researchers have attempted to speed up cardiac MRI techniques. It is still a demanding task to obtain cardiac sequences with enough spatio-temporal resolution to accurately capture the dynamic activity of heart. Even with the advanced fast imaging sequences (bSSFP [4]), it is hard to collect data for the entire heart volume within a single breathhold [5]. The most straightforward way to reduce total scan time is to decrease the number of samples acquired in in k-space. However, sub-Nyquist sampling results in undesirable artifacts, shown in Fig.1.1. (Uniform downsampling scheme results in structured aliasing artifacts.) It is important to note that the aliasing caused by randomly undersampling is incoherent in nature and hence quality appears better.
+
+Fig. 1.4: In the first row, several sampling schemes to acquire k-space data are shown. In the second row, reconstructed images from samples using k-space trajectories are shown as in the figures above. According to sampling theory, the original image can be recovered from the fully sampled (above or equal to Nyquist rate) Fourier data. However, if the k-space is downsampled uniformly thus acquire only one portion of the k-space data, aliasing artifacts contaminate the reconstructed images. Since the main subject, brain, completely becomes indistinguishable in the reconstructed image, this kind of aliasing artifacts need to be avoided. On the other hand, if k-space is randomly sampled and collected the same numbers of samples, the artifacts show less pattern and we can still identify the brain image [12]
+
+6
+
+Many image reconstruction schemes have been developed to speed-up the data acquisition of dynamic MRI without degrading the image quality. A brief review of existing acceleration schemes and challenges associated with these methods will be presented in chapter 3 of this thesis.
+
+1.2. Overall objective
+The overall objective of this thesis is to develop novel dynamic cardiac MR imaging frameworks that can enable free breathing dynamic cardiac imaging with high spatiotemporal resolution. To achieve this, this dissertation deals with developing novel image reconstruction methods for the reconstruction of dynamic cardiac MRI data from highly accelerated / under-sampled Fourier measurements. We are inspired by the recent developments in compressed sensing theory and its application to image reconstruction. It states that as long as the image is sparse in a certain domain, it is possible to reconstruct images from dramatically fewer samples than the numbers needed by Nyquist sampling theory. Compressed sensing formulates the recovery as an optimization. The optimization criterion can be represented by a linear combination of a quadratic data consistency term and a non-quadratic image prior, which is termed as the regularization penalty. In this dissertation, we try to improve both components to accelerate the reconstruction algorithm and to reduce the reconstruction error by solving the image recovery optimization problem. We aim at fast MRI techniques with high spatial and temporal resolution and to apply our algorithms in the real-world clinical applications such cardiac MRI.
+
+1.3. Main contributions
+1. A compressed sensing based image reconstruction method in conjunction with spiral sampling is developed for the reconstruction of dynamic MRI data from highly accelerated / under-sampled 7
+
+Fourier measurements. The main novelties and benefits of the proposed algorithm over existing methods are: - Exploiting spatio-temporal sparsity of cardiac MRI by applying 3D wavelet-Fourier transform - Using golden angle spiral trajectories for efficient coverage of k-space: Compared to
+
+conventional Cartesian k-space sampling, spiral sampling allows faster acquisitions and results in a reduction of the high gradient demand in fast cardiac scans. Another advantage is that the sampling density can be varied in the center of k-space, where the most energy in MR k-space images is concentrated. Moreover, spiral trajectory is very flexible. High temporal and spatial resolution, as required for dynamic MR imaging can be obtained by tuning the number of interleaves and spiral parameters. However, spiral images are more susceptible to off-resonance effects that cause blurring artifacts and distortions of the point spread function (PSF), and thereby degrade the image quality. Since off-resonance effects scale with the readout duration, the respective artifacts can be reduced by shortening the readout trajectory. Multi shot (interleaved) spirals are used to reduce these artifacts. And in order to reduce incoherent aliasing artifact, different random undersampling pattern is used for each temporal frame. - Using non uniform fast Fourier transform (NUFFT): since k-space samples are no longer aligned on a Cartesian grid, reconstruction of such data is no longer straight forward. Non uniform fast Fourier transform algorithm is used to reconstruct the image from the non-uniformly acquired samples. 2. To address the problem of motion artifacts in typical compressed sensing reconstructions, a novel motion estimation and compensated compressed sensing reconstruction scheme has been proposed. The proposed scheme decomposes the given dynamic cardiac MR images into a low rank and a sparse component. This allows robust separation of motion component and background 8
+
+component that can be registered. Robustness to different types of motion for this Motion Compensated Data Decomposition (MCDD) algorithm will be demonstrated on both simulated and in-vivo dynamic cardiac MRI data. 3. Also, a novel formulation for the joint estimation of the deformation and the dynamic images in cardiac cine MR imaging has been introduced. The hypothesis is that low rank plus sparse decomposition coupled with a registration algorithm provides accurate registration of dynamic time series in a broad range of organs and for various breathing protocols. The motion estimation algorithm estimates the deformation by registering the dynamic data to a reference dataset that is free of respiratory motion, which is derived from the measurements themselves. A variable splitting framework is used to minimize the objective function, and thus derive the deformation and the dynamic images. The novelties enabled by this framework are derivation of a reference dataset that is free of motion from the measurements themselves and efficient decoupling of the motion estimation problem from the reconstruction problem. Unlike existing motion compensated compressed sensing schemes, the proposed scheme does not require fully sampled prescans or navigators for motion estimation. The work has contributed to the following papers: "Compressed sensing in MR imaging", A. Tolouee, J. Alirezaie, P. Babyn, Computer Aided Radiology and Surgery: Int. Journal of Computer Assisted Radiology and Surgery, Volume 8, Supplement 1, S20-21, June 2013. "Accelerating dynamic MRI by compressed sensing reconstruction from undersampled k-t space with spiral trajectories ", A. Tolouee, J.Alirezaie, , P. Babyn, Proceedings of Middle East Conference on Biomedical Engineering (MECBME) , pp. 17 - 20, Feb 2014. "Compressed Sensing Reconstruction of Cardiac Cine MRI using Golden Angle Spiral Trajectories", A. Tolouee, J.Alirezaie, P. Babyn, Journal of Magnetic Resonance, Volume 260, pp. 10­19, 2015. "Motion Compensated Data Decomposition Algorithm to Accelerate Dynamic Cardiac MRI", A. Tolouee, J.Alirezaie, P. Babyn, Magnetic Resonance Materials in Physics, Biology and Medicine 2017. DOI: 10.1007/s10334-017-0628-x. 9
+
+"Motion Compensated Compressed Sensing Reconstruction in Cardiac Cine MRI", A. Tolouee, J.Alirezaie, P. Babyn, Proceedings of IEEE Nuclear Science Symposium and Medical Imaging Conference, 2017. "Nonrigid Motion Compensation in Compressed Sensing Reconstruction of Cardiac Cine MRI", A. Tolouee, J.Alirezaie, P. Babyn, Magnetic Resonance Imaging Journal, 46, 114-120, 2018.
+
+1.4. Outline of the thesis
+In the following, the organization of this thesis is introduced. Chapter 2, entitled "Background", provides a brief overview of magnetic resonance imaging (MRI) and the compressed sensing (CS) theory. Chapter 3, entitled "Accelerating Dynamic Cardiac MRI", briefly discusses the need for fast cardiac MRI techniques, existing methods and limitations in dynamic cardiac MRI. Chapter 4, entitled "Compressed Sensing Reconstruction of Cardiac Cine MRI using Golden Angle Spiral Trajectories", presents the development of the first proposed algorithm to include non-Cartesian spiral sampling. Using the proposed frame work, this chapter demonstrates the feasibility of accelerating cardiac MRI data. Validations are performed on numerical phantom and in-vivo data to study the resulting formulation in terms of its performance against existing compressed sensing methods. Chapter 5, entitled "Motion Compensated Data Decomposition Algorithm to Accelerate Dynamic Cardiac MRI", presents a new reconstruction and motion estimation framework in the context of compressed sensing. The chapter discusses in detail the new formulation, and its performance on phantom and in-vivo cardiac MRI data. Chapter 6: entitled "Non-rigid Motion Compensation in Compressed Sensing Reconstruction of Cardiac Cine MRI", presents a robust non-rigid motion compensation approach applied to the compressed sensing reconstruction of dynamic cardiac cine MRI sequences.
+
+10
+
+Chapter 7: entitled "Summary and future work", provides conclusions and further directions for this research.
+
+11
+
+Background
+2.1. Basics of MRI System
+MRI is based on the phenomenon of nuclear magnetic resonance (NMR). The nuclear spins have the intrinsic angular momentum, which gives rise to a nuclear magnetic moment  . The overall
+
+magnetization of a system  is defined as the vector sum of all the nuclear magnetic moments, i.e.     . Without an external magnetic field, the moments of the spins have random directions. Hence, the net magnetization is zero. In the presence of an external static magnetic field field , as shown in Fig. 2.1 (a).
+
+, the spins are polarized and exhibit a net magnetization  that is aligned with the magnetic The polarization and hence the magnetization increases with the main magnetic field strength . frequency (also denoted as Larmor frequency) [6]: where  is the gyromagnetic ratio. In in-vivo MRI, the signal is produced by the spins of protons in water and fat molecules in the body [7]. When an RF excitation field (), modulated at the Larmor frequency, is applied in the transverse    
+(2.1)
+
+The motion of the spins in the presence of  is termed as precession, with the precession
+
+magnetization ( ). After  is removed, the magnetization will gradually return to the original 12
+
+components of the deflected magnetization, i.e longitudinal magnetization ( ) and transverse
+
+plane, the magnetization ( ) will be tipped away from the equilibrium state. There are two
+
+position through a process termed as relaxation, as presented in Fig. 2.1 (b). The detectable signal that is produced by the relaxation of  is the MR signal.
+
+Formulation of the two-dimensional (2D) MR image will be described in the next section.
+
+(a)
+
+(b)
+
+Fig. 2.1: In the presence of an external magnetic field B0, the protons will be polarized and generate a magnetization M0, as shown in (a). Applying a RF excitation field B1 along x direction, the magnetization tips away from M0, producing two components, i.e. a longitudinal magnetization Mz and transverse magnetization Mxy, as shown in (b) [6].
+
+2.1.1.
+
+Signal equation
+
+When an RF excitation pulse is applied to a volume, all the protons within the magnetic field are
+
+excited. In order to image a slice of the body, a linear gradient field along z direction, i.e. G , is used. According to the linear relation between resonant frequency and the magnetic field strength, as Eq. (2.1) presents, the resonant frequencies vary linearly, shown in Fig. 2.2. Therefore, when the band-limited RF field B is applied, only the protons at a slice of the body will be excited with the corresponding resonant frequency. The bandwidth of the RF pulse and slope of the applied gradient determine the thickness of the excited slice. Fig. 2.2 illustrates the relationship between the RF pulse bandwidth and the slice thickness.
+
+13
+
+centered at  with bandwidth of  is applied, the protons with the corresponding resonant frequency at a slice of the body are excited. A higher gradient or a larger bandwidth results in thicker selected slice [6].
+
+Fig. 2.2: Illustration of slice selection. The linear gradient field  is exerted to change the resonant frequencies linearly. When the RF pulse
+
+Similarly, gradient field along the  direction, , and along y direction,  , can be applied to
+
+time-varying gradient field  in two directions [8]:          
+
+spatial location ;  and time point  is determined by both the static magnetic field  and the
+(2.2)
+
+further localize the MR signal. Hence, the magnetic field  experienced by protons at a specific
+
+By ignoring the relaxation and the field map effect in the Larmor frequency equation (2.1), the following equation can be obtained:  , ,   ,      
+
+
+(2.3)
+
+The MR signal detected at a specific time point is the summation of MR signal of all voxels:     , 
+      
+
+
+k-space location at the time point  is defined as:         2  
+
+
+
+(2.4)
+
+(2.5)
+
+14
+
+        2   The MR signal equation can thus be expressed as:  ,      ,     
+ 
+
+(2.6)
+
+(2.7)
+
+This equation indicates that the received k-space signal  ,   and the image ,  form a Fourier transform pair, where the k-space trajectory is controlled by the gradients.
+
+2.1.2.
+
+K-space trajectories
+
+Currently, the most popular k-space trajectory is Cartesian acquisition, where the k-space is sampled line by line in order to obtain the whole coverage of k-space domain and reconstruct the image using Fourier transform. This sampling method is slow because it only samples one line per excitation. The time interval between successive excitation pulses is termed as repetition time (TR). Thus, in order to obtain the k-space data of a 256×256 image, the scan time is about 256×TR. There are several fast acquisition methods that have been developed. One of the most well-known is echo-planar imaging (EPI) shown in Fig. 2.3(b). In Cartesian EPI, the gradient  is continuously applied, with positive and negative alterations. In this case, the data is collected along a raster global trajectory.
+
+15
+
+(a) rectilinear scan
+
+(b) Echo planner imaging
+
+shown. After each excitation, it collects one single line in  , the readout direction. Therefore multiple excitations are needed to cover the whole k-space. While, in Fig.2.3(b), the MRI scanner applies a much faster data acquisition method: EPI. It collects data along a zigzag trajectory able to cover k-space in one excitation.
+
+Fig.2.3: Illustration of two classical Cartesian MRI sampling schemes. In Fig.2.3(a) the most straight forward sampling pattern in MRI is
+
+However, the EPI scheme is linked to several artifacts such as magnetic field inhomogeneity induced distortions and eddy current induced ghosting. In addition, the rapid switching gradients can cause peripheral nerve stimulation (PNS) [9]. American and European regulatory agencies insist that manufacturers stay below specified dBdtlimits (dBdt is the change in field per unit
+
+time) for any imaging sequence.
+
+Non-Cartesian schemes that use smoothly varying gradients (e.g. radial, spiral, rosette) were introduced to avoid the dBdt problems associated with the fast switching gradients in EPI.
+
+Besides, many of these schemes naturally oversample the center of k-space, where most of the signal energy is concentrated. Hence, there are reported to be more SNR efficient than EPI methods. The non-Cartesian scan starts at the center of k-space and proceeds to the edge to cover k-space. In both radial and spiral scans, the sampling locations are not on a Cartesian grid most of time. Therefore, it requires more complicated reconstruction algorithms since FFT is not amenable to 16
+
+non-Cartesian data set. However, the non-Cartesian scan is still very popular due to the advantages of fast imaging and less artifacts. Seen in Fig.2.4, the trajectories sample more intensely at the center and more sparsely near the edges. Since the k-space of MRI images have most of the energy at the center, the non-Cartesian sampling pattern (radial and spiral) would preserve the most of the energy even when undersampling. These trajectories are more suited to accelerate imaging by undersampling k-space since they can downsample the k-space non-uniformly. This is in contrast to 1-D downsampling with EPI-like methods. In compressed sensing, they can provide incoherent downsampling of k-space. From scan time reduction perspective, non-Cartesian scan will provide better reconstruction results with less patterned artifacts.
+
+(a) radial scan
+
+(b) spiral scan
+
+Fig. 2.4: Two classical non-Cartesian sampling patterns of MRI scanning: radial scan Fig.2.4(a) and spiral scan Fig.2.4(b) are shown. The trajectories begin at the center of the k-space and proceed to the edge along straight lines in radial scan and curve lines in spiral scan.
+
+2.2. Compressed Sensing
+The theory of compressed sensing (CS) is motivated by the sparse representations of images used in the field of image compression. The main question in compressed sensing is: if the data is known to be sparse, can it be recovered using fewer measurement samples? In the recent years, this research area has received tremendous interest. Most MR images are sparse in a pre-specified 17
+
+transform domain. In compressed sensing based MRI, the reconstruction is formulated as an optimization problem by enforcing both the data consistency and the sparsity of the image. The solution of the optimization problem is achieved by using non-linear methods. Compressed sensing theory was first proposed by Candes, Romberg, and Tao [10], and D. Donoho [11]. Generally speaking, compressed sensing is a technique which reconstructs a sparse signal from a limited number of its linear measurements. Recently, Lustig has applied this technique to MRI [12]. He adapted the compressed sensing (CS) theory in the context of recovering a sparse image from its undersampled Fourier samples. Now, the essentials of compressed sensing based schemes will mathematically be described. Suppose     is a sparse signal,  is the sparsifying transform (e.g wavelet, finite differences).
+
+ is an arbitrary linear operator such that     , where  is the observed noisy linear
+
+and  is often modeled as a Gaussian white noise with standard deviation . The compressed  that is sparsest in the  transform domain and satisfies a sensing method tries to find the signal     min such that  -       
+
+
+measurements. In the context of MRI,  usually refers to the undersampled Fourier transform,
+
+data consistency requirement,
+
+(2.8)
+
+where the objective function .  is the  norm, which indicates the number of non-zero constraint  -      promotes data consistency.    min   -  -      
+
+
+coefficients in the sparse signal. The sparsity is enforced by the minimization of  . The
+
+The problem is often reformulated using Lagrange's multipliers as:
+(2.9)
+
+18
+
+[10, 11, 13] have theoretically proved that  minimization is equivalent to  minimization on signal recovery if the restricted isometric property (RIP) is satisfied [14]. The  optimization    min -      
+
+
+However, the  reconstruction problem (2.9) is numerically infeasible. Candes et al. and Dohono
+
+problem is thus presented as:
+
+(2.10)
+
+the accuracy of CS reconstruction if the sparsifying transform  and the undersampled Fourier suppose that there is a constant  of the operator  , such that
+  1 -       1   
+
+where the  norm is defined as   | |. The restricted isometric property (RIP) guarantees
+
+transform  satisfies certain conditions. When the signal is sparse in its domain, i.e.   I,
+(2.11)
+
+behaves almost like an orthogonal matrix when the data  is sparse. When the sparsifying transform  is not identity, RIP requires the matrix E =  to satisfy the condition (2.11). A large number of optimization algorithms have been introduced to solve the problem in Eq. (2.10). Generally, these algorithms fall into three categories: discrete algorithms, convex algorithms, and majorize-minimize (MM) algorithms.
+
+Essentially, the aim of RIP is to define an incoherent sampling scheme, so that the operator 
+
+holds for all sparse vectors  with s non-zero coefficients [33],  is considered to satisfy RIP.
+
+2.2.1.
+
+Discrete Methods
+
+Most discrete reconstruction algorithms are greedy algorithms, which are a family of heuristic methods that compute a local optimal solution at each stage in order to find the global optimal 19
+
+answer at the end. The idea of greedy algorithms can be traced back to Mallat et.al. [15] in 1993, where he put forward the matching pursuit (MP) method. The algorithm decomposes a signal into a linear combination of waveforms, which are chosen from a redundant dictionary of functions. The waveforms are then selected to match the signal optimally. This method is proved to have good approximation property [16] and converges for any signal in the dictionary space. Other greedy methods based on MP are also developed [18, 19]. However, there are two primary drawbacks of MP related methods [20]. Firstly, a prior sparsity level parameter is required, which is unknown under most practical circumstances. Secondly, the algorithms are not robust to noise. These limitations have motivated the development of other types of optimization algorithms.
+
+2.2.2.
+
+Convex Programs
+
+Convex optimization studies the problem of finding the minimum of a convex function over a convex set. One of the most common types of convex optimization problems is one with linear constraints and a linear objective, which is called a linear program (LP) [21]. With the development of convex optimization, semidefinite programs (SDP) [22] become widely used in compressed sensing [22]. However, SDP based algorithms are computationally inefficient for large scale problems. Beyond these computation concern, SDP is not applicable to optimization problems with combined penalties.
+
+20
+
+2.2.3.
+
+Majorize-Minimize Methods
+
+The main advantage of MM algorithms is that they replace the original difficult regularized optimization problem by a sequence of easier quadratic surrogate problems. The surrogate criteria, current iterate   : denoted by   , majorize the original objective function , and are dependent on the  , ;        
+(2.12)
+
+majorizing criterion   , that satisfy (2.12), and (ii) solve for      min   
+
+
+Thus, the th iteration of the MM algorithm involves the following two steps (i) evaluate the
+
+using an appropriate quadratic solver (e.g. conjugate gradients (CG) algorithm). Fig. 2.5 shows the basic concept of MM algorithm.
+
+Fig. 2.5: Illustration of MM algorithm. The goal is to minimize the cost function C(f). Using a surrogate function S(m)(f) to maximize C(f), the minimization of the surrogate function is used to find the next iteration. By successively minimizing the surrogate function, the minima of C(f) can be obtained [23].
+
+One of the special cases of MM algorithm is the Expectation Maximization (EM) algorithm, where there are two steps: E (expectation) step and M (maximization) step. In the E step, the conditional 21
+
+expectation of the data log likelihood is computed, which basically creates a minorizing surrogate function. In the M step, minorizing surrogate function is maximized. Therefore, EM algorithm is essentially an example of MM algorithm [23]. There are other extensions of MM algorithms such as iterative shrinkage thresholding algorithm (ISTA) and fast ISTA (FISTA) [24, 25].
+
+22
+
+Accelerating Dynamic Cardiac MRI
+
+3.1. Dynamic Cardiac MRI
+Dynamic MRI acquires a series of images of a dynamically evolving object at different time points to show the structure and function of the object. Dynamic MRI collects more information than static MRI, which is helpful in detection of certain type of diseases (e.g cardiovascular diseases) [26]. However, obtaining dynamic MR images with high spatial and temporal resolution in a short period of time is challenging. Cardiac MRI is the most challenging and inspiring dynamic MRI application. There are many image reconstruction schemes developed to speed-up the data acquisition of dynamic cardiac MRI without degrading the image quality. The introduction of parallel MRI had a great impact on dynamic cardiac MRI applications [27]. In addition, electrocardiogram (ECG) gating along with breath holding is typically used to enable data sharing in k-space. Subsets of k-space are filled within each heartbeat and the image is reconstructed by combining k-space samples from different heartbeats. Good reconstruction is only possible when the ECG gating is perfect and patients are holding their breaths. However the assumptions of data sharing (periodic heartbeats and breath-holds) are often not met in many clinical scenarios. For instance, patients with arrhythmia have high variability in their heart rates. Pediatric patients and other patients suffering from asthma, dyspneic respiration or congestive heart failure cannot comply with the strict breath-hold demands [28-30]. This results in inconsistent data sharing and manifests as artifacts in the reconstruction. 23
+
+In non-gated techniques (i.e., with no cardiac synchronization), however, significantly higher accelerations are required to achieve a desirable spatio-temporal (S-T) fidelity-defined as a measure of how closely the reconstructed motion matches the true dynamics of cardiac tissue. Although modern cardiac MRI protocols use combination of fast pulse sequences and parallel imaging technology to achieve higher acquisition speeds, in non-gated imaging such techniques alone are typically insufficient for achieving simultaneous high S-T resolutions and high S-T fidelity [31, 32]. This is because of restrictions on gradient encoding performance, e.g., constraints to avoid peripheral nerve stimulation in addition to restrictions on accelerations gained through parallel imaging due to the associated signal-to-noise ratio (SNR) penalty [27]. Therefore, there has been huge interest in moving beyond such limits. There is an arsenal of techniques for highly accelerated cardiac MRI, which will be reviewed in the following section:
+
+3.2. Literature review and challenges with existing acceleration schemes
+As it is pointed out before, to address the challenges associated with slow cardiac MR imaging acquisition speed, recent interest has focused on accelerated schemes that recover the signal from sub-sampled/accelerated k-t measurements. Current state-of-the-art methods for dynamic MRI can be categorized as follows: parallel imaging methods, spatio-temporal model based methods, compressed sensing based methods, and a combination of these methods that can use multiple independent sources of prior information. Parallel imaging approaches compensate for the missing information due to downsampling with multichannel measurements. For example SMASH [33], SENSE [27], PILS [34], and GRAPPA [35] reduce the acquisition time by omitting phase encoding steps. In the reconstruction phase, 24
+
+SENSE restores the original images from a set of aliased images by solving linear sensitivity equations, whereas SMASH and GRAPPA calculate the missing k-space data with estimated kernels from multiple coil measurements. In principle, the data acquisition time for parallel imaging can be reduced by up to the number of receiver channels. However, these methods have limitations such as low SNR and the presence of aliasing artifacts for high acceleration factors. Also hardware design restricts acceleration factor. The main idea behind spatio-temporal model based methods such as UNFOLD [36] is to exploit the spatio-temporal redundancy that is often available in dynamic imaging because parts of the field of view remain static over time. UNFOLD obtains measurements in a sheared grid pattern in k-t space, wherein the phase encoding in k-space is shifted for every frame. This results in repetition of the support region in x-f (spatial-frequency) space and the original image can be reconstructed using a spatio-temporal filter. Theoretically, the optimal UNFOLD design problem can be formulated as a spatio-temporal sampling problem in the k-t space under so-called time sequential sampling (TSS) constraint [37]. Bresler et al. [38, 39] proposed PARADIM which achieves high temporal and spatial resolution with a multi-fold reduction using the optimal TSS pattern calculated on the fly. Researchers have tried to combine UNFOLD with parallel imaging for even faster scanning or reduced artifacts. For example, TSENSE [40] combines UNFOLD with SENSE in such a way that any residual artifacts are temporally frequency-shifted to the band edge and thus may be further suppressed by temporal low-pass filtering. UNFOLD-SMASH [41] meanwhile obtains additional phase encoding lines using SMASH, after which images are reconstructed using UNFOLD. Furthermore, a generalization of PARADIGM to multiple coils, called PARADISE, has been proposed by Sharif et al [42]. The advantage of these combined methods is that they allow aliasing 25
+
+in the x-f domain in designing a sampling lattice. The aliased x-f image is then converted into the final aliasing -free x-f image by exploiting the coil sensitivities. In theory, the maximum achievable acceleration factor can be as much as the parallel imaging acceleration factor multiplied by that of the optimized time sequential sampling. However, the main technical difficulty of these algorithms is that exact knowledge of the x-f supports is difficult to obtain. Another model-based approach called k-t BLAST/SENSE [43, 44, 45, and 46] has been proposed that largely overcomes the shortcomings of the aforementioned classical methods. The k-t BLAST/SENSE takes advantage of a priori information about x-f support obtained from the training data set in order to enhance the time resolution during data acquisition time. Unlike the above method, k-t BLAST/SENSE does not require precise knowledge of the spectral support. Furthermore, the signal does not need finite support. Significant quality improvements have been reported relative to the conventional methods. Furthermore, using regular lattice sampling patterns, fast implementation is possible. Another recent development in dynamic MRI is the introduction of compressed sensing (CS) theory by the signal processing community. The application of compressed sensing (CS) to increase imaging speed and efficiency in MRI demonstrated great potential to overcome some of the major limitations of current techniques in terms of spatial resolution, temporal resolution, volumetric coverage and reduced sensitivity to organ motion. CS exploits the fact that an image is sparse in some appropriate basis to reconstruct undersampled data (below the Nyquist rate) without loss of image information [10, 11, and 12]. Generally speaking, CS is a technique which reconstructs a sparse image from a limited number of its linear measurements without loss of image information [10, 11]. Lustig has applied this technique to MRI [12]. He adapted the CS theory in the context of recovering a sparse MRI image from its undersampled Fourier samples. Most MR 26
+
+images are sparse in a pre-specified transform domain such as wavelets, finite differences (total variation), learned dictionaries [47] and many others. In compressed sensing based MRI, the reconstruction is formulated as an optimization problem by enforcing both the data consistency and the sparsity of the image. The solution of the optimization problem is achieved by using nonlinear methods. CS can be combined with parallel imaging to further increase imaging speed by exploiting joint sparsity in the multicoil image ensemble rather than in each coil separately [4851]. Dynamic MRI is particularly well suited for the application of CS, due to extensive spatiotemporal correlations that result in sparser representations than would be obtained by exploiting spatial correlations alone. The idea of CS for signals / vectors can be utilized for recovering missing entries of a low rank matrix with incoherencies [52]. Low-rank matrices with a few large eigen values depend on a few parameters. Low-rank matrix is completed as the nuclear-norm is minimized with respect to the data body constraints, where the nuclear-norm is the analog of the -norm for signal vectors [53]. Low-rank matrix completion has been applied to dynamic MRI by considering each temporal frame as a column of a space-time matrix, where the spatiotemporal correlations produce a lowrank matrix [54, 55]. Local k-space correlations in multi-coil data have been exploited to perform calibrationless parallel imaging reconstruction via low-rank matrix completion [56]. Combining CS with low-rank matrix completion represents an attractive proposition for further increases in imaging speed. In dynamic MRI, previous work on this combination proposed finding a solution that is both low-rank and sparse [57, 58]. A different model suggested decomposing a data matrix as a superposition of a low-rank component (L) and a sparse component (S) [59-62]. The L+S method is particularly suitable for dynamic imaging, where L can model temporally correlated background and S can model the dynamic information that lies on top of the background. 27
+
+Preliminary study on the application of L+S to dynamic MRI has been reported by Gao et al. [63] to reconstruct retrospectively undersampled cardiac cine data sets and to separate cardiac motion from a common background among frames. In [64], Otazo et al extended the work by Gao et al. [63] by using L+S decomposition for dynamic MR imaging with joint multi-coil reconstruction. They also demonstrated the superior compressibility of the L+S model compared to use of a sparse model alone. Reconstruction of highly-accelerated dynamic MRI data corresponding to cardiac perfusion, cardiac cine, time resolved peripheral angiography, abdominal and breast imaging were presented to show feasibility and general applicability of L+S method. While all of these methods demonstrate successful recovery when the motion is minimal, the main challenge is the sensitivity of these methods to large inter frame motion. Specifically, the compactness of the signal representation decreases with inter frame motion, thus restricting the maximum possible acceleration; the reconstructions often suffer from temporal blurring and motion related artifacts at high acceleration factors. To address the above challenge, several motion estimation and compensation (ME-MC) schemes have been developed. When applied to dynamic MRI reconstruction, motion estimation and motion compensation techniques lack the appropriate dynamic image information to estimate motion. A common approach is to perform the ME step from an initial reconstruction of the images themselves. However, this will be affected by the artifacts introduced by the undersampling pattern that the initial reconstruction cannot correct, and hinders the estimation of the true motion information. This effect becomes more relevant as the acceleration factor increases. In k-t FOCUSS with ME/MC [65, 66] a high quality reference frame is needed to perform ME by means of a block matching algorithm applied independently to each frame. However the reference frame 28
+
+may not be available and the final reconstruction result depends heavily on its quality. In MASTeR [67], motion is estimated sequentially between each pair of consecutive frames. In both k-t FOCUSS with ME/MC and MASTER approaches only two frames of the sequence are available for the ME algorithm at each execution, therefore the ME algorithm cannot benefit from the additional information present in the rest of the frames making it more sensitive to artifacts in the sequence. In [68] a motion corrected compressed sensing framework has been proposed that benefits from the higher acceleration available with CS, and corrects for arbitrary (affine or nonrigid) motion in the CS reconstruction. However, this framework needs longer acquisition time per slice than a standard breath-hold acquisition (~10 s), as enough samples for accurate motion estimation are required in each respiratory position. In [69], a groupwise temporal registration procedure, shown to be more robust to artifacts than its pairwise counterparts, was proposed for ME/MC reconstruction of breath-hold cine acquisitions. However, the acceleration factors achieved did not enable its direct application to free-breathing real time imaging. Additionally this algorithm lacks a true dynamic image to estimate the motion from. It needs estimating the motion directly from highly undersampled data. In this study, three novel approaches are introduced specifically designed to minimize the sensitivity of compressed sensing to inter frame motion. The first algorithm is based on compressed sensing using golden-angle variable density spiral sampling. By using spiral trajectories, reduced scan time can be achieved by making more efficient use of gradient hardware capabilities. Variable density trajectories have been proposed to achieve further scan time gains, as they allow increased flexibility in the tradeoff between resolution, field of view (FOV), and acquisition duration. Moreover, since the acquisition starts near the centre of k-space, there is relatively little gradient-on time before passing through the centre of k-space 29
+
+(where the echo signal is largest) and thus the first-order moment at this point in time is low, and hence the sensitivity to motion can be low. The motion artefacts associated with non-Cartesian sequences are more benign than for regular Cartesian sampling (they can be less pronounced and also may appear outside the region of interest). The proposed algorithm can be used to highly accelerate the free-breathing dynamic cardiac MRI. The performance of the extended approach will be compared with the state of the art algorithms. In the second algorithm, the problem of motion artifacts including respiratory motion and cardiac motion in compressed sensing reconstructions is addressed. A ME/MC algorithm based on a modified search that aids block matching and results in improved residual reconstruction is incorporated into the CS reconstruction for dynamic MRI. The process of the proposed Motion Compensated Data Decomposition (MCDD) algorithm can be described as follows: First, a set of dynamic images are decomposed into L and S components. The L component includes periodic motion in the background, since it is highly correlated among frames and S component corresponds to respiratory motion. A motion estimation/motion compensation (ME/MC) algorithm is then applied to the low-rank component to reconstruct a cardiac motion compensated dynamic cardiac MRI. Robustness to different types of motion including respiratory motion and cardiac motion for MCDD algorithm will be demonstrated on both simulated and in-vivo dynamic cardiac MRI data. In the third algorithm, a novel formulation for the joint estimation of the deformation and the dynamic images in cardiac cine MR imaging is introduced. The motion estimation algorithm estimates the deformation by registering the dynamic data to a reference dataset that is free of respiratory motion, which is derived from the measurements themselves. A variable splitting framework is used to minimize the objective function, and thus derive the deformation and the dynamic images. The validation of the proposed algorithm is illustrated using a numerical phantom 30
+
+and in-vivo cine MRI data to show the feasibility in precisely recovering cardiac MRI data from extensively under-sampled data.
+
+31
+
+Compressed
+
+sensing
+
+reconstruction
+
+of
+
+cardiac cine MRI using golden angle spiral trajectories
+
+4.1. Introduction
+Cine MRI allows non-invasive and reproducible evaluation of cardiac function. Clinically, cine imaging is acquired in a multi-slice breath-hold acquisition where one or two slices are acquired within a breath-hold (BH) and the patient will breathe normally for a period of 20-30 second between BHs. As the spatiotemporal resolution of the cine imaging increases, the number of heartbeats required for the segmented acquisition and the duration of the BH increase. To improve the imaging throughput, multiple slices are acquired within a BH to reduce total scan time spent for evaluation of cardiac function. In patients with difficulty in breath-holding or pediatric patients, real-time cine or segmented cine and a short BH is used. For multiple-BH acquisitions to cover the entire left ventricle (LV), majority of time is devoted to resting period between scans so that the patient recover from BH. In a typical patient for a 10 second BH, 20-30 second is spent in between BHs, which results in substantially low acquisition efficiency of 30-50%. Acceleration techniques for dynamic cine MRI have been reviewed in the previous chapter. In this chapter, a compressed sensing based algorithm is presented to improve efficiency and accelerate dynamic cardiac cine MRI based on undersampled k-t space with a stack of variable density spiral trajectories by exploiting both spatial and temporal sparsity of dynamic cardiac images. 32
+
+4.2. Materials and methods
+Successful CS requires image sparsity, incoherent undersampling and a nonlinear reconstruction procedure. Dynamic MRI is a good candidate for CS, due to extensive correlations between image frames which typically result in sparse representations after applying an appropriate spatialtemporal transform, and also the possibility of using a different random undersampling pattern for each temporal frame, which increases incoherence and distributes the incoherent aliasing artifacts along the temporal dimension resulting in artifacts with lower intensity. Each requirement of CS will be discussed in more detail in the following subsections.
+
+4.2.1.
+
+Spatial-temporal sparsifying transform
+
+Dynamic cardiac MR images are highly redundant in space and time. By using linear transformations (such as wavelets, Fourier etc.), a dynamic scene can be represented using only a few sparse transform coefficients. The wavelet transform (Daubechies 4 with 3 decomposition levels) is used in the spatial dimensions and the Fourier transform is used in the temporal dimension (Fig. 4.1). Wavelets sparsify each time frame whereas the Fourier transform sparsifies smooth or periodic temporal behavior of dynamic cardiac MR images. The sparse representation of a phantom dynamic dataset is illustrated in Fig. 4.2. It can be seen that the transform domain of the cross section is truly sparse.
+
+33
+
+Fig. 4.1: sparsifying transform
+
+Fig. 4.2: (a) The phantom dynamic data (b) The x-t cross section of the dataset corresponding to the horizontal line in (a), and (c) the transform domain of the cross section.
+
+34
+
+4.2.2.
+
+k-t space sampling scheme
+
+Scan time is a limiting factor for many MRI applications. Trajectories which sample k-space nonuniformly, such as spirals [70], reduce scan time by making more efficient use of gradient hardware capabilities. Variable density (VD) trajectories have been proposed to achieve further scan time gains, as they allow increased flexibility in the tradeoff between resolution, field of view (FOV), and acquisition duration. In VD schemes, k-space sampling density is reduced below the Nyquist rate, typically decreasing in density, as a function of distance from the origin. However, as a consequence of the below Nyquist rate sampling, the collected data does not in general provide sufficient information to completely resolve the imaged object. Standard non-uniform image reconstruction methods such as density compensation and gridding reconstruction [71] can be applied to samples collected using VD trajectories, relying on the trajectory to minimize artifacts [72, 73]. Spiral sampling offers an alternative to standard Cartesian sampling by effectively using the gradients and reducing the scan time needed to traverse k-space. A single-shot spiral trajectory can be written as: kt   e
+(4.1)
+
+where kt is the complex location in k-space,  is a function of time,  is the variable density parameter,   2n with n is number of turns in spiral trajectory, and   N/2 × FOV with N the image size. By using interleaved-spirals, in which the k-space data are acquired with several interleaves, the acquisition time of each spiral and off-resonance effects can be reduced significantly. This results 35
+
+in high spatial resolution and less off-resonance effects. In this case, the k-space trajectory of the nth leaf has the form of: k  t   e
+   
+
+(4.2)
+
+where N is the total number of interleaves. The problem is how to choose t such that following hardware constrains be satisfied: |G|  G , |S|  S
+(4.3)
+
+where G and S are gradient amplitude and slew rate respectively and are defined as follows: 1 Gt  kt,   t St  G
+(4.4)
+
+The analytical solution of solving the differential equations in (4.4) was given by Kim et al. [74]. They defined the function t as follows:
+//
+
+ S       1 t slewratelimited  2 t   /  G    1t amplitudelimited  
+
+(4.5)
+
+Near the center of k-space, the trajectory is only limited by the gradient slew-rate since gradient
+
+amplitude is low. For this slew-rate-limited case, St is set to the maximum available slew-rate case where Gt is equal to the maximum available gradient amplitude G . More information on spiral trajectory design can be found in [90].
+
+S . Then, when reaching the maximal gradient amplitude, we come into the amplitude limited
+
+36
+
+This formulation is used to design interleaved variable density spiral trajectories. Fig. 4.3 shows an example of 3D stack of spirals used.
+
+t
+
+Ky Kx
+
+Fig. 4.3: Stack of interleaved variable density spirals in k-space
+
+In our experiments gradient characteristics of maximum amplitude: 4 G/cm and maximum slew rate: 15 G/cm/ms as well as variable density parameter: 3 are used to design variable density spiral trajectories with 16 interleaves. Maximum amplitude and slew rate values are chosen so that they are within the range of typical and clinically acceptable gradient characteristics. Other parameters of spiral trajectories are selected empirically to maximize the quality of the reconstructed image. Undersampling with different acceleration factors can be achieved by acquiring different subsets of interleaves. It is worth noting that interleaved spiral trajectories based on a rotation of an angle 2/Nint of interleaves, ensures a homogeneous coverage of k-space when all the interleaves are 37
+
+acquired. However, if only a subset of interleaves is considered, we end up with very inhomogeneous k-space coverage as it is illustrated on Fig. 4.4. One way to resolve this problem was first proposed in the context of radial sampling by Winkelmann et al. [75] and then by Kim et al. [76] for spiral sampling. The proposition is to rotate the spiral interleave by 222.4969 ×  (n - 1), where n is the actual interleave indice, an angle referred to as the golden-ratio angle. By using this angle, a more homogeneous coverage of k-space is obtained. Therefore, in our algorithm for each temporal frame a different subset of consecutive interleaves is chosen randomly in order to increase incoherency and distribute the incoherent aliasing artifacts along the temporal dimension which results in incoherent (noise like) artifacts.
+
+10 8 6 4 2 0 -2 -4 -6 -8 -10 -10
+
+10 8 6 4 2 0 -2 -4 -6 -8 -10 -10
+
+-8
+
+-6
+
+-4
+
+-2
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10
+
+-8
+
+-6
+
+-4
+
+-2
+
+0
+
+2
+
+4
+
+6
+
+8
+
+10
+
+(a)
+
+(b)
+
+Fig 4.4: improved coverage of k space (a) 4 consecutive interleaves of the 16 interleaved spiral trajectory, with constant rotation of 2/ between interleaves and (b) 4 consecutive interleaves of the 16 interleaved spiral trajectory, with with golden ratio angle rotation between interleaves
+
+38
+
+4.2.3.
+
+Reconstruction
+
+A main disadvantage of spiral trajectories in MR imaging is the increased complexity of the reconstruction process, since taking the inverse Fourier transform does not produce correct results. FFT is used widely in signal processing for efficient computation of the FT of finite-length signals over a set of uniformly spaced frequency locations. However, in many applications, one requires non-uniform sampling in the frequency domain, i.e., a non-uniform FT. Several papers have described fast approximations for the non-uniform FT based on interpolating an oversampled FFT. An interpolation method is used for the non-uniform FT that is optimal in the min-max sense of minimizing the worst-case approximation error over all signals of unit norm. The proposed method easily generalizes to multidimensional signals. Numerical results show that the min-max approach provides substantially lower approximation errors than conventional interpolation methods. The min-max criterion is also useful for optimizing the parameters of interpolation kernels such as the Kaiser­Bessel function. Therefore, in order to reconstruct the image from the non-uniformly acquired samples, an interpolation step must be performed before FFT to convert the samples onto a regular Cartesian grid. Non-Uniform FFT (NUFFT) algorithm [77] is used in which the value of the Cartesian samples are determined from the adjacent samples from the spiral acquisition by convolving the acquired data with a kernel. After resampling the data onto the Cartesian grid, FFT takes the data to the image domain. In our experiments, Kaiser-Bessel kernel with optimal parameters and 6 neighbors in each direction were used to estimate Cartesian samples from spiral trajectory.
+
+39
+
+Now consider the case that the 3D cardiac data in (x, y, t) space to be reconstructed is m,  is the 3D operator that compresses the cardiac data from voxel representation to a sparse representation,  is undersampled Non-Uniform FFT operator mapping the image domain to k-space, and y is the k-space measurement data. The compressed sensing reconstruction is then obtained by solving the following constrained optimization problem: minimizem s. t. m - y < 
+(4.6)
+
+Where  is a threshold that can be set based on the expected noise level in the data. Minimizing the above objective produces an image that has the sparsest representation in the transform domain while remaining consistent with the acquired measurements. The non-linear conjugate gradient method which is an extension of the algorithm presented in [12] is used to minimize the following unconstrained Lagrangian form: D(x) =   m - y + m
+(4.7)
+
+Where  is a regularization parameter that controls the tradeoff between sparsity and data consistency.
+
+4.3. Experimental results
+The algorithm was tested on a numerical phantom and a single-coil cardiac MRI data sets. The free breathing physiologically improved non-uniform cardiac torso (PINCAT) phantom (dimensions Nx = Ny = 128, Nt = 50). A single-coil cardiac cine data set was acquired using a 1.5T Philips scanner at Yonsei University Medical Center, Korea: the acquisition sequence was ECG 40
+
+triggered bSSFP, with a flip angle of 50. The heart rate of the subject was 75 bpm and retrospective cardiac gating was used for data acquisition. The imaging parameters were as follows: FOV=345×270 mm2, matrix size=256×256, TR/TE=3.17/1.09ms, 25 number of cardiac phases, 8 views per segment, and 32 heartbeats. This provided 8×32=256 views for each frame, and temporal resolution was 3.17×8ms25ms. Slice thickness was 10.0 mm and the sampling trajectory was Cartesian. The proposed algorithm was compared with the conventional 2D approach and fixed spiral approach (FSA). In FSA the selected interleaves are fixed for all slices. In the 2D approach each frame is treated as a separate reconstruction. Each frame is randomly undersampled using spiral trajectories and wavelets are used as spatial sparsifying transform. Tests were performed on the single-coil data. The reconstructions were evaluated at a range of acceleration factors defined as the ratio of the number of acquired spiral interleaves in the fully sampled dataset to the number of interleaves used to reconstruct the dataset. The performance of the algorithms is qualified using the peak signal to noise ratio (PSNR) specified as:
+PSNR = 20 log maximumpixelvalueofinputimage MSE
+(4.8)
+
+Where MSE is the mean squared error between the original image and the reconstructed image. First, a simulation experiment was performed comparing fully sampled data to retrospectively 4 fold undersampled reconstruction results using four different sparsifying transforms: spatial Discrete Cosine Transform (DCT)+temporal FFT, spatial DCT+temporal TV, spatial Discrete Wavelete Transform (DWT) + temporal Total Variation (TV), and spatial DWT+ temporal FFT.
+
+41
+
+Both spatial DCT+temporal TV and spatial DWT+temporal TV, as shown in Fig. 4.5b, c (x­y plane), produced temporal blurring artifact in the myocardial wall. In contrast, both spatial DCT + temporal FFT, and spatial DWT+ temporal FFT (Fig. 4.5d, e) did not produce the specific temporal blurring artifact. The signal intensity profiles along y­t were also evaluated along the white dotted lines drawn on Fig. 4.5a. These spatial-temporal profiles also show more temporal blurring artifacts for the spatial DCT+temporal TV and spatial DWT+temporal TV than spatial DCT + temporal FFT, and spatial DWT+ temporal FFT. Based on these preliminary results, spatial DWT+ temporal FFT is elected to be used as the sparsifying transform for accelerated dynamic MR data reconstruction.
+(a) (b ) (c) (d) (e)
+
+(x-y)
+
+(y-t)
+
+Fig. 4.5: Simulation results comparing the (a) fully sampled data to the retrospectively 4 fold undersampled reconstruction results using four different sparsifying transforms: (b) spatial DWT+temporal TV, (c) spatial DCT+temporal FFT, (d) spatial DCT+temporal TV, and (e) spatial DWT+temporal FFT. (First row) end-systolic reconstructed images, (second row) error images, (third row) spatial-temporal profile of the images.
+
+42
+
+The average PSNR over all frames v/s acceleration factors from 1.3 to 16 is plotted for the proposed algorithm, FSA and the 2D approach applied on phantom data in Fig. 4.6. It can be seen that the proposed method provides significantly higher PSNR over the 2D approach and FSA at all accelerations. This experiment is repeated on cardiac cine MRI data with result shown in Fig. 4.7. A similar trend to the phantom comparisons can be seen here.
+
+45 40 35 Average PSNR 30 25 20 15 10 2D approach FSA Proposed algorithm
+
+2
+
+4
+
+6
+
+8 10 Acceleration Factor
+
+12
+
+14
+
+16
+
+Fig. 4.6: Average PSNR as a function of acceleration factor for the phantom data
+
+45 40 35 Average PSNR 30 25 20 15 10 2D approach FSA Proposed algorithm
+
+2
+
+4
+
+6
+
+8 10 Acceleration Factor
+
+12
+
+14
+
+16
+
+Fig. 4.7: Average PSNR as a function of acceleration factor for the cardiac cine MRI data
+
+43
+
+To enable visual comparisons, the reconstructed images as well as their corresponding error image at with an acceleration factor of 4 are shown in Figs. 4.8 and 4.9. The improved reconstruction using our proposed algorithm can be easily seen. The reconstructed image exhibits significant suppression of the aliasing artifacts compared to 2D approach in both phantom and cine cardiac data.
+
+Fig. 4.8: Performance of the proposed algorithm (bottom) in comparison with the 2D scheme (top) on the phantom data. Reconstructed images (left), error images (right)
+
+Fig. 4.9: Comparisons for the cardiac cine MRI data. 2D algorithm (top), our proposed algorithm (bottom), reconstructed images (left), error images (right)
+
+44
+
+In another experiment the performance of the proposed algorithm is compared with k-t FOCUSS and k-t FOCUSS with ME/MC algorithm proposed in [65]. As it can be seen in Fig. 4.10, the proposed algorithm outperforms both algorithms.
+
+45 Proposed algorithm k-t FOCUSS with ME/MC k-t FOCUSS
+
+40
+
+Average PSNR
+
+35
+
+30
+
+25
+
+20
+
+15
+
+2
+
+4
+
+6
+
+8 10 Acceleration Factor
+
+12
+
+14
+
+16
+
+Fig. 4.10: Quantitative comparison of our proposed algorithm, k-t FOCUSS and k-t FOCUSS with ME/MC at a range of accelerations on cardiac MRI data
+
+For another quantitative comparison, the frame-by-frame Mean Squared Error is plotted in Fig. 4.11 for the different reconstruction methods and with an acceleration factor of 4. As it can be seen, the proposed algorithm clearly reduces MSE over almost all frames. In Fig. 4.12 the reconstruction and error images are illustrated for k-t FOCUSS and k-t FOCUSS with ME/MC and our proposed algorithm at an acceleration rate of 4. As it can be seen in this figure, k-t FOCUSS exhibits aliasing artifacts. Furthermore, the cardiac wall was not clearly visible using this algorithm due to temporal blurring. The difference error image also clearly shows temporal blurring. For k-t FOCUSS with ME/MC, the heart muscles still exhibit aliasing artifacts. However, images obtained using our proposed algorithm is much improved, and outperforms both methods, with a few noticeable artifacts. The difference image clearly shows the improvements. 45
+
+3.2 3 2.8 2.6 2.4 MSE 2.2 2 1.8 1.6 1.4 1.2
+
+x 10
+
+-3
+
+k-t FOCUSS k-t FOCUSS with ME/MC Proposed algorithm
+
+0
+
+5
+
+10 Frame Number
+
+15
+
+20
+
+25
+
+Fig. 4.11: The frame-by-frame MSE plot for each method
+
+(a)
+
+(b)
+
+(c) Fig. 4.12: The reconstructed and error images for (a) k-t FOCUSS (b) k-t FOCUSS with ME/MC, and (c) the proposed algorithm
+
+46
+
+For temporal resolution analysis, y-t images of the heart at a 4-fold acceleration factor are compared (Fig. 4.13). As a reference result, the fully sampled image is shown at the top. As it can be seen, in k-t FOCUSS because of temporal blurring, the heart movement is not reproduced well. k-t FOCUSS with ME/MC shows some improvement but some significant temporal variations were not well reproduced. However, the proposed algorithm closely follows the reference results, for this acceleration factor.
+
+(a)
+
+(b)
+
+(c)
+
+Fig. 4.13: Temporal variation analysis. At the top, y-t slices of fully sampled image is shown. The reconstructed y-t slices using (a) k-t FOCUSS, (b) k-t FOCUSS with ME/MC, and (c) proposed algorithm are shown at the bottom.
+
+In another experiment, the spiral golden-ratio undersampling scheme is compared with Cartesian undersampling (as in k-t SPARSE [78]) and golden radial undersampling (as in iGRASP [79]) for same acceleration factors and reconstruction approaches. For iGRASP algorithm the open source code available from the authors is used [80]. 47
+
+Reconstruction results from 6-fold acceleration for the case of cardiac MRI data at a cardiac phases with the largest motions are compared in Fig. 4.14. The first rows show image frames at a certain time index, and the second rows show their difference images from the ground truth. The positions of the selected cardiac phase is indicated in the temporal profile image Fig. 4.14(C). In Fig. 4.14(A), k-t SPARSE results show blurring artifacts near edges and it is difficult to observe the fine structures. Also, there still remains temporal blurring as shown in Fig. 4.14(C). While iGRASP algorithm shows better results compared to those of k-t SPARSE method. However, as shown in Fig. 4.14(A), the fine structures were not clearly reconstructed. On the other hand, as shown in Fig. 4.14(A), in the proposed algorithm, edges in the dynamic region and valve structure were clearly reconstructed. In Fig. 4.15, reconstruction results of the dynamic cardiac data applied on a ROI are shown. In Fig. 4.16, the algorithms are compared using quantitative measures, MSE and PSNR. These qualitative and quantitative results show that data acquisition strategy (k-space trajectory) affects scan time and the resulting image quality. Partial radial or spiral acquisition can be achieved to reduce scan time without much affecting the image quality. However, due to its acquisition nature, spatial resolution is compromised with k-space trajectory. For the same scan time, spiral acquisition allowed for improving resolution, compared to Cartesian or radial, despite longer reconstruction time.
+
+48
+
+(A)
+
+(B)
+
+Fig. 4.14. Reconstruction results of the dynamic cardiac data. The acceleration ratio is x6. Box (A) represents the 8th frame images of the ground-truth, the first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images. Each column represents ground truth, k-t SPARSE, iGRASP algorithm and Proposed algorithm, respectively.
+
+49
+
+(A)
+
+(B)
+
+Fig. 4.15. Reconstruction results of the dynamic cardiac data applined on a ROI. The acceleration ratio is x6. Box (A) represents the 8th frame images of the ground-truth,The first row represents image frames, and the second row represents difference frames. Box (B) represents temporalslice profile images. Each column represents ground truth, k-t SPARSE, iGRASP algorithm and Proposed algorithm, respectively.
+
+0.06 0.055 0.05 k-t SPARSE iGRASP propposed algorithm
+
+41 k-t SPARSE iGRASP propposed algorithm
+
+40.5
+
+40 0.045 0.04 0.035 0.03 38.5 0.025 0.02 0.015 38 39.5 PSNR 0 5 10 15 20 Frame Number 25 30 35
+
+MSE
+
+39
+
+37.5 0
+
+5
+
+10
+
+15 20 Frame Number
+
+25
+
+30
+
+35
+
+Fig. 4.16: MSE and PSNR values for each time frame
+
+50
+
+In this chapter, k-t sparse algorithm has been extended to spiral trajectories to reconstruct dynamic MRI data from under-sampled k-t space data with spiral trajectories. The proposed scheme exploits the correlations in the dynamic imaging dataset by modeling the data to have a compact representation in sparse domain. The quantitative and qualitative comparisons of the proposed algorithm on phantom data and in vivo MRI data demonstrate the ability of the proposed algorithm to significantly accelerate dynamic MRI, while introducing few artifacts.
+
+51
+
+Motion Compensated Data Decomposition Algorithm to Accelerate Dynamic Cardiac MRI
+
+5.1. Introduction
+In analogy to video sequences and following the work of Gao et al. [63], dynamic MRI can be inherently represented as a superposition of a background component and a dynamic component. The background component corresponds to the highly correlated information among frames, which is slowly changing over time. The dynamic component captures the innovation introduced in each frame, which is rapidly changing over time and can be assumed to be sparse since substantial differences between consecutive frames are usually limited to comparatively small numbers of voxels. It has been shown that the L+S decomposition can model dynamic MRI data more efficiently than a low-rank or sparse model alone, or than a model in which both constraints are enforced simultaneously. By extending the prior works, a Motion Compensated Data Decomposition (MCDD) algorithm is proposed to improve the performance of CS for accelerated dynamic cardiac MRI. The process of MCDD can be described as follows: First, the dynamic images are decomposed into L and S components. The time-frames from the resulting motion component are discarded and a motion estimation/motion compensation (ME/MC) algorithm is then applied to background component to reconstruct a motion compensated dynamic cardiac MRI. 52
+
+5.2. Materials and methods
+5.2.1. Background and Dynamic Decomposition
+
+To apply the L+S decomposition algorithm to dynamic MRI, the time ­series of images is converted to a grid M, where every column is a temporal frame. The use of the L+S decomposition will create a lattice L that represent the background element and a grid S that corresponds to innovation from column to column. Note that the L component is not consistent after some time, but rather will be fairly gradually changing among frames, which contrasts from simply taking a temporal average. Truth be told, for the instance of cardiovascular cine, the L part incorporates motion in the background, since which could be attributed to high motion correlation among frames among frames. The S segment has sparser representation than the first matrix M, since the background has been suppressed. This sparsity is evident in the y-t space, but it is more declared in a suitable transform domain where dynamic MRI is typically sparse, for example, the temporal frequency area (y-f) generated from applying a Fourier transform along columns of S. This increase in sparsity given by the background suppression will on a fundamental level empower higher acceleration factors, since less coefficients need to be recovered. Let M be a Casorati matrix with each column being formed from all the pixels of a 2D time-frame. Such a matrix is splitted into a low rank component L and a sparse component S. This is achieved under the constraint that the sum of L and S must correspond exactly to the initial dataset M. It was shown that such a decomposition can be formulated as an optimization problem:  +   +  = 
+(5.1)
+
+53
+
+where .  and .  respectively represent the nuclear norm (i.e. the sum of the matrix singular values) and -norm (i.e. the sum of the absolute values of the matrix elements). The parameter  appearing in (5.1) is a trade-off parameter: for high values all the information will appear in L while S will be empty, and vice-versa. The optimal setting of  may depend on the application and the nature of the data. However, a suggested value independent of any knowledge of expected rank or sparsity was introduced in Candès et al. [59]:  = 1max ( ,  )
+(5.2)
+
+where  and  respectively represent the number of pixels in each frame and the number of time-frames in M. The L+S decomposition given in Eq. (5.1) was modified to reconstruct undersampled dynamic MRI as follows:  +  . .( + ) = 
+(5.3)
+
+where T is a sparsifying transform for S, E is the encoding or acquisition operator, and d is the undersampled k-t data. L and S are defined as space-time matrices, where each column is a temporal frame; and d is defined as a stretched-out single column vector. The dynamic component S is assumed to have a sparse representation in some known basis T (e.g., temporal frequency domain), thus, the idea of minimizing  and not  itself. Note that E is a general linear operator that maps a matrix to a vector. For a single-coil acquisition, the encoding operator E performs a frame-by-frame undersampled spatial FT.
+
+54
+
+A version of Eq. (5.3) using regularization rather than strict constraints can be formulated as follows: 1 min  ( + )     +   +    , 2
+(5.4)
+
+where the parameters  and  trade off data consistency versus the complexity of the solution given by the sum of the nuclear and  norms. In this work, the optimization problem in Eq. (5.4) is solved using iterative soft thresholding of the singular values of  and of the entries of . The soft thresholding or shrinkage operator is defined as  (x) = || (||  , 0), in which  is a complex number and the threshold  is real valued. this is extended to matrices by applying the shrinkage operation to each entry. Next, the singular value thresholding (SVT) is defined by  () =  ()  , where  =   is any singular value decomposition of  . Fig. 5.1 summarizes the L+S decomposition algorithm. Where at the k-th iteration the SVT operator is applied to    , then the shrinkage operator is applied to    and the new  is obtained by enforcing data consistency, where the aliasing artifacts corresponding to the residual in k-space   (( +   ))are subtracted from  +  . Here EH refers to the adjoint operator of E, which maps a vector to a matrix. More details can be found in [64].
+
+
+Fig. 5.1: Sequence of operations for the k-th iteration of the low-rank plus sparse decomposition algorithm [64].
+
+55
+
+5.2.2.
+
+Motion Estimation and Compensation
+
+Here the concept of video compression and it's analogy to maximally exploiting the temporal redundancies in dynamic MRI is first briefly reviewed. A typical video encoder divides a video sequence into disjoint groups of T frames. Out of T frames in each group, one frame is designated to be the I (intra-coded) frame and the rest are designated to be P (predictive) frames (or sometimes B (bi-predictive) frames). The I-frame is encoded as a static image. P-frames are encoded in terms of motion compensated residuals between the original P-frames and their respective motion compensated predictions from the neighboring frames. In the B-frame the temporal redundancy is further exploited. More specifically, two frames (I and P frames) are used as reference frame for motion estimation and forward and backward motion estimation are performed. Since adjacent frames in a video sequence are very similar to each other, the prediction error is usually very sparse and allows efficient encoding. Inter-frame motion between pairs of two images is typically estimated using block matching. To predict an image X from an image Y, block matching first divides X into non-overlapping blocks of equal size (e.g. 8×8 or 16×16), and then finds the closest matching from Y. The matching of one block to another is based on the output of the cost function. The block that results in the least cost is the one that matches the closest to current block. There are various cost functions, of which the most popular and less computationally expensive is Mean Absolute Difference (MAD). Another cost function is Mean Squared Error (MSE). The relative locations of the blocks are stored in the form of the motion vectors. I-frame, motion compensated residuals, and associated motion vectors constitute the compressed data for a group of T frames. Based on lessons learned from video compression, it can be expected that by using ME/MC, the temporal redundancies in dynamic images can be exploited. In order to use ME/MC, at least one 56
+
+reference frame is required. Even if no reference frame is available in some applications, at least one reference frame can be generated using the temporal average of k-t space measurements. In order to calculate motion vectors accurately, dynamic frames such as P and B that have high correlation with the reference frame I should be known. In video, this is not a problem, since full resolution P and B are available at the encoder for ME/MC. However, for highly accelerated MR acquisition, direct Fourier inversion of the under-sampled k-t measurements does not provide high resolution P and B frames, as undersampling can affect the resolution and it will introduce aliasing artefacts which makes the ME inaccurate. Interestingly, this problem can be overcome by recursively applying our algorithm. Particularly, the L+S decomposition algorithm can be utilized first to give moderate quality reconstruction. At that point, motion estimation is repeated utilizing the completely sampled reference frames and background (L) segment of the L+S decomposition. Completely sampled reference frames are fully sampled frames in k-space. Inverse Fourier transform is applied on fully sampled frames to get original reference frames. Utilizing the motion vectors, another step of the algorithm is applied with the motion compensated prediction. The motion compensation is carried out on the image domain using only reference frames and motion vectors by simply relocating the specified blocks of the reference frames according to the estimated motion vectors. In order to obtain the motion vectors, Mean Absolute Difference (MAD) between the specified blocks of the reference frames and dynamic frames is calculated. When the search area is determined, the motion vectors for each block on individual dynamic frames are calculated by minimizing the MAD. These procedures to obtain the motion vectors are called ME. Then, the dynamic frames are newly estimated during MC using the estimated motion vectors. The MC 57
+
+procedure is done on image domain utilizing just the reference frames and motion vectors. The dynamic images are reproduced by basically moving the predetermined blocks of the reference frames as indicated by the estimated motion vectors. More specifically, suppose the motion vector for the (, , ) coordinate is[, ]; MC is then accomplished as: (, , ) =  ( + ,  + ). Where  and  indicate the MC
+
+reconstruction and reference frame, respectively. In particular, when multiple reference frames are available, ME/MC can be performed for each reference frame and the resulting MC images can be averaged out to improve accuracies and PSNR. It is interesting to note that more powerful block matching in sequences with repetitive patterns such as heart movement can be acquired by searching over several previous frames. The previous frame is utilized as the reference for the typical block search for the blocks in current frame. The location of the resulting best-matching block in the reference frame is then in turn used as the start location for a motion search in the immediately preceding frame, and this process is repeated until the last frame is reached. At that point, the best match from any of the searched frames turns the resulting prediction. There are numerous advantages in utilizing ME/MC to get the prediction term. To start with, the structure of dynamic frames can be better reproduced by avoiding blurring because MC just relocates the relating pixels of the completely examined reference frames. Second, k-t samples are not fully allocated for prediction step because the estimation is performed on image domain rather than frequency domain.
+
+58
+
+5.2.3.
+-
+
+Motion-compensated CS for dynamic MRI
+Straightforward CS reconstruction
+
+The CS paradigm concerns the reconstruction of a sparse signal with length  from  measurements  =  where   , is an  ×  measurement matrix, and  =  / is subsampling ratio. For MRI data, a partial Fourier matrix is commonly used for. One effective method for CS reconstruction of from measurements  is a conjugate gradient algorithm. CS algorithm designated for MRI is as follows:
+function  () = (  , , , , )
+
+ () =  ()    () , )   () = _(   () =     ()  () =  () +  (   () ) _(. ) is a conjugate gradient descent algorithm with backtracking line search as used in [94]. Residual reconstruction
+
+The main focus of residual encoding step is to efficiently estimate the residual signal using small number of k-t samples. This goal can be achieved based on compressed sensing. In order to employ compressed sensing safely, random sampling pattern is used on k-t space resulting in highly incoherent basis. An example of the sampling pattern is shown in Fig. 5.10 (a3). Suppose we have measurements, y, of the current frame, x, and its prediction y where the latter is obtained by a ME/MC process using previously reconstructed frame(s). Instead of a straightforward CS reconstructionstrategy, the projected residual of the measurements can be reconstructed to exploit temporal correlation; i.e.
+
+59
+
+  =    
+
+(5.5)
+
+It is clear that  is the projection of the residual,  , between our prediction   and the original and still-unknown ; i.e.,   =     =       = 
+(5.6)
+
+If the prediction process is accurate, the residual frame  should be more compressible than the original frame , so its reconstruction should be more accurate. Consequently, a new approximation to  can be formed as  =  +  
+(5.7)
+
+This process is called residual reconstruction [66]. We now have a new approximation to the current frame that is of better quality than the initial approximation that is created from a direct CS reconstruction from . In conventional video, block-based ME/MC performs well when objects undergo geometric change (i.e., translation) from one frame to the next. In case of certain dynamic-MRI sequences, a motion search using only the immediately preceding frame is insufficient to find a good match which might exist in the sequence long before. An example of such a sequence is the dynamic MRI of a heart, wherein contractions and expansions of a cardiac chamber repeat at a certain interval; in this case, the best match for the current block might lie a number of frames previous, depending on the frequency of the cardiac pulsations. More effective block matching in sequences with repetitive patterns can be obtained by searching over several previous frames. The previous frame is used as the reference for the usual block search 60
+
+for the current block in the current frame. The location of the resulting best-matching block in the reference frame is then in turn used as the start location for a motion search in the immediately preceding frame, and this process is repeated until the end of the group of pictures (GOP) is reached. Then, the best match from any of the searched frames becomes the final prediction.
+
+5.2.4.
+
+MCDD algorithm
+
+As mentioned before, the L+S algorithm is extended by incorporating ME/MC, resulting in the MCDD algorithm that reconstructs the current frame at time t as follows:
+
+ )    = MCDD( , , ,   ,     = (, , ,  )    = MotionCompensation(  ,   )   =      =  -       = ( , , )    =     +    
+
+Here,  is an M × N measurement matrix. For MRI data, a partial Fourier matrix is commonly used for .  is a sparsity transform. A temporal Fourier transform is used as the sparsifying transform for both L+S and CS parts. MotionCompensation(.) implements block-based ME/MC, y is the set of measurements for the current frame, x   is the previously reconstructed preceding  is the set of P previously reconstructed frames for the P-frame that contains the current frame, and X frame. Note that the reconstruction of the current frame, x   , produced by MCDD algorithm is placed into the  X, replacing the corresponding frame there, prior to the application of MCDD to the next frame.
+
+61
+
+, as needed to start MCDD, the To obtain the initial reconstructions for group of pictures (GOP), X following procedure is applied to produce each x   of the GOP:
+  = (, , ,  )  =  +  =  + (, , )   = 
+
+Here,  + (, , ) is used to decompose the cardiac MRI data to L and S components. X. Please note that (. ) for each frame is done using a group of pictures,  But MCDD algorithm is performed on each frame. The block diagram of the proposed algorithm is shown in Fig. 2. As it can be seen in Fig. 2, reconstruction is driven from a residual in the kspace domain between the current-frame measurements and a corresponding motion-compensated prediction. The block diagram of the proposed algorithm is shown in Fig. 5.2.
+
+L
+
+ME/MC
+
+FT
+
+Undersampled/accelerated dynamic MRI
+
+L+S algorithm
+
+S
+
++ +
+Reconstructed MRI
+
++
+
++
+
++
+
+CS reconstruction
+
+Fig. 5.2: the proposed MCDD algorithm
+
+62
+
+5.3. Experimental Results
+The proposed algorithm was validated by experiments using numerical dynamic phantom data and real in vivo dynamic cardiac data sets. The method is first studied on simulated data. The free breathing physiologically improved nonuniform cardiac torso (PINCAT) phantom (dimensions Nx = Ny = 128, Nt = 50). The PINCAT phantom is an adaptation to MR of the NCAT phantom in CT and was proposed by Sharif and Bresler [81] for evaluating cardiac MR imaging schemes and reconstruction methods in MRI. The version has been modified by Lingala et al. [57] to include intensity changes (simulating perfusion dynamics) and respiratory motion. A single-coil cardiac cine data set was acquired using a 1.5T Philips scanner at Yonsei University Medical Center, Korea: the acquisition sequence was ECG triggered bSSFP, with a flip angle of 50. The heart rate of the subject was 75 bpm and retrospective cardiac gating was used for data acquisition. The imaging parameters were as follows: FOV=345×270 mm2, matrix size=256×256, TR/TE=3.17/1.09ms, 25 number of cardiac phases, 8 views per segment, and 32 heartbeats. This provided 8×32=256 views for each frame, and temporal resolution was 3.17×8ms25ms. Slice thickness was 10.0 mm and the sampling trajectory was Cartesian. Also two multi-coil cardiac cine MRI data are used in our experiments. The first one is acquired from a healthy adult volunteer using a 3T scanner (Tim Trio, Siemens Healthcare, Erlangen, Germany) and a 12-element matrix coil array. Fully-sampled data were acquired using a 256×256 matrix size and 24 temporal frames and retrospectively undersampled by factors of 8 using a ky-t variable-density random undersampling scheme. The relevant imaging parameters include: FOV
+
+63
+
+=
+
+320×320
+
+mm2,
+
+slice-thickness=8mm,
+
+flip
+
+angle=10°,
+
+TE/TR=1.2/2.4ms,
+
+spatial
+
+resolution=3.2×3.2mm2, and temporal resolution=307ms. In the second multi-coil data, a healthy volunteer was scanned on a 1.5T Philips scanner (Philips Healthcare, The Netherlands) with a 32- element cardiac coil using a b-SSFP sequence. Relevant scan parameters include: TR/TE/flip angle=2.8 ms/1.39 ms/60º, matrix 160×160×16, FOV=320 × 320 mm2, spatial resolution=2 ×2 mm2, slice thickness=8 mm with no gap between slices. This dataset made available by the authors of [69]. Zero filling Fourier transform (direct IFFT), L+S decomposition [64], deformation correction compressed sensing (DC-CS) algorithm [82], and the proposed algorithm were compared. For L+S decomposition and DC-CS algorithm the open source code available from their authors was used [83, 84]. All the algorithms were implemented in MATLAB 2016 on a Windows workstation machine with seven cores, 2.8 GHz CPU, and 12 GB RAM. The run time of L+S and DC-CS were 2.7 minutes and 1.09 hours respectively. The run time for the proposed algorithm was 5.9 minutes. Different combinations of regularization parameters L and S were tested on cardiac phantom data and cardiac cine data. The regularization parameters with lowest RMSE were employed in subsequent reconstructions. For example, L+S reconstruction on cardiac cine data were performed with L= 0.01and S = 0.01, which presented the lowest RMSE. In our experiments, a GOP size of P = 8 frames was used. For the ME/MC process, a block size of 32, a search window of ±7 pixels, and a search range within the respective GOP was used.
+
+64
+
+The algorithms were compared visually, as well as quantitatively. As numerical measures, the mean squared error (MSE) and the high frequency normalized error norm (HFEN) [85] were adopted. HFEN is computed to complement MSE because sometimes the MSE values do not fully reflect the visual quality. HFEN is computed as: ( )  ( 1  )   =   ( ) 
+ 
+
+(5.8)
+
+where is the ground truth and   is the reconstruction image, LoG stands for Laplacian of Gaussian filter. In this experiment, the filter size and a standard deviation were set to 15×15 and 1.5, respectively, as in [85]. The L+S algorithm iterates until the relative change in the solution is less than 10-5, namely, until L + S  (L + S )  10 L + S . CS algorithm is stopped when the desired convergence has been achieved or if the maximum number of iterations is reached. In practice, CS algorithm converges after 5-6 iterations. Reconstruction results for the numerical phantom at the cardiac phases with the largest motions compared in Fig. 5.3. The first rows show image frames at a certain time index, and the second rows show their differences with the ground truth. The positions of the selected cardiac phase are indicated in the temporal profile image Fig. 5.3 (B). In Fig. 5.3(A), IFFT results show blurring artifacts near edges and it is difficult to observe the fine structures. Also, there still remains temporal blurring as shown in Fig. 5.3(B). While L+S and DC-CS algorithm show better results compared to those of IFFT method. However, as shown in Fig. 5.3(A), the fine structures were not clearly reconstructed. On the other hand, as shown in Fig. 5.3(A), in the proposed algorithm, edges in the dynamic region and valve structure were clearly reconstructed. 65
+
+(A)
+
+(B)
+
+Fig. 5.3. Reconstruction results of the PINCAT dynamic cardiac phantom. The -space data was obtained in Cartesian coordinates, and the acceleration ratio was x4. Box (A) represents the 24th frame images of the ground-truth, the first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images. Each column represents ground truth, direct IFFT, L+S algorithm, DC-CS algorithm, and proposed algorithm, respectively.
+
+In Figs. 5.4, the algorithms are compared using quantitative measures, MSE, PSNR, and HFEN. From these visual and numerical comparisons, it can be seen that the proposed algorithm enjoys several advantages over the other algorithms.
+
+66
+
+45 proposed algorithm L+S algorithm DC-CS algorithm
+
+1 proposed algorithm L+S algorithm DC-CS algorithm
+
+40
+
+0.9
+
+0.8 35 PSNR (dB) 0.7 30 MSE 0.6 25 0.5 20 0.4 0 5 10 15 20 25 30 Frame Number 35 40 45 50 0
+
+15
+
+5
+
+10
+
+15
+
+20 25 30 Frame Number
+
+35
+
+40
+
+45
+
+50
+
+7
+
+x 10
+
+-3
+
+6
+
+proposed algorithm L+S algorithm DC-CS algorithm
+
+5
+
+HFEN
+
+4
+
+3
+
+2
+
+1
+
+0
+
+5
+
+10
+
+15
+
+20 25 30 Frame Number
+
+35
+
+40
+
+45
+
+50
+
+Fig. 5.4: MSE, HFEN, and PSNR values for each time frame
+
+67
+
+(A)
+
+(B)
+
+(C)
+
+Fig. 5.5. Reconstructed images at 6 acceleration: Boxes (A) and (B) represent frames from the systole and diastole phases, respectively. (C) represents temporal slice profile images. Each column represents ground truth, direct IFFT, L+S algorithm, DC-CS algorithm, and proposed algorithm, respectively.
+
+68
+
+Fig. 5.5 shows the reconstruction results for the case of real cardiac MRI data with 256×256×25 matrix size. Frames (A) and (B) are in systole and diastole, respectively. The first rows show image frames at a certain time index, and the second rows show their difference images from the ground truth. In Fig. 5.5(A), direct IFFT shows artifacts near the edges. While L+S and DC-CS algorithms show smooth edge reconstruction, the proposed algorithm provides clearer edge structures. In diastolic frame reconstructions (B), all the algorithms show better quality than those in the systolic phase (A), but the proposed algorithm shows better reconstruction results. In temporal profile images (C), the proposed algorithm shows the best performance. IFFT and L+S and DC-CS algorithms suffer from temporal blurring and noise. The proposed algorithm shows the motion most clearly. MSE, HFEN and PSNR values for each temporal frame are illustrated in Fig. 5.6 and show that the proposed algorithm outperforms the L+S and DC-CS algorithms. As it can be seen in these figures, the inter-frame variability of the metrics is due to different heart motion level in a cardiac cycle. For example in systole where the heart is contracted the PSNR plot has its minimum value, and MES and HFEN have their maximum value.
+
+69
+
+36 proposed algorithm L+S algorithm DC-CS algorithm
+
+0.135 0.13 0.125 proposed algorithm L+S algorithm DC-CS algorithm
+
+34
+
+32 PSNR (dB)
+
+0.12 0.115 0.11 0.105 0.1
+
+30
+
+28
+
+26
+
+MSE
+0 5 10 15 Frame Number 20 25
+
+0.095
+24
+
+0.09 0
+
+5
+
+10 15 Frame Number
+
+20
+
+25
+
+0.65 0.6 0.55 0.5 0.45 0.4 0.35 0.3 0.25 0.2 proposed algorithm L+S algorithm DC-CS algorithm
+
+HFEN
+
+0
+
+5
+
+10 15 Frame Number
+
+20
+
+25
+
+Fig. 5.6: PSNR, MSE, and HFEN values for each time frames for single-coil cardiac MRI data
+
+In another experiment, the proposed algorithm, L+S algorithm, and DC-CS algorithm are employed to reconstruct the cardiac cine MRI and test their sensitivity to the acceleration factors. Fig. 5.7(a) plots the average PSNR, (b) average MSE, and (c) average HFEN values versus different accelerating factors under the random sampling trajectory. For this experiment, different sampling trajectories are generated for different undersampling factors. A ky -t variable-density 70
+
+random undersampling scheme is used in this experiment. Note that in this sampling scheme, low spatial frequencies are usually fully-sampled and the undersampling factor increases as we move away from the center of k-space.
+
+38 proposed algorithm L+S algorithm DC-CS algorithm
+
+36
+
+34
+
+PSNR (dB)
+
+32
+
+30
+
+28
+
+26
+
+24 2
+
+4
+
+6
+
+8
+
+10 12 14 Acceleration Factor
+
+16
+
+18
+
+20
+
+(a)
+
+0.13 0.125 0.12 0.115
+
+1 0.9 0.8 0.7 HFEN proposed algorithm L+S algorithm DC-CS algorithm
+
+0.11 MSE 0.105 0.1 0.095 0.09 0.085 proposed algorithm L+S algorithm MC-CS algorithm 2 4 6 8 10 12 14 Acceleration Factor 16 18 20
+
+0.6 0.5 0.4 0.3 0.2
+
+2
+
+4
+
+6
+
+8
+
+10 12 14 Acceleration Factor
+
+16
+
+18
+
+20
+
+(b)
+
+(c)
+
+Fig. 5.7: (a) PSNR, (b) MSE, and (c) HFEN as a function of acceleration factor
+
+71
+
+L+S algorithm
+
+DC-CS algorithm
+
+proposed algorithm
+
+(PSNR=24.07, MSE=0.128, HFEN=0.51)
+
+(PSNR=26.13, MSE=0.124, HFEN=0.47)
+
+(PSNR= 28.62, MSE=0.105, HFEN=0.43)
+
+Fig. 5.8: Systolic-phase images and y-t plots corresponding to reconstruction of multi-coil cardiac cine data with simulated 8-fold undersampling using low-rank plus sparse (L+S) decomposition, deformation correction compressed sensing (DC-CS) algorithm, and the proposed algorithm.
+
+Finally, the performance of the proposed method is compared with L+S algorithm and DC-CS algorithm by applying these algorithms on first multi-coil cardiac MRI data, which is retrospectively undersampled by a factor of 8 using a ky -t variable-density random undersampling scheme. The results are shown in fig. 5.8. The proposed approach yields higher PSNR than L+S approach and DC-CS algorithm. Both L+S and DC-CS algorithms show temporal blur artifact, particularly at systolic phases where the heart is contracted and the myocardial wall is prone to signal leak from other frames. The proposed algorithm can significantly reduce these artifacts and offers an improved reconstruction of the original cine image, as depicted by better preservation of 72
+
+fine structures in the y-t plots and reduced residual aliasing artifacts. However, patient motion (typically breathing) during multi-channel acquisition can result in non-linear "staircase" imaging artifacts as it can be seen in the profiles. Fig. 5.9 plots the average PSNR values versus different accelerating factors under the random sampling trajectory for the case of first multi-coil cardiac MRI data.
+
+36 proposed algorithm L+S algorithm DC-CS algorithm
+
+34
+
+32 PSNR(dB)
+
+30
+
+28
+
+26
+
+24
+
+2
+
+4
+
+6
+
+8
+
+10 12 14 Acceleration Factor
+
+16
+
+18
+
+20
+
+Fig. 5.9: PSNR in function of acceleration factor for multi-coil MRI data
+
+The reconstruction of the second multi-coil cardiac cine dataset using proposed algorithm, L+S algorithm, and MC-CS algorithm are shown in Fig. 5.10, along with their error images. The Cartesian sampling pattern corresponding to an undersampling factor of 4, was used to subsample the dataset. Two frames corresponding to peak diastole and systole cardiac phases are shown for each scheme. It can be observed that the quality of the proposed algorithm reconstructions is better compared to the L+S and DC-CS recovery. The error images show that the errors associated with proposed algorithm is more homogeneously distributed in the entire image. By contrast, the errors associated with L+S and MC-CS methods is more concentrated in the edge regions, indicating edge blurring. 73
+
+(a1)
+
+(a2)
+
+(a3)
+
+(a4)
+
+(b1)
+
+(b2)
+
+(b3)
+
+(b4)
+
+(c1)
+
+(c2)
+
+(c3)
+
+(c4)
+
+(d1)
+
+(d2)
+
+(d3)
+
+(d4)
+
+Fig. 5.10: Recovery of a retrospectively undersampled Cine dataset using proposed algorithm (second row; b1&b2), MC-CS algorithm (third row; c1&c2), and L+S algorithm (forth row; d1&d2). The 128×128×16 dynamic dataset, which is acquired using 12 coils, is retrospectively undersampled by factor of 4 using Cartesian sampling pattern. The cardiac images of the fully sampled data corresponding to peak diastole and systole cardiac phases are shown in (a1) and (a2). The sampling patterns for corresponding frames are shown in (a3&a4). The reconstructed images are shown in the first two columns, while their error images are shown in the last two columns.
+
+74
+
+Table5.1 shows a quantitative comparison of the entire methods using PSNR, MSE, and HFEN metrics.
+Table5.1: Quantitative comparison of different methods using PSNR, MSE and HFEN metrics Scheme MCDD MC-CS L+S PSNR 31.42 30.84 26.21 MSE 0.096 0.112 0.135 HFEN 0.24 0.41 0.52
+
+75
+
+Nonrigid
+
+Motion
+
+Compensation
+
+in
+
+Compressed Sensing Reconstruction of Cardiac Cine MRI
+
+6.1. Introduction
+In this chapter, a novel formulation for the joint estimation of the deformation parameters and the reconstructed images in dynamic cardiac cine MR imaging is introduced. Our method is based on the assumption that cardiac motion can be separated from respiratory motion. Here low rank plus the sparse decomposition algorithm proposed in [64] is chosen for data decomposition. Low rank plus sparse decomposition reformulates decomposition as an optimization problem to recover both the low rank (L) and sparse (S) components of the input data. The L component includes periodic motion in the background, since it is highly correlated among frames and S component corresponds to respiratory motion [86]. Our hypothesis is that low rank plus sparse decomposition coupled with a registration algorithm provides accurate registration of dynamic time series in a broad range of organs and for various breathing protocols. Given the explicit separation of a sparse term, low rank plus sparse decomposition should allow more flexibility and a greater degree of robustness, and can potentially benefit dynamic cardiac MRI registration. Since motion components and local changes cannot be perfectly separated, the remaining motion is modeled as an elastic deformation, whose parameters are estimated from the data. This model is extensively less constrained than the parametric scheme used in [87]. Our motion estimation algorithm estimates the deformation by 76
+
+registering the dynamic data to a reference dataset that is free of respiratory motion, which is derived from the measurements themselves. A variable splitting framework is used to minimize the objective function, and thus derive the deformation and the dynamic images. The novelties enabled by this framework are derivation of a reference dataset that is free of motion derived from the measurements themselves and efficient decoupling of the motion estimation problem from the reconstruction problem. Unlike existing motion compensated compressed sensing schemes, the proposed scheme does not require fully sampled pre-scans or navigators for motion estimation. The validation of the proposed algorithm is illustrated using a numerical phantom and in-vivo cine MRI data to show the feasibility in precisely recovering cardiac MRI data from extensively undersampled data.
+
+6.2. Theory
+It is a demanding task to obtain cardiac sequences with good spatio-temporal resolution to capture the dynamic activity of heart. The performance of the image reconstruction schemes will be extremely compromised in the presence of inter-frame motion, which can emerge due to breathing or inconsistent gating. To defeat the above limitation, the deformation parameters and the dynamic images are simultaneously recovered. L+S decomposition algorithm is used which produces a matrix L that represents the background component and a matrix S that corresponds to the change from columnto-column, e.g., organ motion. Note that the L component is not constant over time, but is rather slowly changing among frames, which differs from just taking a temporal average. In fact, for the case of cardiac cine, the L component includes periodic heart motion in the background, since it is highly correlated among frames [86].
+
+77
+
+Also, the deformation corrected dataset   . Lis sparse and temporal variations of  . L are more organized than that ofL. The deformation parameters (, )and the dynamic images (, ) + (, )are simultaneously recovered from under sampled data(, )using the following minimization scheme: 1 min ( + ) -   . L)    +   +   + ( ,, 2
+(6.1)
+
+Here is the Fourier sampling operator and  is the non-rigid image warping operator; (, )are the deformation parameters that describe pixel wise relocations because of motion, which are assessed from the under sampled data. The proposed scheme also yield (,) . L , which is the deformation corrected version ofL. In this work, a non-rigid deformation model is considered to model the motion. The regularization term in Eq. (6.1) promotes the sparsity of the deformation corrected dataset  . L, instead ofL. Here, (u)indicates an arbitrary prior to exploit the redundancy in the data; is the corresponding regularization parameter. The primary advantage of the proposed algorithm is that it can be utilized with any spatio-temporal priors on the deformation corrected dataset. The particular priors can be chosen relying upon the particular application. The capability of the algorithm to handle arbitrary image priors makes this methodology definitely different from classical motion compensation algorithms that register each frame to a specific fully sampled frame. The deformation field in Eq. (6.1) is assumed to be parametrically represented in terms of the parameters. For example, is the set of B-spline coefficients if a B-spline model is used to represent the deformation field as in [88] and [89]. In this case, the spatial smoothness of the deformation map is controlled by the grid spacing of the B-spline map. The spatial smoothness 78
+
+requirements can also be explicitly forced using regularization constraints on the deformation field as in [90]. Our approach is closely related to [90]. A variable splitting approach [91], [92] is used to decouple the original problem in (6.1) to simpler sub problems. Specifically, the problem in (6.1) is reformulated to a constrained one below (6.2): 1 ( + ) -    +   +   + (g)  ,,, 2 min s. t. . L = g Eq.(6.2) is solved by relaxing the constraint and penalizing the corresponding quadratic violation as follows: 1  ( + ) -  . L - g   +   +   +  (g) +    ,,, 2 2  min
+(6.3)
+
+(6.2)
+
+where is the penalty parameter that determines the equivalence of (6.3) to (6.2). When approaches, the solution of (6.3) tends to that of (6.2) and hence (6.1). The cost in (6.3) has to be now minimized with respect to four variables , , , g ; To solve this problem, an iterative algorithm is used in which each variable is minimized assuming the rest to be fixed. This results in the following sub problems: (a) Quadratic regularization scheme to update and, (b) Shrinkage algorithm to derive  by smoothing the warped dataset, and (c) Deformable registration algorithm to determine . The
+, 
+
+first
+
+sub
+
+problem
+
+is
+
+obtained
+
+by
+
+
+fixing
+
+
+
+and
+
+ 
+
+in
+
+(6.3).
+
+So, 
+
+ min  ( + ) -   . L - g  is solved using conjugate   +   +   +   
+
+gradient optimization scheme. The second sub problem is specified bymin (g) +
+      . L - g . This sub-problem is solved using shrinkage algorithm, resulting in temporal 79
+
+smoothing
+
+
+of  . L.
+
+Finally,
+
+the
+
+deformation
+
+parameters
+
+are
+
+solved
+
+by
+
+solving
+
+  = argmin  . L - g using a deformable registration algorithm. The scheme is initialized
+
+with  = 0 and  =  , starting with a small value of  and progressively increase it to enforce the constraint.
+
+6.3. Methods
+6.3.1. Data Acquisition
+
+Three different datasets were used, one numerical dynamic phantom data and two in vivo dynamic cardiac data sets utilizing both single and multi-coils.. In all cases the fully sampled data was retrospectively undersampled using a Gaussian variable density random undersampling pattern along the phase encoding direction. Eight central lines of the k-space were always selected. Each subject was screened for magnetic resonance imaging risk factors and provided informed consent in accordance with institutional policy. Each of the datasets is described as follows: Phantom data
+
+The method is first studied on simulated free breathing physiologically improved non-uniform cardiac torso (PINCAT) phantom data (dimensions Nx = Ny = 128, Nt = 50). The PINCAT phantom is an adaptation to MR of the NCAT phantom in CT and was proposed by Sharif and Bresler [81] for evaluating cardiac MR imaging schemes and reconstruction methods in MRI. The version has been modified by Lingala et al. [14] to include intensity changes (simulating perfusion dynamics) and respiratory motion. Single-Coil Data
+
+A single-coil cardiac cine data set was acquired using a 1.5T Philips scanner at Yonsei University Medical Center, Korea: the acquisition sequence was ECG triggered bSSFP, with a flip angle of 80
+
+50. The heart rate of the subject was 75 bpm and retrospective cardiac gating was used for data acquisition. The imaging parameters were as follows: FOV=345×270 mm2, matrix size=256×256, TR/TE=3.17/1.09ms, 25 number of cardiac phases, 8 views per segment, and 32 heartbeats. This provided 8×32=256 views for each frame, and temporal resolution was 3.17×8ms25ms. Slice thickness was 10.0 mm and the sampling trajectory was Cartesian. Multi-coil Data
+
+The multi-coil data is acquired from a healthy adult volunteer using a 1.5T Philips scanner (Philips Healthcare, The Netherlands) with a 32- element cardiac coil using a b-SSFP sequence. Relevant scan parameters include: TR/TE/flip angle=2.8 ms/1.39 ms/60º, matrix 160×160×16, FOV=320 × 320 mm2, spatial resolution=2 ×2 mm2, slice thickness=8 mm with no gap between slices.
+
+6.3.2.
+
+Implementation details
+
+Zero filling Fourier transform (direct IFFT), group wise compressed sensing algorithm (GW-CS) [69], MCDD algorithm [86], and the proposed algorithm are compared. GW-CS and MCDD algorithms were chosen as state-of-the-art nonrigid and rigid motion compensation methods respectively. For GW-CS algorithm the open source code is used [93]. All the algorithms were implemented in MATLAB 2016 on a Windows workstation machine with seven cores, 2.8 GHz CPU, and 12 GB RAM. The run time of MCDD and GW-CS were 42 minutes and 16 minutes respectively. The run time for the proposed algorithm was 10 minutes. For quantitatively comparison of the reconstructions, two error metrics are used: Firstly, the Signal to Error Ratio (SER) defined as:  = 20log   -  
+(6.4)
+
+Whereis the ground truth and   is the reconstruction image and .  donates the  norm. 81
+
+Second, the Structural Similarity index (SSIM) was also used for measuring image quality. The toolbox introduced by [94] was used, with default contrast values [0.01 0.03], Gaussian kernel size of 11 × 11 pixels with a standard deviation of 1.5 pixels to compare the reconstructions.
+
+6.4. Results
+Fig. 6.1 shows the reconstruction results of IFFT, MCDD, GW-CS, and the proposed algorithm at a high acceleration factor of 12, for the phantom data. The first row shows image frames at a certain time index, and the second row shows their difference images from the ground truth. Temporal slice profile images at the location indicated by red line is shown in Fig. 6.1 (B). Results indicate that the proposed algorithm provides lower error than the rest of the methods. In Fig. 6.1 (B), it is observed that the proposed algorithm reconstructions follow temporal variations very closely whereas other methods results are noisy and tend to lose fine details.
+
+(A)
+
+(B)
+
+Fig. 6.1. : Reconstructed images of the PINCAT dynamic cardiac phantom at 12-fold acceleration. Box (A) represents the 24th frame images of the ground-truth. The first row represents image frames, and the second row represents difference frames. Box (B) represents temporal slice profile images at the location indicated by red line. Each column represents ground truth, direct IFFT, MCDD algorithm, GW-CS algorithm, and proposed algorithm, respectively.
+
+82
+
+To evaluate the performance of the different methods along the cardiac cycle, Fig. 6.2 shows quantitative quality measures in terms of the SER and the SSIM introduced in the previous section for the case of phantom data, where the fully sampled image is used as reference.
+40 proposed algorithm GW-CS MCDD
+1
+
+35
+
+0.95
+
+30 SER (dB)
+
+0.9
+
+SSIM
+
+25
+
+0.85
+
+20
+
+0.8
+
+15
+
+0.75
+
+proposed algorithm GW-CS MCDD 0 5 10 15 20 25 30 Frame Number 35 40 45 50
+
+10
+
+0
+
+5
+
+10
+
+15
+
+20 25 30 Frame Number
+
+35
+
+40
+
+45
+
+50
+
+0.7
+
+Fig. 6.2: SER and SSIM values for each time frame
+
+Fig. 6.3 shows the reconstruction results for the case of single coil cardiac MRI data. Frames (A) and (B) are in systole and diastole, respectively. The first rows show image frames at a certain time index, and the second rows show their difference images from the ground truth. As it can be seen, the proposed algorithm generates better results than IFFT, MCDD, and GW-CS algorithms. In temporal profile images (C), the proposed algorithm shows the best performance. IFFT, MCDD, and GW-CS algorithms suffer from temporal blurring and noise. The proposed algorithm demonstrates the motion most clearly.
+
+83
+
+(A)
+
+(B)
+
+(C)
+
+Fig. 6.3. Recovery of a retrospectively undersampled single coil Cine dataset at 12-fold acceleration: Boxes (A) and (B) represent frames from systole and diastole, respectively. (C) represents the temporal profile images at the location indicated by red line. Each column represents ground truth, direct IFFT, MCDD algorithm, GW-CS algorithm, and proposed algorithm, respectively.
+
+84
+
+SER and the SSIM values along temporal frames are illustrated in Fig. 6.4 and show that the proposed algorithm outperforms other algorithms.
+34 32 30 28 SER (dB) 26 24 22 20 18 16 proposed algorithm GW-CS MCDD
+
+0.98 0.97 0.96 0.95 0.94 SSIM 0.93 0.92 0.91 0.9 0.89 0.88 proposed algorithm GW-CS MCDD
+
+0
+
+5
+
+10 15 Frame Number
+
+20
+
+25
+
+0
+
+5
+
+10 15 Frame Number
+
+20
+
+25
+
+Fig. 6.4: SER and SSIM values for each time frame for single-coil cardiac MRI data
+
+In Fig. 6.5, the performance of the compared methods for different acceleration factors is analyzed. Average SER and SSIM indices are calculated and plotted vs. the acceleration factor.
+36 34 32 30 proposed algorithm GW-CS MCDD
+
+1 proposed algorithm GW-CS MCDD 0.95
+
+0.9
+SER (dB)
+
+26 24 22 20 18
+
+SSIM 0.85 0.8
+2 4 6 8 10 12 Acceleration Factor 14 16 18 20
+
+28
+
+0.75
+
+2
+
+4
+
+6
+
+8
+
+10 12 Acceleration Factor
+
+14
+
+16
+
+18
+
+20
+
+Fig. 6.5: SER and SSIM in function of acceleration factor.
+
+85
+
+(a1)
+
+(a2)
+
+(a3)
+
+(a4)
+
+(b1)
+
+(b2)
+
+(b3)
+
+(b4)
+
+(c1)
+
+(c2)
+
+(c3)
+
+(c4)
+
+(d1)
+
+(d2)
+
+(d3)
+
+(d4)
+
+Fig. 6.6: Reconstructed images at 12-fold acceleration using proposed algorithm (second row; b1&b2), GW-CS algorithm (third row; c1&c2), and MCDD algorithm (fourth row; d1&d2). (a1) and (a2) represent the cardiac images of the fully sampled data corresponding to peak diastole and systole cardiac phases respectively. The sampling patterns for corresponding frames are shown in (a3&a4). The reconstructed images are shown in the first two columns, while their error images are shown in the last two columns.
+
+86
+
+Finally, the reconstructions of the multi-coil cardiac cine dataset using proposed algorithm, MCDD algorithm and GW-CS algorithm are shown in Fig. 6.6, along with their error images. The dataset is retrospectively undersampled by factor of 12 using Cartesian sampling pattern. Peak diastole and systole cardiac phase frames are shown for each scheme. It is observed that the proposed algorithm provides better image reconstructions, compared with MCDD and GW-CS schemes. The proposed algorithm preserves fine structures more effectively. Table 6.1 shows a quantitative comparison of the entire methods using SER and SSIM metrics.
+
+Table6.1: Quantitative comparison of different methods using SER and SSIM metrics on the multi-coil data set Scheme Proposed algorithm GW-CS MCDD SER 32.6768 24.6824 23.8442 SSIM 0.9714 0.8971 0.8830
+
+87
+
+Conclusions and Future Work
+
+7.1. Conclusions
+
+In this dissertation, I have focused on the development of mathematical and computational methods for inverse problems in magnetic resonance imaging, mainly to address the acquisition time constraints of the MRI procedure. This work was primarily inspired by significant developments both from theory and practice in signal recovery techniques from partial data that have emerged in the last past decade in the fields of signal processing and information theory. More specifically it is shown how prior information based on low-dimensional signal models such as low rank structure and sparseness could help in the reconstruction of spatio-temporal MR images from sub-Nyquist samples arising from a nuclear magnetic resonance experiment. The major contributions of this dissertation are as follows: The first algorithm was based on compressed sensing using golden-angle variable density spiral sampling. A randomly undersampled spiral k-space reconstruction method has been proposed for better incoherent artifact distribution in accelerated dynamic MRI. It was shown that sampling patterns with golden ratio spacing between successive spirals provided better reconstructions. Comparisons on phantom and real cardiac MRI data sets showed that the proposed algorithm was able to achieve feasible reconstructions using fewer spiral leaves while being robust to artifacts such as spatio-temporal and motion blurring. 88
+
+Also, a novel framework have been developed that performs reconstruction and motion compensation in the context of compressed sensing. The proposed algorithm was based on decomposition of the data into low-rank (L) and sparse (S) components, where L models the correlated information between frames and S represents the rapid change of data over time. With validations on numerical phantom and in-vivo cardiac MRI data, the utility of the proposed scheme has been demonstrated in significantly improving compressed sensing reconstructions in terms of minimizing motion artifacts. In the third algorithm, a new CS reconstruction algorithm based on a non-rigid motion compensation method has been presented for accelerated dynamic cardiac MRI. A variable splitting based optimization algorithm was utilized to decouple the complex joint reconstruction and motion estimation problem to multiple well understood sub-problems. The validation of the proposed algorithm using numerical phantom and in-vivo cine MRI data demonstrates the feasibility in precise recovering of cardiac MRI data from extensively under-sampled data. The proposed method is observed to provide improved reconstructions over state-of-the-art motion compensation schemes. In this study, the choice of regularization parameters and other parameters in spiral design were motivated by empirical observations. A thorough search in a high-dimensional space of parameters could improve the reconstructions. The automatic tuning of regularization parameters for iterative nonlinear reconstruction algorithms is an actively researched area. There exists some strategies such as cross validation [95], and Stein unbiased risk estimator methods [96]. In the future, the adaption of one of these methods to our setting is planned to be investigated.
+
+89
+
+The performance of all the nonlinear iterative reconstruction algorithms in this study were evaluated based on quantitative metrics that gave measures of image sharpness, temporal blurring, and overall mean squared error. Recently, the resolution of reconstructed images from nonlinear algorithms were characterized by determining the local point spread functions at every image pixel [97]. Such an analysis could be adapted to our setting to characterize the resolution of the images from the different algorithms. There are several limitations of the works presented in this dissertation. First, the acceleration factors achieved in second and third algorithms could not enable their direct application to freebreathing real time imaging, due to the limitations of the Cartesian acquisition employed. The adoption of golden-angle spiral trajectory for continuous data acquisition in which the angular step between consecutive spokes is given by the Golden Ratio is planned. For a given under-sampling factor, golden-angle spiral trajectory provides a more efficient coverage of the k-space than the Cartesian scheme used in this dissertation. Another limitation of this work is that retrospectively undersampled data were used. The reasons this approach has been followed were two-fold. First, this allows to have access to a reference signal, the "ground truth", which is extremely helpful to further compare reconstruction algorithms. Second, retrospectively under-sampling makes it possible to generate as many sampling trajectories as necessary without the need of requiring a real scanning procedure, which saves a lot of time. Of course, the downside of this approach is that these sampling strategies are only approximate, but these are largely overwhelmed with the aforementioned benefits. Prospectively undersampling is generally more difficult because of limitations on commercial scanners to directly produce under-sampled data. However, it gives insights on the true
+
+90
+
+performance of reconstruction algorithms in a realistic procedure and for this reason should not be neglected. To sum up, important progress has been provided in terms of algorithmic developments and performance of these methods through undersampled MRI datasets with relatively realistic characteristics and comparative study of the state of the art methods. All three proposed algorithms have proved to provide a flexible computational tool for dynamic MRI reconstruction. The dynamic MRI methods developed in this dissertation are ultimately targeted towards clinical utility. The proposed methods have been tested on a limited number of subjects. To fully evaluate the efficiency and reproducibility of the developed methods in the clinical routine, a systematic study on a larger number of patient scans with different cardiac disorders is needed. In this section, a few potential improvements to the developed methods are suggested for future work.
+
+7.2. Future Work
+- Extension to 3D imaging: 3D acquisitions have advantages over multi-slice 2D imaging in terms of providing contiguous spatial coverage. Extension of the 2D spiral sampling patterns to 3D sampling schemes with variable density kz sampling would be more robust to downsampling, and more suitable for acceleration. Furthermore, due to higher redundancies in the 4D (3D+time) dataset, the joint recovery of the 4D data using the developed methods could provide better reconstructions than slice by slice (2D+time) reconstructions. - We also look forward to further exploration of the numerous directions, including the following: (1) the use of different optimization algorithms that might offer more efficient computation or improved convergence, (2) the use of different sampling trajectories for more 91
+
+efficient k-space coverage, and (3) the use of a more efficient, or perhaps more flexible or extensible, frameworks for practical implementation.
+
+92
+
+References
+[1] T. W. Redpath, Signal-to-noise ratio in MRI, The British Journal of Radiology, 71:704-707, 1998. [2] A. Hoffmann, S. C. Faber, K. J. Werhahn, L. Jager, and M. Reiser, First recordings of peripheral nerve activation caused by fast magnetic field gradients. Magnetic Resonance in Medicine, 43:534-539, 2000. [3] C. L. G. Ham, J. M. L. Engels, G. T. can de Wiel, and A. Machielsen. Peripheral nerve stimulation during MRI: effects of high gradient amplitudes and switching rates, Journal of Magnetic Resonance Imaging, 7:933-937, 1997. [4] S. Plein, T.N. Bloomer, J.P. Ridgway, T.R. Jones, G.J. Bainbridge, and M.U. Sivananthan, Steady-state free precession magnetic resonance imaging of the heart: comparison with segmented k-space gradient-echo imaging, Journal of Magnetic Resonance Imaging, 14 (3): 230-236, 2001. [5] V.S. Lee, Cardiovascular MRI: physical principles to practical protocols, Lippincott Williams & Wilkins, 2005. [6] Z. P. Liang, and P. C. Lauterbur, Principles of Magnetic Resonance Imaging: a signal processing perspective, Wiley-IEEE Press, 1 edition, 1999. [7] D. G. Nishimura, Principles of magnetic resonance imaging. Master's thesis, Stanford University, Feb 2010. [8] S. A. Huettel, A. W. Song, and G. McCarthy, Functiona Magnetic Resonance Imaing. Sinauer Associates, Inc, Sunderland, Massachusetts USA, 2004. [9] M.S. Cohen, R.M. Weissko , R.R. Rzedzian, and H.L. Kantor, Sensory stimulation by time93
+
+varying magnetic elds, Magnetic resonance in medicine, 14( 2): 409-414, 1990. [10] E. J. Candes, J. Romberg, and T. Tao, Robust uncertainty principles: exact signal reconstruction from highly incomplete frequency information, IEEE Transactions on information Theory, 52(2):489-509, Feb 2006. [11] D. L. Donoho. Compressed sensing. IEEE Transactions on Information Theory, 52(4):1289-1306, Apr 2006." [12] M. Lustig, D. Donoho, and J. Pauly, Sparse mri: The application of compressed sensing for rapid mr imaging, Magnetic Resonance in Medicine, 58(6):1182-1195, Dec 2007. [13] E. J. Candes and T. Tao, Near optimal signal recovery from random projections: Universal encoding strategies, IEEE Transactions on Information Theory, 52(12):5406-5425, 2006. [14] E. J. Candes and T. Tao, Decoding by linear programming, IEEE Transaction on Information Theory, 8(6):737-763, 2005. [15] S. G. Mallat and Z. Zhang, Matching pursuits with time-frequency dictionaries, IEEE Transactions on Signal Processing, 41(12):3397-3415, Dec 1993. [16] R. Gribonval and P. Vandergheynst, On the exponential convergence of matching pursuits in quasi-incoherent dictionaries, IEEE Transactions on Information Theory, 52(1):255-261, Jan 2006. [17] Y. C. Pati, R. Rezaiifar, and P. S. Krishnaprasad, Orthogonal matching pursuit: recursive function approximation with applications to wavelet decomposition, In Proce. of The Twenty-Seventh Asilomar Conference on Signals, Systems and Computers, 1:40-44, Nov 1993. [18] D. Needell and R. Vershynin, Signal recovery from incomplete and inaccurate measurements via regularized orthogonal matching pursuit, Foundations of Computational 94
+
+Mathematics, 9(3):317-334, 2007. [19] D. Needell and J. A. Tropp, Cosamp: Iterative signal recovery from incomplete and inaccurate samples, ACM Technical Report 1, July 2008. [20] H Zhang, G Li, and H Meng, An efficient greeddy algorithm for sparse recovery in noisy environment, preprint, 2009. [21] S. Boyd and L .Vandenberghe, Convex Optimization, Cambridge University Press, Mar 2004. [22] B. Recht, M. Fazel, and P. A. Parrilo, Guaranteed minimum-rank solutions via nuclear norm minimization, Preprint, 2007. [23] D. R. Hunter and K. Lange, A tutorial on MM algorithms, The American Statistician, 54(1):30-37, 2004. [24] I. Daubechies, M. Defrise, and C. De Mol, An iterative thresholding algorithm for linear inverse problems with a sparsity constraint, Comm. Pure Appl. Math, 57(11):1413-1457, 2004. [25] A. Beck and M. Teboulle. A fast iterative shrinkage thresholding algorithm for linear inverse problems, SIAM J. Imaging Sciences, 2(1):183-202, 2009. [26] A. D. Scott, J. Keegan, and D. N. Firmin, Motion in cardiovascular MR imaging, Radiology, 250(2): 331-351, Feb 2009. [27] K. P. Pruessmann, M. Weiger, M. B. Scheidegger, and P. Boesiger, SENSE: sensitivity encoding for fast MRI, Magnetic Resonance in Medicine, 42(5): 952-962, Nov 1999. [28] H. Jin, A. R. Lyon, and F. G. Akar, Arrhythmia mechanisms in the failing heart, Pacing and clinical electrophysiology, 31(8): 1048-1056, Aug 2008 [29] A. C. Larson, R. D. White, G. Laub, E. R. McVeigh, D. Li, and O. P. Simonetti, Self95
+
+gated cardiac cine MRI, Magnetic Resonance in Medicine, 51(1): 93-102, Jan 2004. [30] L. M. Boxt, Primer on cardiac magnetic resonance imaging: How to perform the examination, Topics in magnetic resonance imaging, 11(6): 331-347, Dec 2000. [31] M. Weiger, K. P. Pruessmann, and P. Boesiger, Cardiac real-time imaging using sense. sensitivity encoding scheme, Magnetic Resonance in Medicine, 43(2): 177-184, Feb 2000. [32] D. A. Herzka, J. A. Derbyshire, P. Kellman, and E. R. McVeigh, Single heartbeat cardiac tagging for the evaluation of transient phenomena, Magnetic Resonance in Medicine, 54(6): 1455-1464, Dec 2005. [33] D. K. Sodickwon and W. J. Manning, Simultaneous acquisition of spatial harmonics (SMASH): fast imaging with radiofrequency coil arrays, Magn. Reson. Med, 38(4): 591603, October 1997." [34] M. A. Griswold, P. M. Jakob, M. Nittka, J. W. Goldfarb, and A. Haase, Partially parallel imaging with localized sensitivities(PILS), Magn. Reson. Med, 44(4): 602-609, 2000." [35] M. A. Griswold, P. M. Jakob, R. M. Heidemann, M. Nittka, V. Jellus, J. Wang, B. Kiefer, and A. Haase, Generalized autocalibrating partially parallel acquisitions(GRAPPA), Magn. Reson. Med, 47(6): 1202-1210, 2002. [36] B. Madore, G. H. Glover, and N. J. Pelc, Unaliasing by Fourier-encoding the overlaps using the temporal dimension (UNFOLD), applied to cardiac imaging and fMRI, Magn. Reson. Med, 42(5): 813-828, 1999." [37] N. Aggarwal, Q. Zhao, and Y. Bresler, Spatio-temporal modeling and minimum redundancy adaptive acquisition in dynamic MRI, in Proc. 1st IEEE Int.Symp. Biomed. Imag. ISBI2002, July 2002, 737-740. [38] Q. Zhao, N. Aggarwal, and Y. Bresler, Dynamic imaging of time-varying objects, In Proc. 96
+
+ISMRM, page 1776, 2001. [39] Y. Bresler, Fast acuisition and sampling in mri: Introduction to time-sequential sampling of spatio-temporal signal. In Proc. IEEE ISBI, 713-716, 2002. [40] P. Kellman, F. H. Epstein, and E. R. McVeigh,Adaptive sensitivity encoding incorporating temporal filtering (TSENSE), Magn. Reson. Med, 45(5): 846-852, 2001. [41] [42] J. Tsao, On the UNFOLD method, Magn. Reson. Med, 47(1): 202-207, 2002. B. Sharif and Y. Bresler, Optimal multi-channel time-sequential acquisition in dynamic MRI with parallel coils, in Proc. IEEE Int.Symp. Biomed. Imag. ISBI-2006, May 2006. [43] J. Tsao, P. Boesiger, and K. P. Pruessmann, k-t B LAST and k-t SENSE: Dynamic MRI with high frame rate exploiting spatiotemporal correlations, Magnetic Resonance in Medicine, 50(5): 1031-1042, October 2003. [44] S. Kozerke, J. Tsao, R. Razavi, and P. Boesiger, Accelerating cardiac cine 3D imaging using k-t BLAST, Magn. Reson. Med, 52: 19-26, 2004 [45] J. Tsao, S. Kozerke, P. Boesiger, and K. P. Pruessmann, Optimizing spatiotemporal sampling for k-t BLAST and k-t SENSE: Application to high-resolution real-time cardiac steady-state free precession, Magn. Reson. Med, 53: 1372-1382, 2005. [46] M. S. Hansen, S. Kozerke, K. P. Pruessman, P. Boesiger, E. M. Pedersen, and J. Tsao, One the influence of training data quality in k-t BLAST reconstruction,"" Magn. Reson. Med, 52: 1175-1183, 2004. [47] S. Ravishankar , Y. Bresler, MR image reconstruction from highly undersampled k-space data by dictionary learning, IEEE Trans Med Imaging 2010;30(5):1028-1041. [48] K. T. Block, M. Uecker, J. Frahm, Undersampled radial MRI with multiple coils, Iterative image reconstruction using a total variation constraint. Magn Reson Med 2007;57(6):108697
+
+1098. [49] D. Liang, B. Liu, J. Wang, L. Ying, Accelerating SENSE using compressed sensing, Magn Reson Med 2009;62(6):1574-1584. [50] R. Otazo, D. Kim, L. Axel, D. K. Sodickson, Combination of compressed sensing and parallel imaging for highly accelerated first-pass cardiac perfusion MRI, Magn Reson Med 2010;64(3):767-776. [51] M. Lustig, J. Pauly, SPIRiT: Iterative self-consistent parallel imaging reconstruction from arbitrary k-space, Magn Reson Med 2010;64(2):457-471. [52] E. Candes, B. Recht, Exact matrix completion via convex optimization, Found Comput Math 2009;9:717-772. [53] J. F. Cai, E. Candes, Z. Shen, A singular value thresholding algorithm for matrix completion, SIAM J on Optimization 2010;20(4):1956-1982. [54] Z. P. Liang, Spatiotemporal imaging with partially separable functions, In Proc IEEE Int Symp Biomed Imag 2007:988-991. [55] J. Haldar, Z. P. Liang, Spatiotemporal imaging with partially separable functions: A matrix recovery approach, In Proc IEEE Int Symp Biomed Imag 2010:716-719. [56] M. Lustig, M. Elad, J. Pauly, Calibrationless parallel imaging reconstruction by structured low-rank matrix completion, Proceedings of the 18th Annual Meeting of ISMRM, Stockholm 2010. p 2870. [57] S. Lingala, Y. Hu, E. Dibella, M. Jacob, Accelerated dynamic MRI exploiting sparsity and low-rank structure: k-t SLR, IEEE Trans Med Imag 2011;30(5):1042-1054. [58] B. Zhao, J. P. Haldar, A. G. Christodoulou, Z. P. Liang, Image reconstruction from highly undersampled (k, t)-space data with joint partial separability and sparsity constraints, IEEE 98
+
+Trans Med Imaging 2012;31(9):1809-1820. [59] E. Candes, X. Li, Y. Ma, J. Wright, Robust principal component analysis, Journal of the ACM 2011;58(3):1-37. [60] V.Chandrasekaran, S. Sanghavi, P. Parrilo, A.Willsky, Rank-sparsity incoherence for matrix decomposition, Siam J Optim 2011;21(2):572-596. [61] Y. Peng, A. Ganesh, J. Wright, W. Xu, Y. Ma, RASL: Robust alignment by sparse and low-rank decomposition for linearly correlated images, IEEE Trans Pattern Anal Mach Intell 2012;34(11):2233-2246. [62] H. Gao, J. Cai, Z. Shen, H. Zhao, Robust principal component analysis-based fourdimensional computed tomography, Phys Med Biol 2011;56(11):3181-3198. [63] H. Gao, S. Rapacchi, D. Wang, J. Moriarty, C. Meehan, J. Sayre, G. Laub, P. Finn, P. Hu, Compressed sensing using prior rank, intensity and sparsity model (PRISM): Applications in cardiac cine MRI, Proceedings of the 20th Annual Meeting of ISMRM, Melbourne 2012. p 2242. [64] R. Otazo, E. Candes,and D. K. Sodickson, Low-rank plus sparse matrix decomposition for accelerated dynamic MRI with separation of background and dynamic components, Magnetic Resonance in Medicine, 73:1125-1136, 2015. [65] H. Jung, K. Sung, K. S. Nayak, E. Y. Kim and J. C. Ye, k-t FOCUSS: a general compressed sensing framework for high resolution dynamic MRI, Magn. Reson. Med., vol. 61, no. 1, pp. 103­116, Oct. 2009. [66] H. Jung and J. C. Ye, Motion estimated and compensated compressed sensing dynamic magnetic resonance imaging: What we can learn from video compression techniques, Int. J. Imag. Syst. Technol., 20(2): 81­98, 2010. 99
+
+[67] M. S. Asif, L. Hamilton, M. Brummer, and J. Romberg, Motion-adaptive spatio-temporal regularization for accelerated dynamic MRI, Magn. Reson. Med., 70(3): 800­812, Sep. 2013. [68] M. Usman, D. Atkinson, F. Odille, C. Kolbitsch, G. Vaillant, T. Schaeffter, P. G. Batchelor, C. Prieto, Motion corrected compressed sensing for freebreathing dynamic cardiac MRI, Magn. Reson. Med., 70:504­516, 2013. [69] J. Royuela-del-Val, L. Cordero-Grande, F. Simmross-Wattenberg, M. Martín-Fernández and C. Alberola-López, Nonrigid groupwise registration for motion estimation and compensation in compressed sensing reconstruction of breath-hold cardiac cine MRI, Magn. Reson. Med., 75: 1525-1536, 2016. [70] G. H. Glover, Simple analytic spiral k-space algorithm, Magn Reson Med, 42(2):412­415, 1999. [71] J. I. Jackson, C. H. Meyer, D. G. Nishimura, A. Macovski, Selection of a convolution function for Fourier inversion using gridding, IEEE Trans Medical Imaging, 10: 473­478, 1991 [72] J. H. Lee, B. A. Hargreaves, B. S. Hu, D. G. Nishimura, Fast 3D imaging using variable density spiral trajectories with applications to limb perfusion, Magn Reson Med, 50: 1276­ 1285, 2003 [73] C. M. Tsai, D. G. Nishimura, Reduced aliasing artifacts using variable-density k-space sampling trajectories, Magn Reson, 43: 452­458, 2000 [74] D. H. Kim, E. Adalsteinsson, D. M. Spielman, Simple analytic variable density spiral design, MagnReson Med, 50(1): 214­219, 2003 [75] S. Winkelmann, T. Schaeffter, T. Koehler, H. Eggers, and O. Doessel, An optimal radial 100
+
+profile order based on the golden ratio for time-resolved mri, IEEE Trans Med Imaging, 26(1): 68­76, 2007. [76] Y. Kim, S. S. Narayanan, and K. S. Nayak, Flexible retrospective selection of temporal resolution in real-time speech mri using a golden-ratio spiral view order, Magn Reson Med, 65: 1365­1371, 2010 [77] J. A. Fessler, and B. P. Sutton, Nonuniform fast Fourier transforms using min-max interpolation, IEEE Trans Signal Processing, 51: 560­574, 2003. [78] M. Lustig, J.M. Santos, D.L. Donoho, J.M. Pauly, k-t SPARSE: high frame rate dynamic MRI exploiting spatio-temporal sparsity, Proceedings of the 13th Annual Meeting of ISMRM, Seatle, USA, 2006. [79] L. Feng, R. Grimm, K. T. Block, H. Chandarana , S. Kim , J. Xu , L. Axel , D. K. Sodickson, R. Otazo, Golden-angle radial sparse parallel MRI: combination of compressed sensing, parallel imaging, and golden-angle radial sampling for fast and flexible dynamic volumetric MRI, Magn Reson Med., 72(3):707-17, 2014. [80] [81] http://cai2r.net/resources/software/grasp-matlab-code. Retrieved 20 January 2015 B. Sharif and Y. Bresler, Physiologically improved NCAT phantom (PINCAT) enables in silico study of the effects of beat-to-beat variability on cardiac MR, In Proceedings of International Society for Magnetic Resonance in Medicine (ISMRM), page 3418, 2007. [82] S. G. Lingala, E. DiBella, and M. Jacob, "Deformation corrected compressed sensing (DCCS): A novel framework for accelerated dynamic MRI," IEEE Trans Med Imag, 34(1):7285, Jan 2015. [83] [84] http://cai2r.net/research/ls-reconstruction. Retrieved 15 Febuary 2017. https://research.engineering.uiowa.edu/cbig/content/software. Retrieved 15 Febuary 2017. 101
+
+[85] S. Lingala and M. Jacob, Blind compressive sensing dynamic MRI, IEEE Trans. Med. Imag., 32(6): 1132­1145, 2013. [86] A. Tolouee, J. Alirezaie, P. Babyn, Motion Compensated Data Decomposition Algorithm to Accelerate Dynamic Cardiac MRI, Magnetic Resonance Materials in Physics, Biology and Medicine 2017, DOI: 10.1007/s10334-017-0628-x [87] H. Pedersen, H. O´. lafsdo´ttir, R. Larsen, and H. Larsson, A unifying model of perfusion and motion applied to reconstruction of sparsely sampled free-breathing myocardial perfusion mri, in Proc. IEEE Int. Symp. Biomed. Imag. From Nano to Macro 2010, pp. 752­ 755. [88] J. Kybic and M. Unser, Fast parametric elastic image registration, IEEE Trans. Image Process, 12(11): 1427­1442, 2003. [89] S. Y. Chun and J. A. Fessler, A simple regularizer for B-spline nonrigidimage registration that encourages local invertibility, IEEE J. Sel. Topics Signal Process 2009; 3(1): 159­169. [90] C. Chefd'Hotel, G. Hermosillo, and O. Faugeras, Flows of diffeomorphisms for multimodal image registration, in Proc. IEEE Int. Symp. Biomed. Imag. 2002. pp. 753­756. [91] M. Afonso, J. Bioucas-Dias, and M. Figueiredo, Fast image recovery using variable splitting and constrained optimization, IEEE Trans. Image Process. 2010; 19(9): 2345­ 2356. [92] S. Ramani and J. A. Fessler, A splitting-based iterative algorithmfor accelerated statistical X-ray CT reconstruction, IEEE Trans. Med. Imag. 2012; 31(3): 677­688. [93] https://www.lpi.tel.uva.es/node/609 [94] Z. Wang, A. Bovik, H. Sheikh, E. Simoncelli, Image quality assessment from error visibility to structural similarity, IEEE Trans Image Process 2004;13: 600­612. 102
+
+[95] M. A. Lukas, Robust generalized cross-validation for choosing the regularization parameter, Inverse Problems, 22:1883, 2006. [96] S. Ramani, Z. Liu, J. Rosen, J. Nielsen and J. A. Fessler, Regularization parameter
+
+selection for nonlinear iterative image restoration and MRI reconstruction using GCV and SURE-based methods, IEEE Trans. Image Process, 21: 3659­72, 2012 [97] T. Wech, D. Stab, J. C. Budich, A. Fischer, J. Tran-Gia, D. Hahn and H. Kostler, Resolution evaluation of MR images reconstructed by iterative thresholding algorithms for compressed sensing, Med. Phys., 39: 4328, 2012.
+
+103
+
+

@@ -1,0 +1,3158 @@
+On Predicting Rediscoveries of Software Defects
+
+by
+
+Mefta Sadat Bachelor of Science, Islamic University of Technology, 2013
+
+A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Science in the Program of Computer Science
+
+Toronto, Ontario, Canada, 2017 ©Mefta Sadat 2017
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+ii
+
+On Predicting Rediscoveries of Software Defects Master of Science 2017 Mefta Sadat Computer Science Ryerson University
+
+Abstract
+The same defect may be rediscovered by multiple clients, causing unplanned outages and leading to reduced customer satisfaction. One solution is forcing clients to install a fix for every defect. However, this approach is economically infeasible, because it requires extra resources and increases downtime. Moreover, it may lead to regression of functionality, as new fixes may break the existing functionality. Our goal is to find a way to proactively predict defects that a client may rediscover in the future. We build a predictive model by leveraging recommender algorithms. We evaluate our approach with extracted rediscovery data from four groups of large-scale open source software projects (namely, Eclipse, Gentoo, KDE, and Libre) and one enterprise software. The datasets contain information about  1.33 million unique defect reports over a period of 18 years (1999-2017). Our proposed approach may help in understanding the defect rediscovery phenomenon, leading to improvement of software quality and customer satisfaction.
+
+iii
+
+Acknowledgements
+This master's thesis is submitted to fulfill the requirements of the MSc of Computer Science at Ryerson University in Toronto, Canada. The work carried out in this thesis was supervised by Dr. Andriy Miranskyy and Dr. Ayse Bener. Foremost, I would like to express my sincere gratitude to Dr. Miranskyy for the continuous support of my MSc study and research, for his patience, motivation, enthusiasm, and immense knowledge. His guidance helped me in the research and writing of this thesis. I could not have imagined having a better supervisor and mentor for my MSc studies. My sincere thanks also goes to Dr. Bener, who always provided great guidance related to my research and inspiration to work hard and aim for the best. I thank her also for leading me to work on diverse exciting projects. Besides my supervisors, I would like to thank the rest of my thesis committee. I thank my fellow labmates in Ryerson AMiR Lab: Mujahid Sultan, Sokratis Tsakiltsidis, and Jorge Lopez for the stimulating discussions in our group meetings. Last but not the least, I would like to thank my family and my wife Nadira, whose constant love and support made this possible.
+
+iv
+
+Dedication
+To my beloved mother, who always inspired me to go for higher studies.
+
+v
+
+Contents
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dedication . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Figures 1 Introduction 1.1 Terminology . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1.1.1 1.1.2 1.1.3 1.1.4 1.2 1.3 1.4 1.5 1.6 1.7 Software Defect . . . . . . . . . . . . . . . . . . . . . . . . . . . . Defect Rediscovery . . . . . . . . . . . . . . . . . . . . . . . . . . Graph of Rediscoveries . . . . . . . . . . . . . . . . . . . . . . . . Preventive Service . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii iii iv v ix x 1 1 2 2 3 3 4 6 6 7 8 8 10 10 12 13
+
+Motivation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Objective . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Proposed Solution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Novelty . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Contribution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Outline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+2 Literature Review 2.1 2.2 2.3 Triage Leveraging Duplicate Defect Reports . . . . . . . . . . . . . . . . Reducing Defect Rediscovery . . . . . . . . . . . . . . . . . . . . . . . . . Defect Report Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . vi
+
+3 Methodology 3.1 3.2 Recommender Systems . . . . . . . . . . . . . . . . . . . . . . . . . . . . User Feedback for Recommender Systems . . . . . . . . . . . . . . . . . . 3.2.1 3.2.2 3.3 3.4 3.5 Explicit User Feedback . . . . . . . . . . . . . . . . . . . . . . . . Implicit User Feedback . . . . . . . . . . . . . . . . . . . . . . . .
+
+15 15 16 16 16 17 18 18 19 19 20 22 23 24 25 25 26 31 31 34 39 39 41 44 47 51 57 59 60 vii
+
+Top-N Recommendations . . . . . . . . . . . . . . . . . . . . . . . . . . . Rating Matrix for RS . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Recommender Algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . 3.5.1 3.5.2 3.5.3 3.5.4 Random items . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Popular items . . . . . . . . . . . . . . . . . . . . . . . . . . . . . User-based Collaborative Filtering . . . . . . . . . . . . . . . . . . Naive-Bayes-based . . . . . . . . . . . . . . . . . . . . . . . . . . Reducing the Sparsity of the Datasets . . . . . . . . . . . . . . .
+
+3.6 3.7 3.8
+
+Sparsity Problem . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.6.1 3.7.1 Evaluation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Accuracy Metrics . . . . . . . . . . . . . . . . . . . . . . . . . . . Validation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4 Evaluation 4.1 4.2 4.3 Data Extraction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dataset Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Discussion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.3.1 4.3.2 4.3.3 4.3.4 4.4 Rediscovery Prediction . . . . . . . . . . . . . . . . . . . . . . . . Which Schema is the Best One? . . . . . . . . . . . . . . . . . . . Which algorithm is the Best One? . . . . . . . . . . . . . . . . . . What drives models' failure? . . . . . . . . . . . . . . . . . . . . .
+
+Threats to Validity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+5 Conclusions and Future Work 5.1 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Appendices
+
+A Reducing the Sparsity using Clustering A.1 Clustering . . . . . . . . . . . . . . . . . . . . A.1.1 Agglomerative Hierarchical Clustering A.1.2 Self-Organising Map (SOM) . . . . . . A.1.3 Results . . . . . . . . . . . . . . . . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+61 61 62 67 69 73 73 83 89 89 94 96
+98 106 107 108
+
+B Data Extractions Scripts B.1 Web Scraper . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . B.2 Web Scraper Util . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . C Recommender Scripts C.1 Naive Bayes Implementation . . . . . . . . . . . . . . . . . . . . . . . . . C.2 Temporal Splitting Implementation . . . . . . . . . . . . . . . . . . . . . C.3 Split Known Unknown . . . . . . . . . . . . . . . . . . . . . . . . . . . . References Index
+
+viii
+
+List of Tables
+3.1 4.1 4.2 Sample rating matrix capturing information about defect (re)discoveries. 18 36 42 48 48 49 49 50 51 53 54 55 56
+
+Summary statistics. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Percentage of non-zero elements () for each project without splitting and median  after splitting by product-components . . . . . . . . . . . . . 4.3 Summary of the best-performing algorithms (in %) incorporating all schemas 4.4 Confusion Matrix of the Random Forest Classifier . . . . . . . . . . . . . 4.5 List of factors potentially influencing models' performance . . . . . . . . 4.6 Statistical Analysis of the three most important factors. The table shows means of the attributes plus-minus standard deviation (s.d.). . . . . . . . 4.7 Confusion Matrix of the Naive Bayes Classifier . . . . . . . . . . . . . . . 4.8 Frequency of the two class-attributes for each dataset . . . . . . . . . . . 4.9 Best Algorithms for Schema-1 for each dataset and for each Top-N value 4.10 Best Algorithms for Schema-2 for each dataset and for each Top-N value 4.11 Best Algorithms for Schema-3 for each dataset and for each Top-N value 4.12 Best Algorithms for Schema-4 for each dataset and for each Top-N value
+
+ix
+
+List of Figures
+1.1 1.2 The distribution of number of defect reports submitted per day for four dierent software projects in the last 18 years. The Y-axis in log scale. . Graph of rediscoveries of Eclipse report #4671. Report B being duplicate of report A is denoted by A ! B . Note that even though report #4671 is the original discovery, a later report #6325 was chosen by developers as the master report. We can say that the failure associated with report #4671 was discovered 15 times in total (counted as the total number of vertices/reports in the graph) and rediscovered 14 times (total number of duplicate reports). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Temporal Splitting: Schematic Diagram. The diagram represents how we split a dataset containing defect reports from ten consecutive years into training and testing sets. Time-interval-increment (dt) is set to 1 year. The green boxes represent the training-set-time-interval and the grey boxes represent the testing-set-time-interval. . . . . . . . . . . . . . Unique defect reports and reporters count for each project. Note that y-axis has log scale. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Count of the total number or reports for a given failure vs. count of original reports. If a given failure was reported once, then it means that it was never rediscovered; reported twice ­ means that it was rediscovered once, and so on (see Section 1.1.3 for details). For example, KDE dataset has 257420 reports that were never rediscovered (i.e., discovered once) and 15106 reports that were rediscovered once (i.e., discovered twice). . . . . Per-year analysis: Number of reports per year. . . . . . . . . . . . . . . . x
+
+2
+
+4
+
+3.1
+
+29
+
+4.1 4.2
+
+35
+
+35 37
+
+4.3
+
+4.4 4.5
+
+Per-year analysis: Percent of reports that have not been (yet) rediscovered. Distributions of time intervals between the original discovery and the latest rediscovery for a given graph of rediscoveries. . . . . . . . . . . . . . . . 4.6 Distribution of non-rediscovered reports per product-component. . . . . . 4.7 Mean TPR while changing dt=1 to dt=3, by 1 year. . . . . . . . . . . . . 4.8 Distribution of non-zero elements in the per component analysis. . . . . . 4.9 ROC plots for each temporal-splitting-schema and for each dataset. The thresholds of the curve are the values of Top-N = 1,3,5,10,20. The Y and X axis represent the mean FPR and TPR respectively. Error bars represent one standard deviation spread from either side of the mean. . . . . . . . 4.10 Best Performing Algorithm for each schema and dataset . . . . . . . . . 4.11 Most influential factors as per Random Forest classifier . . . . . . . . . .
+
+38 38 39 42 43
+
+45 47 50
+
+xi
+
+Chapter 1 Introduction
+Software quality assurance is the process that ensures that the software being developed meets all the expected quality standards [73]. During software quality assurance and maintenance, a significant amount of time is invested on detecting, analyzing, and correcting software defects [19]. A Software defect is an anomaly in the software product that causes the software to perform incorrectly or to behave in an unexpected way [16]. Defect reports are software engineering artifacts that contain description of software defects. When a defect is reported for the first time pointing to a problem in the software that was never identified before, we call it Defect Discovery [9, 60]. If multiple users report the same defect, we call it a Defect Re-discovery [9, 60] of the original discovery. The occurrence of a large number of rediscovery causes an avalanche of support tickets, increased downtime, and reduced customer satisfaction. Preventing a defect rediscovery (i.e., by applying a fix beforehand as a preventive measure) is costly because in software projects a large number of defects is reported on a regular basis (Figure 1.1) and creating so many special builds is expensive and time consuming. Thus, the necessity to develop optimised techniques to prevent defect rediscovery arises.
+
+1.1
+
+Terminology
+
+Throughout the study the following terminology (adopted from [16, 15, 65, 58]) is used. 1
+
+Chapter 1. Introduction
+
+1.1. Terminology
+
+Distribution of submitted report count per day
+
+
+
+500
+
+       
+
+           
+
+          
+
+1
+
+5
+
+50
+
+Eclipse
+
+Gentoo Project
+
+KDE
+
+Libre
+
+Figure 1.1: The distribution of number of defect reports submitted per day for four dierent software projects in the last 18 years. The Y-axis in log scale.
+
+1.1.1
+
+Software Defect
+
+The users of a software product often encounter a problem or a fault in the software that leads to an undesired outcome or even a software failure. This problem or flaw is also known as software defect. Even though there are multiple ways to define the term defect, typically in Software Engineering, it means the deviation from an expected outcome or requirement [16].
+
+1.1.2
+
+Defect Rediscovery
+
+Original defect discovery can be defined as the moment when a customer encounters a defect in the software for the very first time. Encounter is manifested by a problem or a fault in the software that leads to an undesired outcome or even a software failure. The customer then submits a report to a defect tracking system describing the problem. If another customer encounters the same defect again, it is called Defect Rediscovery [60]. Defect rediscovery may occur when the fix is not ready or the fix is ready and yet to be installed by the customer. Sometimes, the administrators of the software system may delay the fix request as they are preoccupied with other crucial tasks related to the 2
+
+Chapter 1. Introduction
+
+1.1. Terminology
+
+overall functionality of the system or are awaiting for planned maintenance downtime [9].
+
+1.1.3
+
+Graph of Rediscoveries
+
+After encountering a defect, a customer typically submits a new report to the defect tracking system of the software provider. During report triaging, developers identify if a new report relates to a discovery of a new defect or to a rediscovery of an existing one. If it is a rediscovery, then developers typically mark the most recent report as a duplicate and link it to the original report (in some cases the link may be established incorrectly: "to err is human"). They then choose one of the linked reports as a master report and the rest of the reports associated with this particular failure will be deemed duplicates of the master report. Note that the report associated with the first discovery does not necessarily become a master report ­ sometimes developers choose a report of one of the rediscoveries as a master one. Given that there can be more than one rediscovery of the same defect, the network linking the original report with duplicate ones (which we call the graph of rediscoveries ) may become complex [15]. For example, Figure 1.2 shows the graph of rediscoveries for Eclipse project's defect report #4671 of product Platform. Note that the master report (#6325) in this case is not the original report. The defect tracking system used by Eclipse project numbers defect reports sequentially with an integer id, with the first id set to 1. Summing up original discovery and rediscovery count yields total number or reports for a given failure. If a given report was discovered in total once, then it means that it was never rediscovered; discovered twice ­ means that it was rediscovered once, and so on. In the case of Figure 1.2, report #4671 was rediscovered 14 times. Thus, the total number of reports for a failure associated with report #4671 is 15.
+
+1.1.4
+
+Preventive Service
+
+Preventive Service (PS) generally means the installation of a fix for a defect beforehand, in order to prevent the defect rediscovery [9]. Preventive Service is provided to counter defect rediscovery. Sometimes, customers may ask proactively for preventive services after getting notification from the software manufacturer about potential defect rediscovery [60]. 3
+
+Chapter 1. Introduction
+
+1.2. Motivation
+
+6325
+
+4760
+
+5544
+
+6136
+
+13724
+
+25256
+
+31201
+
+16783
+
+18247
+
+19760
+
+4671
+
+19274
+
+19128
+
+23194
+
+23196
+
+Figure 1.2: Graph of rediscoveries of Eclipse report #4671. Report B being duplicate of report A is denoted by A ! B . Note that even though report #4671 is the original discovery, a later report #6325 was chosen by developers as the master report. We can say that the failure associated with report #4671 was discovered 15 times in total (counted as the total number of vertices/reports in the graph) and rediscovered 14 times (total number of duplicate reports).
+
+1.2
+
+Motivation
+
+Defects are injected in the software during the development cycle. When the test team inadvertently fails to detect the injected defect, it escapes the test cycle, resides in the shipped product and ultimately reaches the end customer. The detection of all the defects before release is hardly ever achieved in real-life software projects [39]. So, the customers "trip" on the dormant defects that are part of the released product. After encountering such a defect, a customer usually reports it to the software provider by opening a ticket in a defect reporting system of the software provider. When a ticket is opened, it is analysed and then assigned to a single developer or a group of developers to fix the problem. The process is generally known as bug fixing [88]. When the fix is ready and sent to the 4
+
+Chapter 1. Introduction customer, it is applied to the product to eliminate the defect.
+
+1.2. Motivation
+
+A defect injected in a frequently used software component is more likely to be rediscovered multiple times. On the contrary, a defect residing in an infrequently used software component has a lower chance of rediscovery. The group of customers who use the same set of software features excessively, may rediscover the same defects more often because users expect the software to behave similarly in similar situations [59]. Some customers may use the software more extensively than the others, contributing to the higher probability of defect rediscovery, as they `traverse' through a higher number of execution paths. Essentially, they have higher number of inputs, outputs, and configurations. For example, one group of customers may use a spreadsheet software only for storing data and another group of customers may use the same software for both storing and analysing the data. The latter group may rediscover more defects. Defect rediscoveries aect clients, as they lead to unplanned outages and reduced customer satisfaction. Moreover, rediscoveries drain resources of the support personnel [9, 60], as they have to analyse each request before providing a solution. Since both parties suer from the problems caused by rediscoveries, it is essential to reduce the number of rediscoveries per defect in a software product. Defect rediscovery can be countered by applying Preventive Service (PS) [9]. If a client applies the fix proactively, before rediscovering the defect, they will never encounter it. By applying PS, one may minimise the total number of rediscoveries significantly. However, this strategy has some disadvantages as per[9, 60]: · PS is expensive, as it requires allocation of additional resources (e.g., to apply patches), · Some customers are resistant to apply PS (i.e., they prefer not to update until a major service pack is released), · PS itself may inject a new defect, causing regression of functionality, and · Each customer will not rediscover every defect. As a result, it is not practical to install fix for every discovered defect. Therefore, if we take all the above mentioned constraints into account, we can come to the conclusion that this strategy is not always desirable. Rather than applying fixes to 5
+
+Chapter 1. Introduction
+
+1.3. Objective
+
+all defects, we need to identify a subset of defects that the client will rediscover in the future and target only this subset of defects for PS.
+
+1.3
+
+Objective
+
+The primary objective of this study is to build predictive models that can predict defect rediscoveries in order to proactively eliminate them before a customer finds. We reach the primary objective by answering the following research question. RQ1: How can we proactively predict defects that a client will rediscover in the future? The secondary objectives include (1) understanding the defect rediscovery phenomenon in both commercial and open source software projects and (2) identifying the essential factors that influence the accuracy of the predictive models. We address these objectives by answering the following questions. RQ2: How prevalent is the defect rediscovery phenomenon in commercial and open source software projects? RQ3: What are the factors that influence the accuracy of the predictive models?
+
+1.4
+
+Proposed Solution
+
+In order to address RQ1, first, we extract data from one commercial and several open source software projects. We write a custom-built web scraper to extract defect report data from the defect tracking system (Bugzilla) of the open source software projects. We mine the Bugzilla engine of Eclipse, Gentoo, KDE, and LibreO ce (details of the data extraction presented in Section 4.1). We collect the data from the Enterprise software project through its structured relational database system. Second, we implement a Defect Recommender System (DRS) to proactively identify the defects a client may encounter in the future. In case of recommender systems, the basic idea is to predict the items that the user of the system is going to be interested in based on some historical data, such as, previous interactions with the system, what like 6
+
+Chapter 1. Introduction
+
+1.5. Novelty
+
+minded users are interested in, and items that are very similar to the previously liked items. For example, a movie recommender recommends movies to the user based on the movies watched by the user in the past, currently popular or trending movies, and the preference of the like-minded users (what similar users also watched). In our case, we have built our defect recommender system (DRS) based on the defect reports (which in recommender system terminology becomes item) by the users. Basically we predict defect rediscovery based on the previously reported defects by a user, the preference of the similar reporters, and the most commonly reported defects. To address RQ2, we provide an in-depth analysis of the defect rediscovery data collected from both commercial and open source software projects in Section 4.2. We compare the data from dierent projects using various statistical techniques. Finally, to answer RQ3, we examine the cases where the model fails to perform in Section 4.3.4. We apply a Random Forest (RF) and a Naive Bayes classifier to distinguish such cases and use the variable importance measure of RF to identify the driving factors of the failed cases.
+
+1.5
+
+Novelty
+
+To the best of our knowledge, there is no other work that implements recommender systems to predict defect rediscoveries by the customers. Although other researchers have studied the prediction/detection of duplicate/rediscovered defects, ours is the first study that predicts defect rediscoveries from the perspective of the customers with the intention to increase the customer-satisfaction of the software project. Furthermore, we investigate the inter-relations of rediscovered defects, which has not been studied before. We analyze  1.3 million unique defect reports from one commercial and four different open source large scale software projects each of them having thousands of users worldwide. We provide a solution on reducing the sparsity for such sparse data in the context of software engineering and how recommender systems can be used to proactively eliminate potential defect rediscoveries. We show that partitioning the data using product-component yields the highest accuracy in terms of the recommender systems. We present a comprehensive and reproducible approach using commonly used recommender systems including popularity based and k-Nearest Neighbors based recommender 7
+
+Chapter 1. Introduction
+
+1.6. Contribution
+
+algorithms. We show that simply recommending the most frequently reported defects for a given product-component may reduce the number of defect rediscoveries because the popularity-based recommender is the best performing algorithm. We find empirical evidence that there exists similarity among the users of a software product because the k-Nearest Neighbour based recommender performs as the second best algorithm while predicting rediscoveries.
+
+1.6
+
+Contribution
+
+The major contributions of this work can be summarized as: · A set of techniques to connect duplicate defects and identify defect rediscovery information in software projects. · A novel approach, to reduce number of defect rediscovery leveraging recommender systems algorithms in order to increase customer satisfaction and better manage resource allocation. · Three extracted rediscovery datasets from open source projects shared with the Software Engineering community in CSV, MySQL, and Neo4j formats [67, 66, 68]. The data is available in open access data sharing repository [68]: https://doi. org/10.5281/zenodo.400614 · A prototype tool to extract rediscovery data from Bugzilla-based defect report tracking systems, listed in Appendix B. · A prototype tool implementing the novel approach, core features1 of which are listed in Appendix C.
+
+1.7
+
+Outline
+
+In Chapter 2, we provide related works and a brief literature review on defect report analysis. In Chapter 3, we introduce the methodologies that we use in order to built
+1
+
+Full code base of the tool will be shared via GitHub.
+
+8
+
+Chapter 1. Introduction
+
+1.7. Outline
+
+our predictive model and the approaches followed to evaluate the model. In Chapter 4 we present the data analysis and the analysis of the results of our model. Finally, in Chapter 5, we provide a summary of this study, as well as a conclusion and a direction towards future work.
+
+9
+
+Chapter 2 Literature Review
+There has been multiple studies done in the past in software engineering literature that leverage duplicate defect reports. For example, one can detect duplicate reports to speed up report triaging (deduplication) [65, 10] and identification of the root cause of failure [15], or to predict defect rediscoveries in order to proactively eliminate defects before a customer finds [9], or to improve resource allocation to optimally manage the workforce [60], or to predict bug priority to improve planning [77], or to build customer profiles to improve quality assurance processes [58], or to automatically assign defect reports to owners to speed up time-to-fix of defects [13]. In this chapter, we review the related research works that either leverage rediscovered/duplicate defect reports or the research works that highlight the importance of reducing the number of defect rediscovery (or defects in general) in a software project. Additionally, even though we dierentiate our study from defect report analysis studies, we review the literature from this field of study as they are related. This includes studies on defect report prioritization, duplicate defect report detection, quality of defect reports, misclassified defect reports, and predicting the severity of defect reports.
+
+2.1
+
+Triage Leveraging Duplicate Defect Reports
+
+Many researchers have investigated the methodologies to detect duplicate defect reports in order to speed up triaging [65, 10]. Most of the studies focus on either the textual similarity between the defects or the stack trace information. Hiew [36] was first to 10
+
+Chapter 2. Literature Review
+
+2.1. Triage Leveraging Duplicate Defect Reports
+
+use Natural Language Processing (NLP) to detect duplicate defects. Later, Runeson et al. [65] used a more sophisticated approach leveraging a vector space model as well as combined multiple textual attributes. Alipour et al. [10] applied existing NLP based techniques along with a set of contextual word lists to detect duplicate reports. Sureka and Jalote [76] introduced a n-gram based detection approach instead of typical word based approach. Another group of studies focus on the stack trace data in order to detect duplicates [81, 74, 25]. Stack trace contains information about the software execution as a crash report. Such information typically helps to understand the characteristics of a software defect. Therefore, many researchers used this technique to identify duplicates. The main dierence between our study with the studies of duplicate detection is that we do not predict if a defect report relates to a duplicate report/defect rediscovery. Rather we predict, for a given set of rediscovered defects, which are the defects a specific user may rediscover in the future. The prediction problem we deal with is more user-centric; and thus we choose recommender systems as the proposed solution. Avik et al. [13] proposed a machine learning system to automatically assign defect reports to developers (automatic traiaging). The authors observed that the assigned to field does not update often and point to the actual developer (who fixes the defect) in case of defects labelled with the duplicate tag. Therefore, they derived heuristics such as using the information from the original defect the duplicate is related to. Researchers analysed defect report prioritization using rediscovery information. Tian et al. [77] leveraged duplicate reports data while predicting priority level of a defect report since the similar defects may share the same priority level. Therefore, during model-training time they used a set of duplicate defects. The authors adopted a modified version of REP which is a state-of-the-art technique to measure similarity between two defects, proposed by Sun et al. [75]. The modified version includes textual summary and description fields as well as the product and component of the defects. They discarded the priority field because their main objective was to predict the priority level for a given software defect. The main dierence between our study with defect report prioritization related studies is that, we proactively identify defects the users may encounter in the future so that some preventive actions can still be recommended. However, defect reports prioritization studies focus on the final solution or fix without eliminating immediate risk of potential 11
+
+Chapter 2. Literature Review
+
+2.2. Reducing Defect Rediscovery
+
+defect rediscovery. Our results may be used for prioritization before a defect is fixed. But, this is not the main goal of this research.
+
+2.2
+
+Reducing Defect Rediscovery
+
+There are not many studies done in the area of reducing defect rediscoveries in software projects; however, the importance of minimising the number of defects in a software is critical to its success: some authors have suggested in the past that the number of defects existing in a software is closely related to customer satisfaction [18]. Researchers have developed dierent metrics related to defect rediscovery in order to benefit software providers and increase customer satisfaction. An earlier study presented a set of metrics to estimate the risk associated with defect rediscovery [60]. Another metric was proposed to improve product support that measures the probability of a customer detecting a defect within a short period of time [61]. In the seminal paper in 1984, Adams [9] assessed when preventive services should be applied to avoid defect rediscovery. He reported that by applying preventive services for the defects that have been rediscovered many times early in the life cycle of the software, one can achieve the most benefits. Adams also discussed how the maximisation of preventive services is not desirable and how one should optimise preventive services. Researchers have developed dierent metrics related to defect rediscovery in order to benefit software providers and increase customer satisfaction. A study presented a set of metrics to estimate the risk associated with defect rediscovery [60]. According to this study the information on number of defect rediscoveries can be leveraged by the software maintenance, support, and quality assurance teams. Upon receiving a support ticket, the support team must verify first if the ticket is a rediscovery of a existing defect or not. Increased number of rediscoveries cause slower transfer of support tickets to maintenance teams. Similarly, maintenance teams need to know when to expect maximum defect rediscovery in order to better prepare for creating special builds for clients and to estimate allocation of personnel. A large number of defect rediscovery in a frequently used software component can be used to pinpoint software testing related failure by the Quality Assurance Team [60]. Another study proposed a metric to improve product support that measures the probability of a customer detecting a defect within a 12
+
+Chapter 2. Literature Review short period of time [61].
+
+2.3. Defect Report Analysis
+
+In order to better understand software reliability and system outages, researchers have analysed the data from a software product that had geographically distributed user base (which is also the case in our study) and suggested metrics such as the number of rediscoveries per defect and the time window between first and last rediscovery of a given defect [22]. In order to prioritise fixes and allocate sta ng, many researchers investigated distributions of defect rediscoveries. They observed that the distribution can be either thin-tailed [80] or heavy-tailed [9, 62, 60], depending on the data under study. In general, software engineering processes, it is common to have a heavy-tailed distribution [53]. To the best of our knowledge, there is no other work that implements recommender systems for defect rediscoveries. The work, that is closest to ours, identifies several methods to reduce the number of defect rediscovery by customers [85]. These methods include 1) making fixes available quickly for severe defects (defects that cause a large number of rediscovery), 2) releasing fixes that are available, in the soonest possible update rather than waiting to complete more fixes, 3) making announcements about availability of fixes and creating easily installable fixes, 4) taking preventive measures against severe defects by doing root cause analysis for existing severe defects. However, this work is complementary to ours, as they focused only on severe defect and generalised to all the customers, whereas, we take into account all the defects and create personalised predictions for each customer. In our case study in this research, we used dierent defect rediscovery metrics previously used by other researchers in order to understand how we can reduce the number of rediscoveries [9, 22, 61, 59].
+
+2.3
+
+Defect Report Analysis
+
+Apart from defect report triage and defect rediscovery studies, there are general defect report analysis studies. This type of studies deal with defect report optimization problem (improving report quality) [14, 47, 86, 40, 12, 35]. Bettenburg et al. [14] analysed the quality of defect reports by conducting a developer survey for Eclipse project. According to the developers the inclusion of reproducibility 13
+
+Chapter 2. Literature Review
+
+2.3. Defect Report Analysis
+
+and stack trace in the report are the most helpful data. In addition, the authors reported that the developers typically do not consider duplicate reports as harmful, because sometimes these reports contain additional description. Lamkanfi and Demeyer [47] and found that defect reports often contain incorrect information in some of the fields of the reports. The main reason is that the users of the software are not completely aware of all the technical aspects of the software (i.e., product, component, etc.). As a result, the triager may need to manually correct this information. The authors proposed machine learning approach to predict incorrect component field in defect reports. Xie et al. [86] analysed the impact of introducing non-developer-triagers in optimizing defect reports. The optimizing activities involve filtering defect reports, completing incomplete reports, and mapping products to reports. The authors observed that the traigers were e cient filtering invalid defects whereas not so e cient in mapping products to reports. Wu et al. [40] also found that defect reports are often incomplete. They built a machine learning model using Support Vector Machine (SVM) in order to predict the values of the missing fields based on the previous data of the software projects under study. In addition, they detect if a new report is a duplicate or not based on textual similarity measures such as cosine distance. Another group of studies focus on identifying defect reports that do not relates to actual defects. The problem can be termed as defect report misclassification problem as per Antoniol et al. [12]. The authors dierntiated defects from other issues using Decision Tree, Naive-Bayes, and Logistic Regression based approaches. Herzig et al. [35] reported that two out of five defect reports are wrongly classified as defects, especially in open source projects.
+
+14
+
+Chapter 3 Methodology
+In this chapter we provide general overview of recommender system (RS), followed by discussion on RS used in our study. In Section 3.1 we present a brief overview of RS. Then, we discuss dierent aspects of RS, including the type of user feedback used in RS in Section 3.2, the Top-N recommendations in Section 3.3, the input user-item rating matrix to RS in Seciton 3.4, and the recommender algorithms used in our study in Section 3.5. RS often suers from lack of information, so called sparsity problem, which we discuss in Section 3.6. We tackle the problem by partitioning the data, as discussed in 3.6.1. The evaluation of the RS's performance is given in Section 3.7. Throughout the chapter, we use the term item and defect interchangeably because item is a more common term in RS terminology and in our context an item and a defect are equivalent.
+
+3.1
+
+Recommender Systems
+
+Recommender System (RS) is a popular technology used by dierent organisations (e.g., Amazon [1], Netflix [5], and Spotify [7]) in various domains such as e-commerce [72], news [20], and entertainment websites [45]. RS uses statistical and knowledge discovery approaches in order to create recommendations based on historical transaction data [69]. These recommendations help users to find relevant products or items from a plethora of choices. The basic idea is to predict the products or items that the user of the system is going to be interested in, based on the user's previous interactions with the system. For example, e-commerce website Amazon recommends products to a user based on the 15
+
+Chapter 3. Methodology
+
+3.2. User Feedback for Recommender Systems
+
+user's interests [51]. Some recommender systems also consider the interactions of the similar users with the system, while presenting recommendations to a user. For example, when a user visits the web page of a movie in Internet Movie Database or IMDb [3], it recommends a list of other movies that people -- who liked a given movie -- also liked.
+
+3.2
+
+User Feedback for Recommender Systems
+
+Recommender Systems rely heavily on users' feedback. The quality of the user feedback is the key to successful recommendations [70]. It is crucial to study the characteristics of user feedback data in order understand the design and evaluation of recommender algorithms based on dierent types of user feedback data. Generally, there are two types of user feedback in recommender systems [52]: · Explicit User Feedback, · Implicit User Feedback.
+
+3.2.1
+
+Explicit User Feedback
+
+Explicit user feedback tells us how much the user likes or is interested in an item. This type of user feedback is readily available, whereas the implicit user feedback is gathered by observing the user's interactions with the system [52]. The explicit user feedback is typically ordinal and more common when the user expresses specific opinion or preference about the product using a rating interface [23]. The rating interface is a scale that depicts how much the user likes or dislikes the product. The scale can be finite (e.g., 1 to 5 Stars Ratings in Amazon), continuous (e.g., any real value within -10 to 10 in Jester Online Joke Recommender [4]) or even binary (e.g., like and dislike for YouTube [8] videos).
+
+3.2.2
+
+Implicit User Feedback
+
+The implicit feedback is more common when the user's interest or opinion is inferred from implicit user actions, such as clicks and browsing history (i.e., when a customer browses or buys a product on Amazon or plays a song on Spotify) [37, 52]. Implicit user feedback can be collected by observing the user's interactions with the system. In many 16
+
+Chapter 3. Methodology
+
+3.3. Top-N Recommendations
+
+cases, the implicit user feedback is unary or positive-only [37], which means that we have items that the user may like but we do not have the items that the user dislikes. For example, when a user plays a song, it means that the user may like the song. However, it does not mean that the user dislikes thousands of other songs that s/he did not play. We have built our Defect Recommender System (DRS) based on defect (which in RS terminology becomes item) reports by the users. This type of data can be classified as positive-only-implicit user feedback.
+
+3.3
+
+Top-N Recommendations
+
+RS returns Top-N recommended items, sorted from most desirable to least desirable. For example, in the case of DRS system, Top-3 returned items would represent ids of three defect reports that this user may rediscover in the future. The first defect in the Top-3 list has the highest probability of rediscovery, the second one ­ the second highest, and the third one ­ the third highest. Essentially, these are the defects for which PS should be applied. For example, let us assume that there are 100 unique defects and 50 unique customers for a software product. A subset of the customers made a defect report and no customer made more than one defect report. In a traditional setting, the worst case assumption is that each of the 50 customers may rediscover the 100 defects (if defect reports by that customer are not taken into acoount). Therefore, it will require 100 preventive services for each customer and in total 100  50 = 5000 PS for the software product. This naive solution maximises PS to minimize rediscovery. The total number of required PS is also very high and it is nearly impossible to provide so many PS to the customers due to increased downtime and resource allocation issues. Moreover, the 100 defects will not be rediscovered concurrently, which may cause multiple time windows of downtime. On the contrary, the DRS only recommends the Top-N most probable defects for each customer by taking into account all the defect reports made by the customer. Therefore, it will minimise the number of rediscoveries without maximising the number of PS. In case of DRS, the Top-N values, for the sake of brevity, were set to N = 1, 3, 5, 10, 20 (so that they may apply preventive services for the Top-N defects and minimise the number of rediscoveries without maximising the number of preventive services). Depending 17
+
+Chapter 3. Methodology
+
+3.4. Rating Matrix for RS
+
+Table 3.1: Sample rating matrix capturing information about defect (re)discoveries. d1 d2 d3 d4 d5 d6 u1 0 0 1 0 1 0 u2 0 1 1 1 0 0 u3 1 1 0 0 0 0 u4 0 1 0 0 0 0 u5 1 0 1 0 0 1 on the amount of resources that a support team has and the tolerance to false positives, a given development shop can pick a value of N that suits their needs. One can argue that in the case of Top-20, all 20 patches will be installed simultaneously, thus not increasing downtime needed for patch application significantly. Of course, the threat here is that installing 20 patches rather than one leads to increase of probability of regressing functionality.
+
+3.4
+
+Rating Matrix for RS
+
+The input to the recommender algorithms is a m  n rating matrix which is also known as the Utility Matrix; where m denotes the number of users and n denotes the number of items. In case of positive only implicit user feedback, a non-zero cell in the rating matrix corresponds to a rating. A rating in RS terminology means the user rated/liked/bought an item (in our context, it becomes a user rediscovered a defect). An example of a rating matrix, storing information about defect (re)discoveries, is shown in Table 3.1. In this case we have a 5  6 rating matrix with five users U = {u1 , u2 , u3 , u4 , u5 } and six defects D = {d1 , d2 , d3 , d4 , d5 , d6 }. Ones in the table represent defect discovery/rediscovery by users; zeroes ­ the opposite. For example, u2 (re)discovered defect d3 , but u3 ­ did not.
+
+3.5
+
+Recommender Algorithms
+
+Below we provide information about the four approaches used in our DRS: namely, Random-, Popular-, User-, and Naive-Bayes-based, given in Sections 3.5.1 ­ 3.5.4, respectively. The first three approaches are implemented in recommenderlab [32] R package. We implemented the fourth, Naive-Bayes-based approach as an extension to the 18
+
+Chapter 3. Methodology
+
+3.5. Recommender Algorithms
+
+recommenderlab package, for consistency of our experiments.
+
+3.5.1
+
+Random items
+
+In the case of random items algorithm, DRS chooses at random N defects and returns them to a user as Top-N defects that the user may rediscover in the future. For example, as per Table 3.1, the Random-items will recommend the Top-2 defects for user u5 , by randomly sampling 2 defects without replacement from the following set of defects: {{d1 , d2 , d3 , d4 , d5 , d6 } {d1 , d3 , d6 }}. (3.1)
+
+Random-items will not recommend defects from {d1 , d3 , d6 } as they have been already reported by user u5 . This is the most naive approach and is used as a baseline in our study.
+
+3.5.2
+
+Popular items
+
+In the case of popular items algorithms, DRS sorts defects by the historic number of rediscoveries in descending order and return Top-N defects as the ones that a given user may rediscover in the future. The algorithm is based on the assumption that a frequently rediscovered defect resides in a commonly executed path, which suggests that it relates to a popular or core functionality of the product [59]. Therefore, this user may rediscover it as well. For example, as per Table 3.1, let's assume we are predicting the re-discoveries for the user u5 . The total number of report counts for each defect are: {(d1 , 2), (d2 , 3), (d3 , 3), (d4 , 1), (d5 , 1), (d6 , 1)}. (3.2)
+
+Popular-items sort these defects on the historic number of rediscoveries in descending order. As a result, we get the following sorted list of defects: {(d2 , 3), (d3 , 3), (d1 , 2), (d4 , 1), (d5 , 1), (d6 , 1)}. (3.3)
+
+The Top-2 defect recommended for u5 by Popular-items will be d2 and d4 since u5 already 19
+
+Chapter 3. Methodology reported d1 , d3 , and d6 .
+
+3.5. Recommender Algorithms
+
+3.5.3
+
+User-based Collaborative Filtering
+
+Collaborative filtering (CF) is one of the most common recommendation techniques and is being used for many years [44]. CF systems use the knowledge of the crowd [42, 33]. It means that an item is recommended to a user based on the preferences of a set of users who have some degree of similarity with the target user. This set of similar users are referred to as the crowd or the neighbours and the system uses their predilections as a knowledge base while providing a new recommendation to the target user [33]. The neighbours are identified by applying statistical techniques on the historical feedback data. Typically, the neighbours have similar opinions or preferences with the target user. They may rate products similarly, listen to the same songs, or buy items of the same type more frequently. In a User Based Collaborative Filtering (UBCF) scenario, there is a set of users, U = {u1 , u2 , . . . , un } and a set of items I = {i1 , i2 , . . . , in } (items becomes defects in our context). Each user rates some of the items. The rating is a numeric value (explicit feedback) or unary value (implicit feedback). The rating rui represents a rating expressed by the user ui for the item ij and is typically stored in a rating matrix. The active user ua is the person for whom the rating is being predicted. The basic idea behind the prediction is that the active user ua will have similarity in preferences with a similar set of users. The neighbourhood Sa of the active user ua is a set of users similar to ua . It is typically formed by calculating similarity scores between the active user and every other user, then comparing the scores with a threshold score or, alternatively, considering the k users most similar to ua (k nearest neighbours) [33]. The result is an ordered set of users, based on the similarity score. So, the first user in the set Sa will be the most similar user to the active user ua . Pearson correlation coe cient or cosine similarity can be used to compute similarity in case of explicit feedback [48]. Similarity Measure In the case of implicit feedback or positive only data, we know only which items are favoured by the user, which is generally expressed by a Boolean value (i.e., TRUE-FALSE 20
+
+Chapter 3. Methodology
+
+3.5. Recommender Algorithms
+
+or 1-0). Calculation of similarity using the Jaccard similarity index is recommended in such a situation [31]. The Jaccard similarity index can be expressed as: SimJ (ua , ui ) = | Ua \ Ui | , | Ua [ Ui | (3.4)
+
+where ua is the active user, ui is the other user, Ua is the set of items favoured or rated positively by the active user and Ui is the set of items favoured by the other user. The numerator in Eq. 3.4 yields the number of items that the active user and the other user rated positively simultaneously (intersection of the sets). The denominator yields the total number of all the items rated positively by both of the users (union of the sets). This is the measure of similarity that we are going to use in our implementation of the UBCF, since what we have is positive-only-implicit user feedback: defects found by users are marked by 1s and not found ­ by 0s. For example, the similarity between u2 and u3 in Table 3.1 is: SimJ (u2 , u3 ) = |{d2 }| = 1/ 4 |{d1 , d2 , d3 , d4 }| (3.5)
+
+Rating Calculation
+0 After the neighbourhood Sa of the active user ua is defined, the missing rating r ^ a (j ) of an item j 0 for the active user ua is predicted by aggregating the ratings for that item in the neighbourhood:
+
+0 r ^ a (j ) =
+
+1 X rk ( j 0 ) | Sa | k 2S
+a
+
+(3.6)
+
+The final output of the UBCF is a set of Top-N items/defects with the highest predicted ratings. These are the items that the active user is likely to prefer most. As an example, let us assume the user u5 in Table 3.1 is the active user for whom we want to predict defect rediscoveries. First, we calculate the similarity between the active user (u5 ) and all other users (u1 , u2 , u3 , u4 ) as per Section 3.5.3 using Jaccard similarity measure. The similarities are: SimJ (u5 , u1 ) = 1 , SimJ (u5 , u2 ) = 1 , SimJ (u5 , u3 ) = 1 , and SimJ (u5 , u4 ) = 0 . 4 5 4 4 Second, in case of a 3-Nearest Neighbour system we aggregate the ratings of the three 21
+
+Chapter 3. Methodology
+
+3.5. Recommender Algorithms
+
+most similar users (based on SimJ ) to u5 : u1 , u2 , and u3 , for the defects that are not yet 2 1 1 0 0 reported by u5 using r ^ ^ a (j ). The valuse of r a (j ) are d2 : 3 , d4 : 3 , d5 : 3 . Therefore, the Top-1 defect for user u5 by UBCF would be defect d2 .
+
+3.5.4
+
+Naive-Bayes-based
+
+We also created a simple probabilistic classifier based on Naive-Bayes (N-BAYES) approach. In the scope of this classifier, each defect can have two classes associated with it: defect-reported class Cr (when a defect is reported by a user) and defect-not-reported class Cn (when a defect is not reported by a user). For example, let us assume that we want to compute the two class probabilities for the cell [1, 3] in the rating matrix provided in Table 3.1. This can be expressed as: · P (Cr |u = u1 , d = d3 ) referring to the probability of defect-reported, given the user id u = u1 and defect id d = d3 . · P (Cn |u = u1 , d = d3 ) referring to the probability of defect-not-reported, given the user id, u = u1 and defect id, d = d3 . . We apply Bayes theorem [11], to calculate P (Cr |u, d) and P (Cn |u, d): P ( C r | ui , d j ) = P ( C r )  P ( ui | C r )  P ( d j | C r ) , P ( ui )  P ( d j ) (3.7)
+
+where, P (ui |Cr ) represents the number of times user ui reported a defect over the total number defects reported by all users, when we consider only the reported-defects and P (dj |Cr ) represents the number of times defect dj was reported over the number of times all the defects were reported, when we consider only the reported-defects. Analogously, P (Cn |ui , dj ) is computed as P ( C n | ui , d j ) = P ( C n )  P ( ui | C n )  P ( d j | C n ) , P ( ui )  P ( d j ) (3.8)
+
+where, P (ui |Cn ) represents the number of times user ui did not report a defect over the total number defects not reported by all users, when we consider only the not-reporteddefects and P (dj |Cn ) represents the number of times defect dj was not reported over 22
+
+Chapter 3. Methodology
+
+3.6. Sparsity Problem
+
+the number of times all the defects were not reported, when we consider only the notreported-defects. Finally, we compare the probabilities of a given defect and user belonging to each class: if P (Cr |ui , dj ) > P (Cn |ui , dj ), then we assume that a given defect will be rediscovered, else it will not be. Note that since denominators in Eqs. 3.7 and 3.8 are the same, we do not have to compute P (ui ) and P (dj ) for the purpose of comparison, setting it to a dummy value of 1. We then generate personalised list of defect, returning Top-N defects that have the highest values of P (Cr |ui , dj ) (sorted in descending order). As an example, for user u5 let us see what is the Top-1 recommendation by N-BAYES. First, we need to calculate the class probabilities for the defects that are not yet reported by u5 . These defects are d2 , d4 , and d5 . For, defect d2 and user u5 the probabilities based on Eq. 3.7 and 3.8 are:
+
+P ( C r | u5 , d 2 ) = P ( C r )  P ( u 5 | C r )  P ( d 2 | C r ) =
+
+11 3 3    0.03, 30 11 11
+
+(3.9)
+
+P ( C n | u5 , d 2 ) = P ( C n )  P ( u5 | C n )  P ( d 2 | C n ) =
+
+19 3 2    0.01. 30 19 19
+
+(3.10)
+
+Because P (Cr ) > P (Cn ), we can conclude that the probability that u5 will report d2 is  0.03. Similarly, for (u5 , d4 ) and (u5 , d5 ), we calculate P (Cr |u5 , d4 ), P (Cn |u5 , d4 ) and P (Cr |u5 , d5 ), P (Cn |u5 , d5 ), respectively. In both of these cases, P (Cr ) < P (Cn ) and, thus, d4 and d5 are discarded from potential Top-N recommendations. For user u5 , N-BAYES recommends d2 as the Top-1 recommendation1 .
+
+3.6
+
+Sparsity Problem
+
+Recommender systems in general, and collaborative filtering systems in particular suer from the lack (sparsity) of information [70], especially in a high-dimensional space [38].
+If d4 or d5 had P (Cr ) > P (Cn ), the Top-1 would have been the defect with the highest P (Cr ) among defects d2 , d4 , and d5 .
+1
+
+23
+
+Chapter 3. Methodology
+
+3.6. Sparsity Problem
+
+The rating matrices in real world are sparse. There is a large number of users and items. However, only a few items will be rated/encountered by a user. For example, most users will buy small number of items sold on Amazon (out of hundreds of millions items being oered [30] or watch a handful of movies on Netflix (out of thousands being oered [54]). Similarly, in a good quality software product a client rediscovers only a handful of defects [9, 60].
+
+3.6.1
+
+Reducing the Sparsity of the Datasets
+
+To tackle the sparsity problem, researchers have proposed several solutions to reduce the sparsity of the rating matrix [29]. The users who rated only handful of items or items that have very few ratings can be removed [29]. There exists other sophisticated techniques, such as, Latent Semantic Analysis [26] and clustering-based approaches [49, 71]. Partitioning by software product-component One way to overcome sparsity of the data is to partition the data by software product and component. By product in this study, we denote the software subsystem the report belongs to (i.e., JDT is a product of Eclipse project). By component we mean a group of functions (in C/C++ sense of the term) dedicated to implementing a specific functionality. For example2 , code compiler can be split into multiple components, such as, scanner, parser, and optimiser. The split by component allows to partition dataset by functionality, which becomes important as not every customer will use each and every feature. Of course, there is quite a number of common components that will be executed by all the users (e.g., scanner or parser in the case of compiler). Defects uncovered in such components will be of interest to all the clients. However there exist optional components too. For example, Intel C++ compiler is shipped with code coverage tool that can provide information about code covered during execution of test cases [2]. We can think of this tool as an individual component. The defects exposed in this component will be of interest only to the clients using it; the
+Another example would be Eclipse project, which has a product JDT consisting of multiple components, such as, UI, Debug, Text, and Core.
+2
+
+24
+
+Chapter 3. Methodology
+
+3.7. Evaluation
+
+rest of the clients can safely ignore most of them (example of exception: critical security defect). From computational perspective, per product-component partitioning allows to significantly reduce both (users and items/defects) dimensions of the rating matrix; which, hopefully, will improve predictive power of the models. Results of partitioning by productcomponent are discussed in Section 4.3. In addition, we explore some clustering based approaches with limited success which we describe in Appendix A.
+
+3.7
+
+Evaluation
+
+There are several evaluation metrics to evaluate the performance of a recommender system. For explicit user feedback or numeric rating based recommender systems, error measures, such as Mean Squared Error (MSE), Root Mean Squared Error (RMSE), and Mean Absolute Error (MAE), are often used [24]. However, for implicit feedback data sets in recommender systems, classification metrics [46] popular in the field of Information Retrieval, such as Precision and Recall, are used. On the other hand, these metrics are more useful in comparing the performance of dierent recommender algorithms, rather than evaluating how good a recommender is [34]. This is because each user typically rates a very small fraction of the available items in the data set and these metrics are dependable upon the number of items rated by the user. Therefore, in this study, we have used F-measure and a graphical evaluation technique called Receiver Operating Characteristics (ROC) curve [57] as our evaluation metrics.
+
+3.7.1
+
+Accuracy Metrics
+
+The ROC curve visually represents the trade-o between two metrics, the True Positive Rate (T P R) and the False Positive Rate (F P R) across the dierent thresholds (i.e., the numbers of Top-N recommendations [42, 31]). T P R is defined as the proportion of correctly classified positive instances and is plotted on the Y -axis of the ROC curve plot: TPR = TP , (T P + F N ) 25 (3.11)
+
+Chapter 3. Methodology
+
+3.8. Validation
+
+where T P is the number of true positive results, F P is the number of false positive results, TN is the number of true negative results, and F N is the number of false negative results. F P R is defined as the proportion of the incorrectly classified negative instances and plotted on the X -axis of the ROC curve plot: FPR = FP . (F P + T N ) (3.12)
+
+TPR and FPR ranges between 0 and 1. The ideal curve would have T P R = 1 and F P R = 0 for all N . For selecting the best algorithm, we use F-measure, which combines precision and recall (to obtain a balanced measure) into a single metric: F measure = 2  TP . (2  T P + F N + F P ) (3.13)
+
+3.8
+
+Validation
+
+As our validation scheme, we have used a temporal splitting technique. We divide the training and testing set based on the temporal attribute in the data in order to simulate the real-world setting where the predictive model would be applied as new data arrives. This kind of chronological splitting based evaluation scheme has been used by many previous studies that analyze defect reports [77, 36, 63, 65]. We develop four dierent temporal splitting schema in order to understand how the models perform (in terms of the predictive accuracy) while varying the amount of historical training and testing data. For each schema, we split the the dataset into several folds. The number of folds for each schema depends on the time-interval-increment dt, measured in years. The smallest value of dt = 1. Details of the schema are given below. Schema #1 is defined in Algorithm 1. In this schema we keep accumulating historical training data and test on `immediate' future test data. In the example given in Figure 3.1, in fold #1, we train on the data of year 1 and test on the data of year 2. In fold #2, we train on the data of years 1 and 2 and test on the data of year 3. In fold #3, we train on the data from years 1-3 and test on the data gathered in year 4, etc. Schema #2 is shown in Algorithm 2. In this schema we train the model on recent historical data and test on `immediate' future test data. Going back to the example in 26
+
+Chapter 3. Methodology
+
+3.8. Validation
+
+Figure 3.1, in fold #1, we train the model on the data of year 1 and test the model on the data of year 2. In fold #2, we train on the data of year 2 and test on the data of year 3. In fold #3, we train on the data from year 3 and test on the data from year 4, and so on. Schema #3 is given in Algorithm 3. In this case, we always train on `recent' historical data and test on all subsequent future test data. Note that, the last fold of the Schema #3 and #2 are the same. In the example shown in Figure 3.1, in fold #1, we train on the data of year 1 and test on the data of years 2-10. In fold #2, we train on the data of year 2 and test on the data of year 3-10. In fold #3, we train on the data of year 3 and test on the data of years 4-10, etc. Schema #4 is depicted in Algorithm 4. In this schema we accumulate both training data and testing data. Note that, the last fold of schema #4 and #1 are the same. In the example given in Figure 3.1, in fold #1, we train on the data of year 1 and test on the data of years 2-10. In fold #2, we train on the data of years 1-2 and test on the data of years 3-10. In fold #3, we train on the data from years 1-3 and test on the data from years 4-10, and so on. input : A list of unique year values (year list) output: The training and testing set time intervals t0 tf dt min(year list); max(year list); 1; */ */
+
+/* [ or ] closed interval /* ( or ) opened interval for i t0 + dt to tf by dt do training set time interval [t0 , i); test set time interval [i, i + dt); end Algorithm 1: Temporal Split: Schema 1
+
+27
+
+Chapter 3. Methodology
+
+3.8. Validation
+
+input : A list of unique year values (year list) output: The training and testing set time intervals t0 tf dt min(year list); max(year list); 1; */ */
+
+/* [ or ] closed interval /* ( or ) opened interval for i t0 + dt to tf by dt do training set time interval [i dt, i); test set time interval [i, i + dt); end Algorithm 2: Temporal Split: Schema 2
+
+input : A list of unique year values (year list) output: The training and testing set time intervals t0 tf dt min(year list); max(year list); 1; */ */
+
+/* [ or ] closed interval /* ( or ) opened interval for i t0 + dt to tf by dt do training set time interval [i dt, i); test set time interval [i, tf ]; end Algorithm 3: Temporal Split: Schema 3
+
+28
+
+Chapter 3. Methodology
+
+3.8. Validation
+
+Schema#1 Year:1234...... 910 F1 F2 F3 F4 . . Schema#3 Year:1234...... 910 F1 F2 F3 F4 . . F1 F2 F3 F4 . . F1 F2 F3 F4 . .
+
+Schema#2 Year:1234...... 910
+
+Schema#4 Year:1234...... 910
+
+Figure 3.1: Temporal Splitting: Schematic Diagram. The diagram represents how we split a dataset containing defect reports from ten consecutive years into training and testing sets. Time-interval-increment (dt) is set to 1 year. The green boxes represent the training-set-time-interval and the grey boxes represent the testing-set-time-interval.
+
+29
+
+Chapter 3. Methodology
+
+3.8. Validation
+
+input : A list of unique year values (year list) output: The training and testing set time intervals t0 tf dt min(year list); max(year list); 1; */ */
+
+/* [ or ] closed interval /* ( or ) opened interval for i t0 + dt to tf by dt do training set time interval [t0 , i); test set time interval [i, tf ]; end Algorithm 4: Temporal Split: Schema 4
+
+30
+
+Chapter 4 Evaluation
+In this chapter, we apply our proposed solution to our research problem using the methodologies presented in the previous chapter. We start with discussing how we extract the defect rediscovery data from the Bugzilla based defect tracking system of several open source software projects in Section 4.1. We provide an analysis of the datasets focusing on the defect rediscovery phenomena in Section 4.2. We present the results of our proposed approach; and a discussion on how we apply our predictive models, and evaluate them as well as the limits beyond which our models do not work in Section 4.3. We conclude the chapter by discussing the threats to validity in Section 4.4.
+
+4.1
+
+Data Extraction
+
+We mined bug repositories of four groups of open source software projects: Eclipse, Gentoo, LibreO ce, and KDE. We extract the defect rediscovery information from the defect reports publicly available in these repositories. The final datasets contain information about approximately 1.3 million defects that have been reported in the last 15-18 years (depending on the project). Some of the resulting datasets are located at http://doi.org/10.5281/zenodo.400614. In addition, we mined the defect rediscovery information of a large-scale enterprise software product. We extract the data from a defect database system of this software manufacturer. This dataset contain information about defects that have been reported between the year 2007 and 2015. We denote this software in the rest of the study as 31
+
+Chapter 4. Evaluation ENT.
+
+4.1. Data Extraction
+
+For each group of the open source software projects, the set of attributes that we extracted from each defect report are described below. · id: The unique integer identifier that identifies a report. · product: The name of the software subsystem the report belongs to. · component: The name of the component the report is associated with. · reporter: The unique username of the person who opened the report. · bug status: The current status of the report. · resolution: The current resolution of the report. · priority: It represents how quickly the defect described in the report should be fixed. · bug severity: It refers to the degree of impact the reported defect has on the whole system. · version: The version the defect was observed in. · short desc: A short textual summary of the report. · opendate: The date when the report was opened. · dup list: The list of id s of duplicates of a given report; if the report does not have any duplicates ­ the value is an empty string. · root id: The id of the root vertex of the graph of rediscoveries, which typically resembles the master report. If the report does not have any duplicates ­ the value is an empty string. This is a derived attribute. · disc id: The id of the oldest defect (i.e., the one that is opened first) in the graph of rediscoveries. If the defect does not have any duplicates ­ the value is an empty string. This is a derived attribute. 32
+
+Chapter 4. Evaluation Data Extraction Procedure
+
+4.1. Data Extraction
+
+We performed the following four extraction and transformation steps to obtain the attributes described in Section 4.1. Step 1: Retrieval of report id s. For each of the software projects we selected, we mined its Bugzilla defect tracking system which numbers defect reports sequentially with an integer id, with the first id set to 1. Given the sequential nature of the data, we query a given Bugzilla engine for reports opened within the last seven days (at the day of data gathering) and select the maximum id value, denoted by Imax returned by the engine. Thus, for a given engine the range of reports id s is set to [1, Imax ]. Step 2: Data mining and extraction. The data were extracted using a custom-built web scraper. The input to the scraper was the range of id s to be mined - identified in the previous step. The scraper outputs all the attributes mentioned in Section 4.1 (except the two derived attributes) in CSV format (one line per report), saving intermediate results, as the extraction process takes several days to complete. Step 3: Construction of the dataset. First, we aggregate all intermediate results for a given project in a single CSV file. Second, we eliminate rows from the CSV file for which a report either does not exist or is not available. The former may happen because the report may get cancelled by a user before submission or may be erased by a bug tracker administrator. The latter may happen because we do not have su cient permissions to access a given report. The former case cannot bias our dataset, as the data does not exist. However, the latter case may lead to bias, if the number of reports that we cannot access is large. We built a script that computed the number of id s associated with each case (by analysing error messages returned by the bug tracking engine). Details of our analysis are provided in Table 4.1. Step 4: Construction of derived attributes. In order to construct derived attributes, we built a directed graph G linking id with its duplicates using information stored in the dup list attribute. Going back to example given in Figure 1.2, report 33
+
+Chapter 4. Evaluation
+
+4.2. Dataset Analysis
+
+#19274 has two duplicates linked to it (#23194 and #23196), as per the dup list attribute. Thus, we will add to the G two edges: 19274 ! 23194 and 19274 ! 23196. We repeat this process for each report in a given dataset. We then use Graphviz software [27] to identify all `connected components' (in the graph theory sense of the term) in the G. The resulting connected components represent the graph of rediscoveries for each of the original defects. An example of such connected component is given in Figure 1.2. We then analyze each graph of rediscoveries (connected component) and identify the root vertex (typically, this report is a master report) and the vertex associated with the id with the oldest opendate. The former becomes root id value for each report associated with a given graph of rediscoveries; the latter value becomes disc id. For example, in case of Figure 1.2, the root id value for all the reports will be set to 6325 and disc id to 4671 (since, by design of the Bugzilla defect tracking system, the smaller the defect id ­ the older the defect). Then, we merge the original dataset with the derived attributes and store the resulting dataset in the CSV, SQL, and Neo4j formats.
+
+4.2
+
+Dataset Analysis
+
+The summary statistics of the datasets are given in Table 4.1. The number of reports that we gathered (column `Total accessible reports count') ranges from  13 thousands for ENT to  504 thousands for Eclipse. The reports were opened between years 1999 and 2017. The total count of unique defect reports and reporters are illustrated in Figure 4.1. The Y-axis in the barplot is in log scale. For example, in case of Eclipse there are 503, 935 unique defect reports reported by 46, 993 unique reporters. The Eclipse, KDE, and Gentoo dataset have lower unique reporter to report ratio, whereas the ENT and LibreO ce dataset have much higher unique reporter to report ratio. The distributions of the total number of reports (obtained by combining rediscovery and original defect count, as discussed in Section 1.1.3) for a given failure are given in Figure 4.2. The distributions are heavy-tailed as evident from the linear structure of the data plotted on the log-log scale. As discussed in Section 4.1, we could not access some of the reports. The percentage of such reports (shown in column `Inaccessible reports count') is small: 0.1% for Eclipse, 34
+
+Chapter 4. Evaluation
+
+4.2. Dataset Analysis
+
+5e+05
+
+503935 402840 365893 defects reporters
+
+Total count of unique defect reports & reporters
+
+1e+05
+
+2e+05
+
+80720 46993 35409 50094
+
+2e+04
+
+5e+04
+
+17552
+
+5e+03
+
+1e+04
+
+5044 3345 Eclipse ENT Gentoo Project KDE Libre
+
+Figure 4.1: Unique defect reports and reporters count for each project. Note that y-axis has log scale.
+
+Original reports count
+
+10000
+
+
+
+Eclipse KDE Gentoo Libre ENT
+
+   
+
+100
+
+
+
+   
+
+
+
+
+
+  
+
+ 
+
+
+
+      
+
+   
+
+           
+
+1
+
+1
+
+2
+
+5
+
+10
+
+20
+
+50
+
+100
+
+200
+
+500
+
+Total number of reports per failure
+
+Figure 4.2: Count of the total number or reports for a given failure vs. count of original reports. If a given failure was reported once, then it means that it was never rediscovered; reported twice ­ means that it was rediscovered once, and so on (see Section 1.1.3 for details). For example, KDE dataset has 257420 reports that were never rediscovered (i.e., discovered once) and 15106 reports that were rediscovered once (i.e., discovered twice). 35
+
+Chapter 4. Evaluation Table 4.1: Summary statistics.
+Project name Total accessible reports count 503,935 365,893 402,840 50,094 13,112 Inaccessible Rediscoveries Distinct reports count disc id count count Min report opendate (YY-MMDD) 01-10-10 99-01-21 02-01-04 10-08-03 07-06-11 Max report opendate (YY-MMDD) 17-02-07 17-02-13 17-01-31 17-02-13 15-10-02 Max number of rediscoveries 128 405 324 35 159
+
+4.2. Dataset Analysis
+
+Distinct product s count
+
+Distinct Nonproductrediscovered component s reports count (% of total) 1,486 2,054 168 43 185 83 70 81 74 22
+
+Eclipse KDE Gentoo Libre ENT
+
+560 4,818 205,014 55,881 0
+
+52,499 82,359 50,082 8,718 8,068
+
+31,811 26,114 28,333 4,192 2,120
+
+232 584 15 12 1
+
+1.3% for KDE and is moderate: 34% for Gentoo, 53% for LibreO ce. In case of ENT all reports were accessible. To gather information about original discoveries and rediscoveries of reports, as discussed in Section 4.1, we analysed graphs of rediscoveries (similar to the one shown in Figure 1.2). Such graphs can become fairly large: based on Table 4.1, the maximum number of rediscoveries of an original report (per graph of rediscoveries) ranges from 35 for LibreO ce to 405 for KDE. The percentage of the original reports that were rediscovered at least once ranges from 7% (28333/402840) for KDE to 16% (2120/13112) for ENT . The distributions of the total number of reports (obtained by combining rediscovery and original defect count, as discussed in Section 1.1.3) for a given failure are given in Figure 4.2. The distributions are heavy-tailed as evident from the linear structure of the data plotted on the log-log scale. In Figure 4.3 and 4.4, we present the per year analysis. The data are current as of February 2017, thus the dataset for year 2017 is incomplete, hence the "dip" in reports for year 2017. By construction, zero observations for a given year are not shown. The number of reports per year changes, as seen in Figure 4.3. Magnitude-wise, the number of reports ranges from thousands for ENT to tens of thousands for Eclipse, Gentoo, and KDE (with the exception of the first and last reporting year for each project). Overall, percentage of reports that are not rediscovered ranges between 70% for KDE and 83% for Eclipse. However, these values change from year to year, as shown in Figure 4.4. This figure may suggest that for the last seven years percentage of nonrediscovered reports grows up (albeit non-monotonically). For example, for defects opened in 2016, the percentage of non-rediscovered defects ranges from 75% for KDE to 92% for Eclipse (compare these numbers with the average values of 70% and 83%, respectively). 36
+
+Chapter 4. Evaluation
+
+4.2. Dataset Analysis
+
+Count of reports per year
+
+10000
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+100
+
+10
+
+
+Eclipse KDE Gentoo Libre ENT
+
+1
+
+
+
+2000
+
+2005
+
+2010
+
+2015
+
+Year in which reports are opened
+
+Figure 4.3: Per-year analysis: Number of reports per year.
+
+However, in the future, users may encounter and report some of the defects discussed in these non-rediscovered reports. This will lead to reduction of the number of nonrediscovered reports opened in previous years. To confirm this conjecture, we plot the distribution of time intervals between the opening dates of the original discovery and the latest rediscovery, shown in Figure 4.5. The figure suggests that some reports get rediscovered years after the original discovery. Even for the graph of rediscoveries shown in Figure 1.2, the time interval between open dates of the original report #4671 and its latest rediscovery #31201 was  1.3 years. The number of product s per open source project ranges from 12 for LibreO ce to 584 for KDE; the number of product-component tuples per project ­ from 43 for LibreO ce to 2054 for KDE. The percentage of reports that are not rediscovered per productcomponent is given in Figure 4.6. For the open source the software projects, the median percentage ranges between 84% for KDE to 96% for Eclipse. For the enterprise software project, the median percentage is 31%. However, there are outliers with low percentage of non-rediscovered defects, suggesting that dierent components may exhibit dierent behaviour. Therefore, various product-component s may be studied independently. 37
+
+Chapter 4. Evaluation
+
+4.2. Dataset Analysis
+
+% of non-rediscovered reports
+
+80
+
+100
+
+
+
+60
+
+
+
+40
+
+   
+
+20
+
+
+
+
+
+
+
+
+0
+
+Eclipse KDE Gentoo Libre ENT
+
+2000
+
+2005
+
+2010
+
+2015
+
+Year in which reports are opened
+
+Figure 4.4: Per-year analysis: Percent of reports that have not been (yet) rediscovered.
+
+15
+
+                                                         
+
+                                                  
+
+Time interval (Years)
+
+          
+
+                                                    
+
+10
+
+                
+
+0
+
+5
+
+Eclipse
+
+ENT
+
+Gentoo Project
+
+KDE
+
+Libre
+
+Figure 4.5: Distributions of time intervals between the original discovery and the latest rediscovery for a given graph of rediscoveries. 38
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+Non-rediscovered reports (%)
+
+80
+
+100
+
+            
+
+40
+
+60
+
+        
+
+20
+
+
+
+0
+
+Eclipse
+
+ENT
+
+Gentoo Project
+
+KDE
+
+Libre
+
+Figure 4.6: Distribution of non-rediscovered reports per product-component.
+
+4.3
+
+Discussion
+
+In this section, we discuss how we apply our proposed approach to reduce defect rediscovery on the datasets that we gathered and the results that we achieve in Section 4.3.1. We also discuss how we evaluated the models' performance in terms of the schemas (Section 4.3.2), algorithms (Section 4.3.3), and the failed cases (Section 4.3.4).
+
+4.3.1
+
+Rediscovery Prediction
+
+In this section, we provide details about the application of RS algorithms (presented in Section 3.1). We measure the sparsity of the datasets by calculating the percentage of non-zero elements in the rating matrix. Non-zero elements refer to ratings in recommender system terminology (which becomes discovery/rediscovery in our context). This is essentially the positive implicit user feedback (discussed in Section 3.2). The percentage of non-zero 39
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+elements in the rating matrix for each project, denoted by , is computed as: = |rui = 1|  100, |U |  | D | (4.1)
+
+where |rui = 1| is the number of reported (re)discoveries, |U | is the number of unique users, and |D| is the number of unique defects. The values of  for each project are presented in Table 4.2 as Pre-split . The numbers suggests that we do have a very sparse rating matrix, as discussed in Section 3.6. Therefore, we apply the `partitioning by product-component ' technique described in Section 3.6.1 in order to reduce the sparsity of the rating matrix. The resultant median  values across product-components are presented in Table 4.2 as Post-split . These  values suggests, our partitioning technique produces much denser rating matrix. The distribution of the percentage of non-zero elements in the rating matrix of each subset of data partitioned by product-component for each project is given in Figure 4.8. The median value range between  1% and  3%, which are significantly higher values than in the case of the original matrix (depicted in Table 4.2). The distributions suggest that in case of the enterprise software the split by product-component yields the maximum median non-zero elements in each split. In case of the open source projects, KDE has the highest median non-zero elements when we split by the product-components. After partitioning the data for each project by product-components, we divide the resulting data into several folds of temporal training and testing sets based on the four time-split schema as discussed in Section 3.8. The number of folds depends on the time range (in years) of the software project and the time-interval-increment (dt). We experiment the time-interval-increment by setting dt = 1, 2, or 3 years and comparing the prediction accuracy of the model with respect to dt. We find that setting dt = 1 year yields good results for the temporal splitting schema, as shwon in Figure 4.7. We run the Defect Recommender System for each project, for each selected productcomponent, for each temporal splitting schema, for each fold of the schema, and for each Top-N value. We store all configuration attributes in a log file along with the accuracy metrics (discussed in Section 3.7). We calculate the accuracy metrics by evaluating the predicted defect rediscoveries by DRS with the actual data. Essentially, we follow, the given x experimental protocol introduced by Breese et al. [17]. As per this protocol, for each user, out of n items, we give the recommender x items and withhold n x items from 40
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+the recommender. Then, we evaluate the predictive performance of the recommender only on the withhold items. for project in {Eclipse, EN T, Gentoo, KDE, Libre} do for product component in all product components of project do for schema in {schema1, schema2, schema3, schema4} do for temporal fold = 1 to number of folds do get train data and test data of temporal fold ; for N in {1, 3, 5, 10, 20} do run POPULAR with train data and test data; run UBCF with train data and test data; run RANDOM with train data and test data; run NBAYES with train data and test data; get best performer among {P OP U LAR, U BCF, RAN DOM, N BAY ES } ; end end end end end Algorithm 5: Selection of the DRS-best performing algorithm for each case Lastly, using the accuracy metrics, we select the DRS-best performing algorithm for each case. By case, we mean each time we split the data into train and test set by product-component, temporal-splitting schema, and fold as depicted by Algorithm 5. We use the best performing algorithm's predictive accuracy to evaluate dierent schemas and recommender algorithms in the following sections.
+
+4.3.2
+
+Which Schema is the Best One?
+
+The accuracy of the models varies across the temporal splitting schemas (we describe the temporal splitting in Section 3.8). We illustrate this variation using Figure 4.9. The figure, essentially, represents ROC curve plot, where we change the value of N (in T op N ) to adjust the `threshold'. Each data point in the ROC plot represents the best performing algorithm's mean F P R and mean T P R values for a given Top-N , across all the product-components and 41
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+Mean recall (TPR)
+
+0.1
+
+0.2
+
+0.3
+
+0.4
+
+0.5
+
+0.0
+
+Eclipse KDE Gentoo Libre ENT
+
+1
+
+2 Time-interval-increment (dt) in years
+
+3
+
+Figure 4.7: Mean TPR while changing dt=1 to dt=3, by 1 year.
+
+Table 4.2: Percentage of non-zero elements () for each project without splitting and median  after splitting by product-components Project Pre-split  Post-split  Eclipse 0.0021 0.4456 Gentoo 0.0028 0.1536 KDE 0.0012 0.7205 Libre 0.0057 0.4292 ENT 0.0777 2.9759
+
+42
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+10 12
+
+                         
+
+Non-zero elements (%)
+
+
+
+8
+
+
+
+6
+
+0
+
+2
+
+        
+
+  
+
+4
+
+eclipse
+
+ENT
+
+gentoo Project
+
+kde
+
+libre
+
+Figure 4.8: Distribution of non-zero elements in the per component analysis. all the folds of the given temporal split schema. The data points for the best performing algorithm is ordered: the left-most data point has N = 1, the next one ­ N = 3, then N = 5, 10, until we reach N = 20. The vertical and horizontal error bars show one standard deviation of the mean TPR and FPR. Both F P R and T P R increase monotonically with the increase of N . However, T P R grows faster than F P R. This can be explained by the fact that increasing the number of defects returned gives more chances to get the correct result. For example, in the case of N = 20, the model needs to return at most 1 defect that was actually (re)discovered out of 20, in order for this outcome be deemed as true positive. For Eclipse dataset, according to Figure 4.9, schema #2 and #3 have overall higher TPR and at the same time lower FPR, consistently for all values of Top-N . So for Eclipse, when we train on 1 year of data and test on 1 or more years of data, DRS yields the best results. We reach maximum mean TPR  60% and FPR  37% with a standard deviation of 0.41 and 0.25 respectively for Top-20 recommendations. For Gentoo dataset, schema #2 and #3 are again performing better in terms of TPR and FPR. In case of schema #2, we reach maximum mean TPR  60% and FPR  20% with a standard deviation of 0.43 and 0.19 respectively for Top-20 recommendations. In 43
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+the case of schema #3, we reach maximum mean TPR  66% and FPR  20% with a standard deviation of 0.36 and 0.18 respectively. For ENT dataset, although all four schema have high TPR, the FPR is also high. In contrast to the open source projects, where we observe a more significant dierence between some of the schemas. Across the four schemas, the maximum mean TPR ranges between  90% and  100%, at the same time with a maximum mean FPR that ranges between  60% and  100%. The maximum TPR and FPR standard deviation ranges between 0.01 and 0.21 and 0.03 and 0.29 respectively. However, for ENT schema #1 and #4 gives better TPR to FPR ratio. So, for the enterprise software, accumulating training data from the previous years yield better performance. In the case of ENT dataset, we achieve higher TPR at the expense of FPR (which also increases). For KDE dataset, similar to the cases of Eclipse and Gentoo, schema #2 and #3 have overall higher TPR and at the same time lower FPR in comparison with schema #1 and #4. When we train on 1 year of data and test on 1 or more years of data, DRS yeilds the best results. In case of schema #2 and #3 the maximum mean TPR ranges between  80% and  83% with standard deviation between 0.28 and 0.29, whereas the mean FPR ranges between  54% and  60% with standard deviation of 0.34. For LibreO ce dataset, considering all the values of Top-N, schema #2 performs best with a maximum mean TPR  60% and FPR  46% with a standard deviation of 0.49 and 0.37 respectively.
+
+As we can see from Figure 4.9, the decision to pick to the best temporal splitting schema depends on the size and type of the project. For example, in case of large scale open source project schema #2 and #3 yields the better results, whereas in case of enterprise software, accumulating rediscovery data from previous years slightly improves the accuracy. Therefore, it would be better to leave it to an analyst to select the appropriate temporal splitting schema for a particular dataset. The decision will depend on the business goals and the comfort of organization with dierent TPR and FPR values.
+
+4.3.3
+
+Which algorithm is the Best One?
+
+We begin our evaluation of DRS by applying Random-, Popular-, User-, and N-Bayesbased algorithms (discussed in Sections 3.1) on the partitioned data for each software project. The performance of the top performing algorithms of DRS are shown in Fig44
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+eclipse schema1
+
+eclipse schema2
+
+eclipse schema3
+
+eclipse schema4
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0 0.0
+
+TPR
+
+TPR
+
+TPR
+
+TPR
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+FPR
+
+FPR
+
+FPR
+
+FPR
+
+gentoo schema1
+
+gentoo schema2
+
+gentoo schema3
+
+gentoo schema4
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0 0.0
+
+TPR
+
+TPR
+
+TPR
+
+TPR
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+FPR
+
+FPR
+
+FPR
+
+FPR
+
+ENT schema1
+
+ENT schema2
+
+ENT schema3
+
+ENT schema4
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0 0.0
+
+TPR
+
+TPR
+
+TPR
+
+TPR
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+FPR
+
+FPR
+
+FPR
+
+FPR
+
+kde schema1
+
+kde schema2
+
+kde schema3
+
+kde schema4
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0 0.0
+
+TPR
+
+TPR
+
+TPR
+
+TPR
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+FPR
+
+FPR
+
+FPR
+
+FPR
+
+libre schema1
+
+libre schema2
+
+libre schema3
+
+libre schema4
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+0.0 0.2 0.4 0.6 0.8 1.0 0.0
+
+TPR
+
+TPR
+
+TPR
+
+TPR
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1.0
+
+FPR
+
+FPR
+
+FPR
+
+FPR
+
+Figure 4.9: ROC plots for each temporal-splitting-schema and for each dataset. The thresholds of the curve are the values of Top-N = 1,3,5,10,20. The Y and X axis represent the mean FPR and TPR respectively. Error bars represent one standard deviation spread from either side of the mean.
+
+45
+
+Chapter 4. Evaluation ure 4.10.
+
+4.3. Discussion
+
+In case of the user-based approach, given the nature of our data, we use Jaccard Similarity (Eq. 3.4) as our measure of similarity between the users. A series of experiments were conducted to identify the ideal size (k ) of the neighbourhood as per [11]. We varied the value of k from 3 to 35 incrementing by 2 and k = 25 gave us the best results. Thus, k = 25 was chosen as the neighbourhood size. To asses performance of the algorithms, we examined their performance for all possible splits and across all components for a given dataset and schema; examples are shown in Figure 4.10. The figure shows that the performance of the algorithm may change with N . Moreover, the shape of the curves fluctuates from dataset to dataset and schema to schema, however, the Popular- and User- based are the top performer in most times than the other two algorithms. To aggregate the performance data, Figure 4.10 shows the percentage of the winning cases across all components, where each of the algorithms performs best for a given dataset, schema, and N . Performance is evaluated using Fmeasure (Eq. 3.13). Table 4.3 shows the summary of the top-performing algorithms combining all temporal splitting schemas. The Popular- and User- based algorithm are the two top performing algorithms. For example, in case of Eclipse, POPULAR is the top-performer in  79% of the cases and UBCF is the top-performer in  12% of the cases. For each algorithm, we show the breakdown of the actual number of cases per schema in separate tables. Tables 4.9, 4.10, 4.11, and 4.12 show the actual number of top-performing cases per schema for each algorithm, for each dataset, and all values of Top-N . We conjecture that the potential reason for the Popular-based algorithm to be the best performer is the rediscovery phenomenon. As shown in Figure 4.2, there exist defects in each software project that have been rediscovered hundreds of times. Thus, the frequentist reasoning prevails in such cases. The User-based approach is the second best one, which suggests that there exists some similarity between the users of a software product. However, the number of such cases is not high, because we do not supply the model with enough information about the users. This is due the fact that 75% of the users1 reported, at the most, one or two defects in the lifetime of the software
+Note that when we say `users' we mean a fraction of the customer base that actually reported a problem. Obviously, we do not have information about customers who use the product without ever encountering a problem.
+1
+
+46
+
+Chapter 4. Evaluation
+eclipse schema1
+% of Best-Performting Cases % of Best-Performting Cases 100 100
+POPULAR
+
+
+4.3. Discussion
+gentoo schema1
+% of Best-Performting Cases 100
+POPULAR
+
+
+ENT schema1
+% of Best-Performting Cases 100
+POPULAR
+
+
+kde schema1
+
+
+libre schema1
+100
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+POPULAR
+
+UBCF
+
+N-BAYES
+
+% of Best-Performting Cases
+
+POPULAR
+
+
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+80
+
+80
+
+80
+
+80
+
+60
+
+60
+
+60
+
+60
+
+40
+
+40
+
+40
+
+40
+
+20
+
+20
+
+20
+
+20
+
+0
+
+0
+
+0
+
+0
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+0
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+20
+
+40
+
+60
+
+80
+
+ 
+
+ 
+
+
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+eclipse schema2
+% of Best-Performting Cases % of Best-Performting Cases 100 100
+POPULAR
+
+
+gentoo schema2
+% of Best-Performting Cases 100
+POPULAR
+
+
+ENT schema2
+% of Best-Performting Cases 100
+POPULAR
+
+
+kde schema2
+
+
+libre schema2
+100
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+POPULAR
+
+UBCF
+
+N-BAYES
+
+% of Best-Performting Cases
+
+POPULAR
+
+
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+80
+
+80
+
+80
+
+80
+
+60
+
+60
+
+60
+
+60
+
+40
+
+40
+
+40
+
+40
+
+20
+
+20
+
+20
+
+20
+
+    
+
+  
+
+
+
+
+
+20
+
+40
+
+60
+
+80
+
+0
+
+0
+
+0
+
+0
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   
+
+
+
+
+
+
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+eclipse schema3
+% of Best-Performting Cases % of Best-Performting Cases 100 100
+POPULAR
+
+
+gentoo schema3
+% of Best-Performting Cases 100
+POPULAR
+
+
+ENT schema3
+% of Best-Performting Cases 100
+POPULAR
+
+
+kde schema3
+
+
+libre schema3
+100
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+POPULAR
+
+UBCF
+
+N-BAYES
+
+% of Best-Performting Cases
+
+POPULAR
+
+
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+80
+
+80
+
+80
+
+80
+
+60
+
+60
+
+60
+
+60
+
+40
+
+40
+
+40
+
+40
+
+20
+
+20
+
+20
+
+20
+
+
+
+
+
+
+
+
+
+
+
+
+
+0
+
+0
+
+0
+
+0
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+0
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+20
+ 
+
+40
+
+60
+
+80
+
+
+
+
+
+
+
+
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+eclipse schema4
+% of Best-Performting Cases % of Best-Performting Cases 100 100
+POPULAR
+
+
+gentoo schema4
+% of Best-Performting Cases 100
+POPULAR
+
+
+ENT schema4
+% of Best-Performting Cases 100
+POPULAR
+
+
+kde schema4
+
+
+libre schema4
+100
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+POPULAR
+
+UBCF
+
+N-BAYES
+
+% of Best-Performting Cases
+
+POPULAR
+
+
+
+UBCF
+
+N-BAYES
+
+RANDOM
+
+80
+
+80
+
+80
+
+80
+
+60
+
+60
+
+60
+
+60
+
+40
+
+40
+
+40
+
+40
+
+20
+
+20
+
+20
+
+20
+
+0
+
+0
+
+0
+
+0
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
+
+
+
+
+
+
+20
+ 
+
+40
+
+60
+
+80
+
+
+
+
+
+
+
+1
+
+5
+
+10 N
+
+15
+
+20
+
+Figure 4.10: Best Performing Algorithm for each schema and dataset projects under study. As a result, we do not have su cient information about users' characteristics.
+
+4.3.4
+
+What drives models' failure?
+
+After we complete the evaluation of top-performing schemas and algorithms, we examine the cases where DRS can not predict. By case, we mean a unique split in terms of product-component, temporal splitting schema, and fold. In this section, we present our analysis of the factors leading to models' failure. 47
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+Table 4.3: Summary of the best-performing algorithms (in %) incorporating all schemas N-BAYES POPULAR RANDOM UBCF Eclipse 3.71 79.37 5.12 11.80 Gentoo 0.67 89.13 1.74 8.46 ENT 2.44 79.56 7.89 10.11 KDE 1.34 82.06 5.56 11.05 Libre 0.85 91.06 3.83 4.26 Table 4.4: Confusion Matrix of the Random Forest Classifier Predicted as, can-not-predict can-predict can-not-predict 1302 42 Actual, can-predict 95 318 As we run DRS on the partitioned datasets (unique splits), we store the characteristics of the input data structure (the rating matrix) in a log file for further analysis of the models' performance. Essentially, we have two input rating matrix, one for the training and the other for testing. The attributes that we keep track of are listed in Table 4.5. If the models fail to predict a single defect rediscovery (True-Positive), we assign the case to the class: can-not-predict, and can-predict otherwise. We show the frequency of cases belonging to each class in Table 4.8. Then, we merge all cases and in order to identify the important attributes, we train a Random Forest classifier using the attributes mentioned in Table 4.5. We use the implementation of the classifier from randomForest package in R with a configuration of 100 trees [50]. We randomly split 70% of the cases into training set and 30% data to test. The overall accuracy of the classifier on the test set is  92%. We present the predictive performance on the test set in a confusion matrix in Table 4.4: The Random Forest classifier creates multiple decision trees with a dierent combination of a random subset of variables. The classifier takes into account the vote of each tree while making a classification. The finally predicted class is obtained by aggregating the predictions from all trees. Random Forest classifier can estimate the importance of the attributes used. The attributes that have more predictive power are likely to influence more. This helps us to identify the important factors leading to models' failure. To identify the most influential factors that drive models' failure, we use Random 48
+
+Chapter 4. Evaluation Table 4.5: List Attribute tr users tr defects tr ratings tst users tst defects tst ratings present tr present tst present tr absent tst absent tr present tst class
+
+4.3. Discussion of factors potentially influencing models' performance Description Number of unique users in training set Number of unique defects in training set Number of unique ratings in training set Number of unique users in testing set Number of unique defects in testing set Number of unique ratings in testing set Number of defects rediscovered by both train and test users Number of defects rediscovered by only training users Number of defects rediscovered by only testing users Two classes: whether model can-predict or can-not-predict
+
+Forest's variable importance measure [28]. The coe cient that we use is called Mean Decrease in Gini. It measures the eect of each variable in the homogeneity of the decision node. Every time a variable is used to partition the tree into children, the dierence in Gini coe cient between the child node and the parent node is calculated. A predictor variable with a higher decrease in Gini indicates that it has more influence in partitioning the data into classes. We present the importance of the factors in terms of the gini coe cient in Figure 4.11. We can see that the tst ratings, the tst users, and present tr present tst are the three most important factors in terms of predictive power. The tst ratings and the tst users correspond to the number of unique rediscoveries and users in the testing set respectively. The present tr present tst represents the number of common rediscoveries in both training and testings set . Table 4.6: Statistical Analysis of the three most important factors. The table shows means of the attributes plus-minus standard deviation (s.d.). Attribute Can-predict Can-not-predict (mean ± s.d.) (mean ± s.d.) tst users 59.36 ± 75.1 8.8 ± 12.07 tst ratings 63.96 ± 82.33 8.83 ± 12.1 present tr present tst 19.42 ± 17.86 4.19 ± 3.28 To verify our findings, we again train a dierent classifier. We use the Naive-Bayes classifier with a 10-fold validation scheme using the three most important factors returned 49
+
+Chapter 4. Evaluation
+
+4.3. Discussion
+
+tst_ratings tst_users present_tr_present_tst tr_ratings absent_tr_present_tst tr_defects tst_defects present_tr_absent_tst
+
+0
+
+50
+
+100
+
+150
+
+200
+
+250
+
+300
+
+350
+
+MeanDecreaseGini
+
+Figure 4.11: Most influential factors as per Random Forest classifier Table 4.7: Confusion Matrix of the Naive Bayes Classifier Predicted as, can-not-predict can-predict can-not-predict 4326 164 Actual, can-predict 580 785 by Random-Forest. We get overall accuracy of  87% with the Naive-Bayes. The confusion matrix is shown in Table 4.7. We compare the statistical measures (namely, mean and standard deviation) of the three most important factors against each class. We present this analysis in Table 4.6. According to the analysis, we find that the model belongs to can-not-predict class, if we do not have su cient data about defect rediscovery. For example, compare the number of unique users in the test set (tst users) for the can-not-predict class ( 9 ± 12) with the ones for the can-predict class ( 59 ± 75). Similar picture holds for the number of unique rating in testing set tst ratings ( 64 ± 82 vs.  9 ± 12) and the number of defects rediscovered by both train and test present tr present tst ( 19 ± 18 vs.  4 ± 3). 50
+
+Chapter 4. Evaluation
+
+4.4. Threats to Validity
+
+Table 4.8: Frequency of the two class-attributes for each dataset Project Can-not-predict can-predict KDE 2453 554 Eclipse 1015 410 ENT 411 194 Gentoo 458 160 Libre 153 47 Therefore, the larger is the number of users, the higher is the number of rediscoveries (i.e., the less sparse the matrix is), and the more rediscoveries of the same defect are there between train and test set ­ the better the performance of the models.
+
+4.4
+
+Threats to Validity
+
+In this section we discuss threats to validity, classified as per [87, 84]. Internal Validity We do not have access to a number of reports, which may bias our dataset (as discussed in Section 4.2). However, given that the percentage of such reports is small: 0.1% for Eclipse, 1.3% for KDE and is moderate: 34% for Gentoo, 53% for LibreO ce, the dataset should not be aected significantly. In addition, some of the reports that are currently non-rediscovered may be rediscovered in the future (as discussed in Section 4.2). This has to be taken into consideration during data analysis. In the case of ENT, all the reports were available. Customers may under-report defect rediscoveries, skewing the distribution of rediscoveries (shown in Figure 4.2). Two main types of defects are not reported to the service desk: 1) defects with low severity with obvious workarounds; and 2) rediscoveries of known defects that were not fixed last time. Under-reporting may aect quality estimates of the software, but it will not aect resource allocation of in-house service and maintenance team. As far as they are concerned, a defect that is not reported does not exist. These situations are a nuisance to the clients, but the clients typically find solutions in a minimum amount of time. Thus, from practical perspective, absence of these data can be ignored. 51
+
+Chapter 4. Evaluation Construct Validity
+
+4.4. Threats to Validity
+
+In order to reduce the threat to validity related to human errors, we automated the process of data gathering and analysis, reducing the risk of human error. Python, R, and SQL-based scripts were created to extract, transform, and analyse the data. Conclusion Validity In order to prevent over-fitting of the models, we have used four dierent temporal splitting techniques. We pick dt = 1 year which ensures we have the maximum number of folds for each temporal splitting schema. External Validity As described by Wieringa and Daneva [83], software engineering studies suer from the variability of the real world, and the generalisation problem cannot be solved completely. As they indicate, to build a theory we need to generalise to a theoretical population and have adequate knowledge of the architectural similarity relation that defines the theoretical population. In this study, even though we have used the data from five dierent software projects (include both open source and enterprise) to build the DRS, we can not generalise our results to all software projects. Our goal of this study was not building a new theory, rather we wanted to achieve a deeper understating of how established machine learning techniques perform in the rediscovery domain. Our approach on reducing defect rediscoveries can be applied to other software products with well-designed and controlled experiments.
+
+52
+
+Chapter 4. Evaluation
+
+4.4. Threats to Validity
+
+Table 4.9: Best Algorithms for Schema-1 for each dataset and for each Top-N value dataset TopN N-BAYES POPULAR RANDOM UBCF Eclipse 1 0 106 0 4 Eclipse 3 3 93 4 10 Eclipse 5 6 86 4 14 Eclipse 10 8 82 6 14 Eclipse 20 4 78 7 21 ENT 1 0 40 2 3 ENT 3 1 35 2 7 ENT 5 2 30 5 8 ENT 10 0 33 6 6 ENT 20 0 38 3 4 Gentoo 1 0 35 0 1 Gentoo 3 0 32 2 2 Gentoo 5 0 34 0 2 Gentoo 10 0 34 0 2 Gentoo 20 0 31 2 3 KDE 1 0 125 2 12 KDE 3 0 117 8 14 KDE 5 0 118 5 16 KDE 10 0 116 7 16 KDE 20 2 123 4 10 LibreO ce 1 1 13 0 1 LibreO ce 3 0 13 1 1 LibreO ce 5 0 14 0 1 LibreO ce 10 0 14 0 1 LibreO ce 20 0 13 0 2
+
+53
+
+Chapter 4. Evaluation
+
+4.4. Threats to Validity
+
+Table 4.10: Best dataset Eclipse Eclipse Eclipse Eclipse Eclipse ENT ENT ENT ENT ENT Gentoo Gentoo Gentoo Gentoo Gentoo KDE KDE KDE KDE KDE LibreO LibreO LibreO LibreO LibreO
+
+Algorithms for Schema-2 for each dataset and for each Top-N value TopN N-BAYES POPULAR RANDOM UBCF 1 0 59 1 2 3 4 54 2 2 5 4 49 3 6 10 5 42 5 10 20 4 40 6 12 1 1 28 1 2 3 2 23 4 3 5 1 25 5 1 10 0 28 2 2 20 0 32 0 0 1 1 22 0 3 3 0 22 1 3 5 0 20 0 6 10 0 20 1 5 20 0 21 0 5 1 3 80 3 11 3 1 76 9 11 5 2 78 6 11 10 3 78 4 12 20 1 82 4 10 ce 1 0 5 0 1 ce 3 0 6 0 0 ce 5 0 5 0 1 ce 10 0 6 0 0 ce 20 0 5 1 0
+
+54
+
+Chapter 4. Evaluation
+
+4.4. Threats to Validity
+
+Table 4.11: Best dataset Eclipse Eclipse Eclipse Eclipse Eclipse ENT ENT ENT ENT ENT Gentoo Gentoo Gentoo Gentoo Gentoo KDE KDE KDE KDE KDE LibreO LibreO LibreO LibreO LibreO
+
+Algorithms for Schema-3 for each dataset and for each Top-N value TopN N-BAYES POPULAR RANDOM UBCF 1 2 69 0 6 3 2 59 8 8 5 4 51 9 13 10 8 43 9 17 20 5 56 4 12 1 2 34 3 2 3 1 30 6 4 5 1 31 5 4 10 0 35 5 1 20 0 40 1 0 1 2 29 0 5 3 1 30 2 3 5 1 30 0 5 10 0 31 2 3 20 0 31 2 3 1 6 98 4 17 3 2 96 9 18 5 1 90 12 22 10 1 91 14 19 20 1 107 10 7 ce 1 0 9 0 0 ce 3 0 8 1 0 ce 5 0 8 1 0 ce 10 0 8 1 0 ce 20 0 8 1 0
+
+55
+
+Chapter 4. Evaluation
+
+4.4. Threats to Validity
+
+Table 4.12: Best dataset Eclipse Eclipse Eclipse Eclipse Eclipse ENT ENT ENT ENT ENT Gentoo Gentoo Gentoo Gentoo Gentoo KDE KDE KDE KDE KDE LibreO LibreO LibreO LibreO LibreO
+
+Algorithms for Schema-4 for each dataset and for each Top-N value TopN N-BAYES POPULAR RANDOM UBCF 1 0 155 1 5 3 1 142 2 16 5 5 128 10 18 10 5 117 12 27 20 6 118 12 25 1 2 47 3 10 3 1 47 4 10 5 4 45 3 10 10 3 45 6 8 20 1 50 5 6 1 0 48 0 3 3 0 48 1 2 5 0 49 0 2 10 0 49 0 2 20 0 48 0 3 1 0 165 8 20 3 3 163 6 21 5 4 154 15 20 10 4 156 13 20 20 3 160 11 19 ce 1 1 15 0 1 ce 3 0 17 0 0 ce 5 0 15 1 1 ce 10 0 15 2 0 ce 20 0 17 0 0
+
+56
+
+Chapter 5 Conclusions and Future Work
+In this study, we present defect rediscovery datasets collected from several groups of open source projects (Eclipse, Gentoo, LibreO ce, and KDE) as well as an enterprise software project (ENT), aimed at capturing information associated with duplicate / rediscovered defects. We describe the schema of the datasets, extraction and transformation process, and present analysis of the datasets. Then, we build a predictive model leveraging common recommender system algorithms in order to predict defect rediscoveries based on the extracted data. We apply recommender systems to reduce the number of defect rediscoveries by the users in large scale open source and enterprise software projects. We identified that for large scale software projects, the defect rediscovery data is highly sparse, that is only a small number of defects out of thousands of defects are rediscovered frequently by the users of the software product. In order to provide accurate recommendations about defect rediscoveries to the users, the sparsity must be reduced. We introduce a productcomponent based data partitioning technique to reduce the sparsity in defect rediscovery datasets. We investigate several temporal splitting schema to build our predictive models. The performance of the temporal splitting varies. Generally, in the case of open source software projects, training the model on one year of rediscovery data and testing on one or more years of data yields the best results. In the case of the enterprise software project, accumulating rediscovery data from previous years, typically result in higher accuracy while predicting future defect rediscoveries. 57
+
+Chapter 5. Conclusions and Future Work We describe the advantages of our data partitioning techniques. However, they have limitations. Namely, the product-components with limited defect rediscovery data and the time-windows with a small number of defect rediscoveries may result in inability to recommend defects for a given client. Our primary research question, RQ1 was: How can we proactively predict defects that a client will rediscover in the future? To address this question we applied recommender system techniques to predict defects rediscovered by a given client. The recommender system achieved a maximum TPR between 60% and 92% with a maximum FPR between 20% and 60% for each project, while predicting Top-20 rediscovered defects. To achieve this result, we applied four temporal splitting techniques in combination with partitioning the data by product-components. Our secondary research questions, RQ2 and RQ3 were, How prevalent is the defect rediscovery phenomenon in commercial and open source software projects? and What are the factors that influence the accuracy of the predictive models?. To address RQ2, we analyzed the inter-relations between rediscovered defects and connected all rediscoveries related to the same discovery. We also presented a statistical analysis on the defect rediscovery data of five dierent software projects. We found the rediscovery phenomenon to be widespread among the projects. To address RQ3, we applied two classifiers to identify the important factors leading to models' failure. We found that lack of information about users and rediscoveries in the test data, as well as the lack of overlap of rediscoveries in train and test data are the main reasons that cause the predictive model to fail. We believe that our approach for predicting defect rediscoveries is of interest to practitioners, as they may use this approach to proactively identify a subset of defects that a particular client may encounter in the future. It is also of interest to researchers, as it may help in understanding phenomenon of rediscovery data, leading to creation of new models for predicting rediscoveries. Moreover, we believe that the defect rediscovery datasets that we extracted, will aid researchers and practitioners in gathering insight into usage of duplicate reports in various areas of software engineering. 58
+
+Chapter 5. Conclusions and Future Work
+
+5.1. Future Work
+
+5.1
+
+Future Work
+
+Going forward, we would like to extend our work to include data from other software projects as well as experiment with other recommender algorithms and data partitioning techniques. We consider this study as a starting point in the application of recommender systems to reduce defect rediscovery. Generally, recommender systems are widely used in other domains and real world use cases. We plan to build more sophisticated recommender systems (including context-aware and content-based ones) leveraging the insights we got from this study. For example, defect reports not labelled as duplicates but with high textual similarity may get rediscovered by similar clients in the future. The defect rediscovery phenomena should be investigated more. As we build the graph of rediscoveries for each connected set of duplicate defects, we notice how duplicate/rediscovered defects are interrelated with each other across dierent products and components. Unraveling the unique characteristics of the duplicate/rediscovered defects would be another line of our future research. Finally, we look forward to leveraging our proposed approach to above-mentioned and relevant research problems including defect report prioritization and defect report optimization.
+
+59
+
+Appendices
+
+60
+
+Appendix A Reducing the Sparsity using Clustering
+As we discuss in Secition 3.6.1 that there exists several techniques to reduce the sparsity of the rating matrix, we explore some of these techniques in combination with partioning by product-components. However, we exclude them from our analysis because these techniques did not yield superior results than the partitioning by product-components. Moreover, we use the geo-location based feature for this purpose which is available only in the ENT dataset. Therefore, we share our findings on the clustering based sparsity reduction techniques on the ENT dataset here in the appendix.
+
+A.1
+
+Clustering
+
+As mentioned above, clustering based techniques reduce the sparsity of the dataset by forming groups of defect reports using unsupervised learning approaches. In order to group defect reports into clusters, we have investigated the location attribute in the ENT dataset that is associated with each defect report. The location attribute was chosen because the behaviours of the users may vary from country to country [79]. For example, people from some countries may be not very keen on reporting defects or they may not use the software extensively, resulting in rediscovering less number of defects. On the contrary, users from some other locations may always report defect as soon as they find or they may use the software more extensively, resulting in rediscovering 61
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+higher number of defects in the software. Our location data set contains country-level location information with 72 unique countries (geo-locations). To understand the properties of each geo-location, at first we have extracted a set of derived attributes for each country listed below: 1. Average number of defects per customer, 2. Average number of rediscoveries per defect, 3. Rediscovery window, 4. Average defect arrival rate. Attributes 1 and 2 were found useful in operational profiling of customers [59]. A high average number of defects per customer suggests that users from such locations use the software extensively and a high average number of rediscoveries per defect in a location suggests that large number of users are using the product in a similar manner. To compute Attribute 3, rediscovery window, for each country we calculated the number of days between the first and last defect, as per [22], indirectly providing information on the length of usage of this product in a given country. Attribute 4, the average defect arrival rate, is computed as the number of defects reported per day for a given country. This attribute is linked to product quality [41], hence its inclusion in the set. We use these four attributes to perform unsupervised learning using two techniques: agglomerative hierarchical clustering (AHC) and self-organising map (SOM), discussed in Sections A.1.1 and A.1.2, respectively.
+
+A.1.1
+
+Agglomerative Hierarchical Clustering
+
+The AHC or bottom-up hierarchical clustering technique groups geo-locations by merging pairs of locations first (based on a measure of distance) and then greedily pairing the resulting clusters pair-wise, as we move up the hierarchy [56]. The resulting hierarchy of clusters is called dendrogram. We used Euclidean Distance to compute distance between each pair of objects; in order to determine distance between clusters we used average linkage criterion. Built-in R function hclust [64] was used to obtain the dendrogram. We used Gap Statistic method [78] to identify optimal number of clusters, implemented in clustGap R function from the cluster package [55]. In our case optimal number of 62
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+Optimal number of clusters
+0.20
+
+0.15
+
+Gap statistic (k)
+
+0.10
+
+0.05
+
+0.00
+
+-0.05 1 2 3 4 5 6 7 8 9 10
+
+Number of clusters k
+
+Figure A.1: Identification of optimal number of clusters for AHC using gap statistic. clusters is two. Hence, we cut the dendrogram (Figure A.2) at a height that splits the tree into two clusters, which we will further discuss in Section A.1.3. In order to identify optimum number of clusters, we used the Gap Statistic method [78]. The gap statistic measures the total intra-cluster dierences for dierent values of k with corresponding expected values under reference distribution of the data. For several values of k (the number of clusters), the intra-cluster dierence or variation between the actual data and the reference data is computed. The value of k that returns the maximum variation or gap statistic is the optimum number of clusters. Based on the clustGap R function from the cluster package[55] We used the clustGap R function from the cluster package[55] to identify optimal number of clusters using the gap statistic automatically. Figure A.1 illustrates that in our data, for k = 2 we get the maximum gap statistic. 63
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+Height
+
+500 1000 14 72 35 49 6 19 27 69 64 32 37 2 11 22 8 45 34 12 17 16 56 4 29 3 9 1 26 10 67 5 71 13 41 7 23 30 21 33 18 31 25 36 48 42 44 20 28 38 40 39 46 15 51 50 70 43 47 59 24 58 54 57 60 61 62 66 68 63 53 65 52 55 Country ID hclust (*, "average")
+64
+
+Figure A.2: Cluster Dendrogram and Tree Pruning for AHC.illustrates the dendrogram obtained by AHC. The red dotted line shows the height at which the tree pruning was done. The two orange rectangular boxes represent the two clusters, obtained after tree pruning.
+
+0
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+Figure A.3: Illustrates the self-organising map in 5  5 grid. Each circle represents one of the 25 neurons of the grid. The diagram is called a Fan-Diagram. Each fan represents the magnitude of each attribute in the weight vector.
+
+65
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+7 6 4 3 2 1
+
+Figure A.4: Counts plot. Shows the number countries associated with each neuron on the self-organising map in 5  5 grid. Grey colour represents zero countries.
+
+66
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+A.1.2
+
+Self-Organising Map (SOM)
+
+The Kohonen self-organising map is a special type of Artificial Neural Network [43] . It can visualise high dimensional data in a low-dimensional space; typically the space is reduced to a two-dimensional map. By inspecting the map, we can understand the underlying characteristics of the geo-locations and identify similar ones. The building block of SOM is a unit or a neuron. The number of neurons to be used must be decided before training. There are weights associated with each of the neurons. The number of weights are equal to the number of attributes in the input space. The neurons are typically represented in a rectangular grid system. At first, random weights are assigned to the neurons in SOM. During the training process, in each iteration all the data points are presented to the SOM. The similarity in weights between a data point and all the neurons is computed and the most similar neuron becomes the winning neuron. The weights of the winning neuron is adjusted in each iteration as the neuron becomes more and more similar to the input data. The weights of the other neurons in the neighbourhood of the winning neuron are also adjusted. This process is repeated for a fixed number of iterations. The output of the SOM are clustered data points (i.e., every data point will be associated with a certain neuron in the grid) [21]. By design, the data points in adjacent neurons of the grid are similar to each other. Visual inspection of the resulting grid (map) allows to identify the clusters. We trained SOM implemented in kohonen [82] R package on our 4-dimensional geolocation data. To construct the SOM, as discussed above, we need to choose the number of neurons and the number of iterations. To choose the number of the neurons, we used the following heuristic formula:  5  0.54321 [6], where is the number of units in the map and is the number of observations in the data set. We had 72 observations and according to this heuristic our map size should be 25. The neurons were configured in a 5  5 grid. The maximum number of iterations was set to 100; the algorithm converged after  45 iterations. In Figure A.5, we can see that in the case of our dataset the algorithm converges after  45 iterations. The resulting visual inspection of the data suggested to aggregate data from four neurons into one cluster. The analysis of the data associated with this cluster is given in Section A.1.3. These clusters can be identified by visual inspection of the map. 67
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+Training progress
+
+Mean distance to closest unit
+
+5 0
+
+10
+
+15
+
+20
+
+40 Iteration
+
+60
+
+80
+
+100
+
+Figure A.5: SOM Training.
+
+68
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+The learning rate decreases during the training and the map converges, which means that the neighbourhood size around the best matching unit decreases with each iteration until the neighbourhood is only the best matching unit [43]. To choose the size of the grid we have used the following heuristic formula, munits  5  dlen0.54321 [6]. Where munits is the number of units in the map and dlen is the number of observations in the data set. We had 72 observations and according to this heuristic our map size should be 25.
+
+A.1.3
+
+Results
+
+We partition the dataset, reducing sparsity of the rating matrix, using clustering techniques (shown in Sections A.1.1 and A.1.2) and apply RS algorithms to the resulting clusters in Sections A.1.3 and A.1.3 . Lastly, we further reduce the sparsity by partitioning the data per product-component and applying the RS algorithms to the resulting subsets of data. Clustering ­ AHC We first cluster the complete dataset (grouped by country as discussed in Section A.1) using AHC (details of the algorithm are provided in Section A.1.1). Figure A.2 shows the resulting dendrogram generated by the AHC. The dendrogram was split into two clusters (using the gap statistic approach described in Section A.1.1). The resulting clusters are marked using orange boxes in Figure A.2. Each cluster has  50% of the countries associated with it. However, even though the right cluster on Figure A.2 has  50% of the countries associated with,  99% of the defect reports originated from these countries. Therefore, we use the defect reports from this cluster for our experiments. Clustering ­ SOM In this section we cluster the complete dataset using SOM (details of the algorithm are shown in Section A.1.2). Upon training on the complete dataset, SOM returned 5  5 grid of neurons with each of the 72 countries associated with a particular neuron. Figure A.4 69
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+show the number of countries associated with each neutron. The number of countries per neuron ranges from 0 to 7. Each neuron in the SOM has a weight vector (one weight value per each of the four attributes discussed in Section A.1). Figure A.3 visualises these weights using fandiagrams. Each fan represents the magnitude of each attribute in the weight vector. For example, the bottom-left neuron in Figure A.3 contains countries with the highest average number of defects per user, average number of rediscoveries per defect, rediscovery window, and average defect arrival rate. Inspection of the fan diagram helps to uncover some patterns. Note that by design of SOM (see [43]), countries in adjacent neutrons of the grid possess some similarities. In particular, four neurons at the bottom left corner of the grid (the bottom left neuron and three other neurons surrounding it) possess interesting characteristics: the magnitude of the weights for all the attributes is relatively higher in this region of the grid, in comparison with other regions. Although, 19 countries out of the total 72 countries are mapped to the four neurons mentioned above,  94% of the defect reports came from these 19 countries. The other 21 out of 25 neurons contain 53 out of 72 countries, with  6% of the defect reports coming from these. Therefore, we apply the DRS to the subset of data reported from these 19 countries. The percentage of non-zero elements in the rating matrix for this subset of data is 0.08%, which is higher than 0.071% of the full matrix. Thus, as in the case of AHC described in Section A.1.3, we expect that performance of DRS should increase (in comparison with the performance of the DRS on the complete dataset). Per product-component We partitioned the dataset by product-component in combination with the two clustering based approaches mentioned above. We select 28 out of 185 components, covering  80% of defect reports. Essentially, we took the complete dataset, filtered defects associated with 28 components, and split the filtered dataset by component. We then applied four DRS algorithms to each of the 28 subsets of data and gathered the summary statistics. We then repeated this process twice: first, replacing the complete dataset with `cluster 1' generated by AHC, and second, replacing the complete dataset with the cluster of data identified 70
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+by SOM. In this section we will refer to the datasets originated from complete dataset as Complete-based, from AHC `cluster 1' as AHC-based, and from the SOM cluster as SOM-based. To assess usefulness of clustering techniques, we "collapse" distribution of T P R and F P R per component, by computing means and 95% asymmetric confidence interval1 (CI) of F P R and T P R data for each dataset and N . Results are given in Figure A.6. AHC dataset has consistently2 higher mean T P R values while maintaining similar or lower mean F P R rates. Analysis of confidence intervals suggests that AHC-based approach outperforms the other two for N  5; SOM-based approach prevails for N > 5 . For example, in the case when N = 3, T P R's 95% CI for AHC-based approach ranges between 0.05 and 0.48, with the mean of 0.20; F P R's ­ between 0.01 and 0.08, with the mean of 0.4. In the case when N = 20, T P R's 95% CI for SOM-based approach ranges between 0.26 and 0.88, with the mean of 0.53; F P R ­ between 0.09 and 0.54, with the mean of 0.25.
+
+Computed based on 0.025 and 0.975 empirical quantiles. The only exception is N = 20, where SOM T P R value is higher than AHC T P R values by 0.01; however, this increase comes at expense of F P R, which is also higher for SOM by 0.01.
+2
+
+1
+
+71
+
+Chapter A. Reducing the Sparsity using Clustering
+
+A.1. Clustering
+
+
+
+Complete AHC SOM 20 15
+
+0.6
+
+0.8
+
+10
+
+
+TPR
+
+5 0.4 3 1
+ 
+
+
+
+0.2
+
+
+
+
+
+0.0 0.0
+
+0.1
+
+0.2
+
+0.3 FPR
+
+0.4
+
+0.5
+
+0.6
+
+Figure A.6: Performance of the best algorithms for three datasets. Each data point represents mean F P R and T P R values for all 28 components for a given Top-N . Values of N are shown above the lines. Dotted lines represent 95% confidence intervals of F P R and T P R for each of the data points.
+
+72
+
+Appendix B Data Extractions Scripts
+A prototype tool to extract rediscovery data from Bugzilla-based defect report tracking systems.
+
+B.1
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18
+
+Web Scraper
+
+import u r l l i b 2 import pandas a s pd import s y s import time import o s from WebScraperUtil import c o m m a n d l i n e o p t i o n s from bs4 import B e a u t i f u l S o u p from r e t r y i n g import r e t r y
+
+c l a s s ExtractionParams : ''' This c l a s s d e f i n e s d e f a u l t e x t r a c t i o n p a r a m e t e r s . Use c o m m a n d l i n e o p t i o n s t o o v e r r i d e t h e c o n s t r u c t o r . ''' def init ( self ) : s e l f . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' b u g s t a t u s ' , ' resolution ' , ' priority ' , ' bug severity ' , ' version ' , ' short desc '
+
+73
+
+Chapter B. Data Extractions Scripts
+
+B.1. Web Scraper
+
+19
+
+20
+
+21
+
+22
+
+23 24 25 26 27 28 29 30 31 32
+
+, ' opendate ' , ' d u p i d ' , ' d u p l i s t ' ] s e l f . b u g l o o k u p u r l p r e = ' h t t p s : / / bugs . e c l i p s e . o r g / bugs / b u g l i s t . c g i ? b u g i d= ' s e l f . b u g l o o k u p u r l p o s t = '&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C r e p o r t e r%2Copendate%2C p r i o r i t y%2Cbug id%2C b u g s e v e r i t y%2 C v e r s i o n%2C r e s o l u t i o n%2C b u g s t a t u s%2C s h o r t d e s c&q u e r y b a s e d o n =&q u e r y f o r m a t=advanced ' s e l f . b u g p r o f i l e u r l = ' h t t p s : / / bugs . e c l i p s e . o r g / bugs / show bug . c g i ? i d= ' s e l f . o u t f i l e n a m e = ' output / e c l i p s e / '+s t r ( time . s t r f t i m e ( '%c ' ) ) + ' e c l i p s e d e f e c t r e d i s c o v e r y . csv ' s e l f . f i l e i n p u t d i r = ' input / e c l i p s e '
+
+def r e t r y i f e x c e p t i o n ( exception ) : ' ' ' Retry h t t p r e q u e s t i f e x c e p t i o n o c c u r s . ' ' ' print ' retrying : ' + str ( exception ) return i s i n s t a n c e ( exception , Exception )
+
+33 34 35 36 37 38 39 40 41 42 43
+
+@retry ( r e t r y o n e x c e p t i o n=r e t r y i f e x c e p t i o n , wait random min =5000 , wait random max =20000) def start http request ( url ) : ' ' ' Send h t t p r e q u e s t . ' ' ' response = u r l l i b 2 . urlopen ( url ) return response
+
+44 45 46 47
+
+d e f g e t b u g m e t a d a t a ( b ug id , l i s t o f a t t r i b u t e s , params ) : ''' E x t r a c t s bug metadata from B u g z i l l a . : param b u g i d : an i n t b u g i d : param l i s t o f a t t r i b u t e s : a l i s t o f a t t r i b u t e s from t h e a v a i l a b l e attributes : param params : an o b j e c t o f t h e ExtractionParams c l a s s : r e t u r n : a d i c t i o n a r y c o n t a i n i n g a t t r i b u t e : v a l u e a s key : v a l u e p a i r s ''' b u g l i s t h t m l = s t a r t h t t p r e q u e s t ( params . b u g l o o k u p u r l p r e + s t r ( b u g i d ) + params . b u g l o o k u p u r l p o s t )
+
+74
+
+Chapter B. Data Extractions Scripts
+48 49 50 51 52 53 54 55 56 57 58 59 60 61 62 63 64
+
+B.1. Web Scraper
+
+b u g l i s t s o u p = B e a u t i f u l S o u p ( b u g l i s t h t m l , ' html . p a r s e r ' ) a t t r i b u t e s = {} a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ 0 ] ] = bug id f o r i in range (1 , l en ( l i s t o f a t t r i b u t e s ) ) : i f l i s t o f a t t r i b u t e s [ i ] == ' d u p i d ' : a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ i ] ] = bug id elif l i s t o f a t t r i b u t e s [ i ] == ' d u p l i s t ' : a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ i ] ] = None l i s t o f a t t r i b u t e s [ i ] == ' opendate ' : try : attributes [ l i s t o f a t t r i b u t e s [ i ] ] = str ( bug list soup . find ( ' td ' , { ' c l a s s ' : ' b z o p e n d a t e c o l u m n ' } ) . c o n t e n t s [ 0 ] ) . rstrip () e x c e p t Exception , e : a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ i ] ] = 'NA ' elif l i s t o f a t t r i b u t e s [ i ] == ' s h o r t d e s c ' : try : attributes [ list of attributes [ i ] ] = str ( b u g l i s t s o u p . f i n d ( ' td ' , { ' c l a s s ' : ' bz short desc column ' }) . f i n d ( ' a ' ) . contents [ 0 ] ) . rstrip () e x c e p t Exception , e : a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ i ] ] = 'NA ' else : try : attributes [ l i s t o f a t t r i b u t e s [ i ] ] = str ( bug list soup . find ( ' td ' , { ' c l a s s ' : ' b z '+ l i s t o f a t t r i b u t e s [ i ]+ ' column ' } ) . f i n d ( ' span ' ) . c o n t e n t s [ 0 ] ) . r s t r i p ( ) e x c e p t Exception , e :
+
+elif
+
+65 66 67 68 69 70 71 72 73
+
+74 75 76 77 78 79
+
+80
+
+75
+
+Chapter B. Data Extractions Scripts
+81 82 83 84 85 86 87 88
+
+B.1. Web Scraper
+
+a t t r i b u t e s [ l i s t o f a t t r i b u t e s [ i ] ] = 'NA ' return attributes
+
+89 90 91 92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109
+
+def get dup ids ( string having dups , dup li st ) : ''' From t h e s t r i n g having t h e dups form t h e B u g z i l l a web page , e x t r a c t each dup a s i n t , and u p d a t e s t h e d u p l i s t o f t h e bug . : param s t r i n g h a v i n g d u p s : a s t r i n g c o n t a i n i n g a l l dups f o r a g i v e n bug : param d u p l i s t : a l i s t i n t dup i d s : r e t u r n : updated d u p l i s t ''' f o r dup i n s t r i n g h a v i n g d u p s . f i n d A l l ( ' a ' ) : v a l = ( dup . c o n t e n t s [ 0 ] ) try : int ( val ) except ValueError : v a l = s t r ( dup [ ' h r e f ' ] ) . p a r t i t i o n ( '= ' ) [ 2 ] d u p l i s t . append ( v a l ) return dup list
+
+110
+
+111 112 113
+
+114 115
+
+d e f w r i t e r o w ( bug metadata , t m p l i s t s , l i s t o f a t t r i b u t e s ) : ''' Writes a s i n g l e e n t r y /row i n i n t e r m e d i a t e temporary l i s t s f o r a g i v e n bug . : param bug metadata : a d i c t i o n a r y c o n t a i n i n g a l l e x t r a c t e d e d a t t r i b u t e s t o be w r i t t e n : param t m p l i s t s : a temporary l i s t o f l i s t s : param l i s t o f a t t r i b u t e s : a l i s t o f a t t r i b u t e s used i n e x t r a c t i o n : r e t u r n : updated l i s t o f l i s t s ( e s s e n t i a l l y added one item t o each item i n each l i s t ) ''' for i n xrange ( l e n ( l i s t o f a t t r i b u t e s ) ) :
+
+76
+
+Chapter B. Data Extractions Scripts
+116 117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 135 136 137 138 139 140 141 142 143 144 145
+
+B.1. Web Scraper
+
+t m p l i s t s [ ] . append ( bug metadata [ l i s t o f a t t r i b u t e s [ ] ] ) return tmp lists
+
+d e f w r i t e c s v ( l i s t o f a t t r i b u t e s , t m p l i s t s , params ) : ''' Writes t h e a t t r i b u t e s t o an a c t u a l output f i l e . : param l i s t o f a t t r i b u t e s : a l i s t o f a t t r i b u t e s used i n e x t r a c t i o n : param t m p l i s t s : a temporary l i s t o f l i s t s : param params : an o b j e c t o f t h e ExtractionParams c l a s s : r e t u r n : none ''' b u g d f = pd . DataFrame ( columns= l i s t o f a t t r i b u t e s ) f o r c o l s i n xrange ( l e n ( l i s t o f a t t r i b u t e s ) ) : bug df [ l i s t o f a t t r i b u t e s [ c o l s ] ] = t m p l i s t s [ c o l s ] f i l e n a m e c s v = params . o u t f i l e n a m e b u g d f . t o c s v ( f i l e n a m e c s v , e n c o d i n g= ' u t f 8 ' )
+
+def create (n , constructor = l i s t ) : ' ' ' C r e a t e s temporary l i s t o f l i s t s . ' ' ' for i n xrange ( n ) : yield constructor ()
+
+146 147 148 149 150 151 152
+
+def r e a d i n p u t f i l e ( f i l e i n p u t d i r ) : ' ' ' Read bug i d s from i n p u t f i l e . . See Github w i k i f o r more instructions . ' ' ' f o r f i l e in os . l i s t d i r ( f i l e i n p u t d i r ) : i f f i l e . e n d s wi t h ( ' . htm ' ) : file name = f i l e i n p u t d i r + '/ ' + f i l e r e t u r n open ( f i l e n a m e , ' r ' )
+
+d e f e x t r a c t d a t a ( params ) :
+
+77
+
+Chapter B. Data Extractions Scripts
+153
+
+B.1. Web Scraper
+
+154 155 156 157 158 159 160 161 162 163 164 165 166 167 168
+
+' ' ' I n t i a t e s data e x t r a c t i o n with e x t r a c t i o n params when an i n p u t bug i d f i l e i s supplied . ' ' ' l i s t o f a t t r i b u t e s = params . a t t r s tmp lists = l i s t ( create ( len ( l i s t o f a t t r i b u t e s ) ) ) h t m l f i l e = r e a d i n p u t f i l e ( params . f i l e i n p u t d i r ) so ur ce c ode = h t m l f i l e . read ( ) soup = B e a u t i f u l S o u p ( s o u r c e c o d e , ' html . p a r s e r ' ) d u p e t a b l e = soup . f i n d ( ' t a b l e ' , { ' i d ' : ' d u p l i c a t e s t a b l e ' } ) f o r row i n d u p e t a b l e . f i n d A l l ( ' t r ' ) : f o r c o l i n row . f i n d A l l ( ' td ' , { ' c l a s s ' : ' i d ' } ) : bug id = int ( col . find ( ' a ' ) . contents [ 0 ] ) p r i n t '  \ n E x t r a c t i n g Dups o f : ' + str ( b u g i d ) + ' \ n  ' bug metadata = g e t b u g m e t a d a t a ( b ug id , l i s t o f a t t r i b u t e s , params ) b u g p r o f i l e h t m l = s t a r t h t t p r e q u e s t ( params . b u g p r o f i l e u r l + s t r ( bug id ) ) b u g p r o f i l e s o u p = B e a u t i f u l S o u p ( b u g p r o f i l e h t m l , ' html . p a r s e r ') dup list = [ ] i f ( b u g p r o f i l e s o u p . f i n d ( ' span ' , { ' i d ' : ' d u p l i c a t e s ' } ) ) i s not None : d u p l i s t = g e t d u p i d s ( ( b u g p r o f i l e s o u p . f i n d ( ' span ' , { ' i d ' : ' d u p l i c a t e s ' }) ) , d u p l i s t = [ ] ) bug metadata [ ' d u p l i s t ' ] = d u p l i s t t m p l i s t s = w r i t e r o w ( bug metadata , t m p l i s t s , list of attributes ) for i in dup list : p r i n t ' E x t r a c t i n g Dup #:
+
+169
+
+170 171
+
+172 173
+
+174 175 176
+
+177
+
+178 179 180
+
+181 182 183
+
+' + s t r ( d u p l i s t . i n d e x ( i ) +1)
+
+78
+
+Chapter B. Data Extractions Scripts
+184
+
+B.1. Web Scraper
+
+185 186 187
+
+bug metadata = g e t b u g m e t a d a t a ( i , l i s t o f a t t r i b u t e s , params ) bug metadata [ ' d u p i d ' ] = b u g i d bug metadata [ ' d u p l i s t ' ] = None t m p l i s t s = w r i t e r o w ( bug metadata , t m p l i s t s , list of attributes ) w r i t e c s v ( l i s t o f a t t r i b u t e s , t m p l i s t s , params )
+
+188 189 190 191 192 193 194 195 196 197 198 199
+
+d e f c r e a t e l i s t o f b u g s t o b e e x t r a c t e d ( s t a r t i n g i d , e n d i n g i d , params ) : ' ' ' D e f i n e s t h e r a n f e o f bug i d s t o be e x t r a c t e d . ' ' ' l i s t o f b u g s = r a n g e ( s t a r t i n g i d , e n d i n g i d +1) return l i s t o f b u g s
+
+200 201 202 203 204 205
+
+d e f e x t r a c t d a t a b y b r u t e f o r c e ( params , a r g s ) : ' ' ' I n t i a t e s data e x t r a c t i o n with e x t r a c t i o n params f o r c h r o n o l o g i c a l extraction . ' ' ' p r i n t ' e x t r a c t i n g by brute f o r c e ' s t a r t i n g i d = int ( args [ 2 ] ) ending id = int ( args [ 3 ] ) b u g l i s t = c r e a t e l i s t o f b u g s t o b e e x t r a c t e d ( starting i d , ending id , params ) l i s t o f a t t r i b u t e s = params . a t t r s tmp lists = l i s t ( create ( len ( l i s t o f a t t r i b u t e s ) ) ) f o r bug id in b u g l i s t : p r i n t ' Bug Id# ' + s t r ( b u g i d ) b u g p r o f i l e h t m l = s t a r t h t t p r e q u e s t ( params . b u g p r o f i l e u r l + s t r ( bug id ) ) b u g p r o f i l e s o u p = B e a u t i f u l S o u p ( b u g p r o f i l e h t m l , ' html . p a r s e r ' ) dup list = [ ] i f ( b u g p r o f i l e s o u p . f i n d ( ' span ' , { ' i d ' : ' d u p l i c a t e s ' } ) ) i s not None :
+
+206 207 208 209 210 211 212
+
+213 214 215 216
+
+79
+
+Chapter B. Data Extractions Scripts
+217
+
+B.1. Web Scraper
+
+d u p l i s t = g e t d u p i d s ( ( b u g p r o f i l e s o u p . f i n d ( ' span ' , { ' i d ' : ' d u p l i c a t e s ' }) ) , d u p l i s t = [ ] ) i f len ( dup list ) > 0: bug metadata = g e t b u g m e t a d a t a ( b ug id , l i s t o f a t t r i b u t e s , params ) bug metadata [ ' d u p l i s t ' ] = d u p l i s t t m p l i s t s = w r i t e r o w ( bug metadata , t m p l i s t s , list of attributes ) else : bug metadata = g e t b u g m e t a d a t a ( b ug id , l i s t o f a t t r i b u t e s , params ) bug metadata [ ' d u p i d ' ] = None t m p l i s t s = w r i t e r o w ( bug metadata , t m p l i s t s , list of attributes ) w r i t e c s v ( l i s t o f a t t r i b u t e s , t m p l i s t s , params )
+
+218 219 220 221
+
+222 223
+
+224 225 226
+
+227 228
+
+229 230 231 232 233 234
+
+235
+
+236 237 238 239 240 241 242
+
+d e f g e t l a t e s t b u g i d ( params ) : ' ' ' Command l i n e o p t i o n : Checks t h e l a t e s t r e p o r t e d bug i d i n B u g z i l l a . ''' u r l = params . b u g l o o k u p u r l p r e . p a r t i t i o n ( ' b u g i d= ' ) [ 0 ] + ' c h f i e l d=%5 BBug%20 c r e a t i o n%5D&c h f i e l d f r o m =7d ' bug list html = start http request ( url ) print url try : b u g l i s t s o u p = B e a u t i f u l S o u p ( b u g l i s t h t m l , ' html . p a r s e r ' ) b u g i d l i s t = b u g l i s t s o u p . f i n d A l l ( ' td ' , { ' c l a s s ' : ' f i r s t c h i l d bz id column ' }) latest bugs = [ ] for id in b u g i d l i s t : l a t e s t b u g s . append ( i d . f i n d ( ' a ' ) . c o n t e n t s [ 0 ] )
+
+243 244 245 246 247
+
+80
+
+Chapter B. Data Extractions Scripts
+248 249 250 251 252 253 254 255 256 257 258 259 260 261 262 263 264 265 266 267 268 269 270 271 272 273
+
+B.1. Web Scraper
+
+p r i n t (max( l a t e s t b u g s ) ) e x c e p t Exception , e : print e return
+
+d e f g e t m i s s i n g c o u n t ( params ) : ' ' ' Command l i n e o p t i o n : Checks i f bug i d i s i n a c c e s s i b l e . ' ' ' l i s t o f a t t r i b u t e s = [ ' id ' , ' missing status ' ] tmp lists = l i s t ( create ( len ( l i s t o f a t t r i b u t e s ) ) ) file name = ' ' f o r f i l e i n o s . l i s t d i r ( params . f i l e i n p u t d i r ) : i f f i l e . e n d s wi t h ( ' . c s v ' ) : f i l e n a m e = params . f i l e i n p u t d i r + ' / ' + f i l e print file name d f = pd . r e a d c s v ( f i l e n a m e ) f o r i in df [ ' id ' ] : b u g p r o f i l e h t m l = s t a r t h t t p r e q u e s t ( params . b u g p r o f i l e u r l + s t r ( i)) b u g p r o f i l e s o u p = B e a u t i f u l S o u p ( b u g p r o f i l e h t m l , ' html . p a r s e r ' ) m i s s i n g i n f o d i c t = { ' id ' : str ( i ) , ' m i s s i n g s t a t u s ' : b u g p r o f i l e s o u p . f i n d ( ' span ' , { ' id ' : ' t i t l e ' }) . contents [ 0 ] } print missing info dict tmp lists = write row ( m i s s in g i n fo dict , tmp lists , list of attributes ) w r i t e c s v ( l i s t o f a t t r i b u t e s , t m p l i s t s , params )
+
+274 275 276
+
+277 278
+
+279 280 281 282 283
+
+if
+
+name
+
+== '
+
+main
+
+':
+
+81
+
+Chapter B. Data Extractions Scripts
+284 285 286 287 288 289 290 291 292 293 294 295 296 297 298 299 300 301 302
+
+B.1. Web Scraper
+
+params = ExtractionParams ( ) params = c o m m a n d l i n e o p t i o n s ( params , s y s . argv ) i f l e n ( s y s . argv ) == 4 : a = i n t ( s y s . argv [ 2 ] ) b = i n t ( s y s . argv [ 3 ] ) r = (b a ) / 40 w h i l e a <= b : s y s . argv [ 2 ] = s t r ( a ) if a + r < b: s y s . argv [ 3 ] = s t r ( a + r ) else : s y s . argv [ 3 ] = s t r ( b ) params . o u t f i l e n a m e = ' output / ' + s t r ( s y s . argv [ 1 ] ) + ' / ' + s t r ( s y s . argv [ 1 ] ) + ' ' + ' ' + s t r ( s y s . argv [ 2 ] ) \ + ' ' + s t r ( s y s . argv [ 3 ] ) + ' ' + str ( time . s t r f t i m e ( '%c ' ) ) + ' . c s v ' e x t r a c t d a t a b y b r u t e f o r c e ( params , s y s . argv ) break params . o u t f i l e n a m e = ' output / ' + s t r ( s y s . argv [ 1 ] ) + ' / ' + s t r ( s y s . argv [ 1 ] ) + ' ' + ' ' + s t r ( s y s . argv [ 2 ] ) \ + ' ' + s t r ( s y s . argv [ 3 ] ) + ' ' + str ( time . s t r f t i m e ( '%c ' ) ) + ' . c s v ' e x t r a c t d a t a b y b r u t e f o r c e ( params , s y s . argv ) a += r + 1 else : i f s y s . argv [ 2 ] == ' l a s t ' : g e t l a t e s t b u g i d ( params ) e l i f s y s . argv [ 2 ] == ' m i s s i n g ' :
+
+303 304
+
+305 306 307 308
+
+309
+
+310 311 312 313 314 315 316 317 318
+
+82
+
+Chapter B. Data Extractions Scripts
+319 320 321 322
+
+B.2. Web Scraper Util
+
+g e t m i s s i n g c o u n t ( params ) else : e x t r a c t d a t a ( params )
+
+B.2
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+
+Web Scraper Util
+
+import time
+
+d e f c o m m a n d l i n e o p t i o n s ( obj , a r g s ) : ''' O v e r r i d e s t h e c o n s t r u c t o r with command l i n e o p t i o n s . : param o b j : an i n s t a n c e o f ExtractionParams c l a s s : param a r g s : command l i n e a r g s : r e t u r n : updated i n s t a n c e ''' i f l e n ( a r g s ) >= 2 : p r i n t ' E x t r a c t i n g Bugs f o r : ' + s t r ( a r g s [ 1 ] ) i f a r g s [ 1 ] . l o w e r ( ) == ' m o z i l l a ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' b u g s e v e r i t y ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' dup id ' , ' d u p l i s t ' ] obj . b u g l o o k u p u r l p r e = " https :// b u g z i l l a . m o z i l l a . org / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&q u e r y f o r m a t=advanced& q u e r y b a s e d o n=&c o l u m n l i s t=p r o d u c t%2Ccomponent%2C b u g s t a t u s %2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2C p r i o r i t y%2 C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n " o b j . b u g p r o f i l e u r l = " h t t p s : / / b u g z i l l a . m o z i l l a . o r g / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / m o z i l l a / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' m o z i l l a d e f e c t r e d i s c o v e r y . csv ' obj . f i l e i n p u t d i r = ' input / mozilla '
+
+16
+
+17
+
+18 19
+
+20 21
+
+22
+
+23 24
+
+83
+
+Chapter B. Data Extractions Scripts
+25 26
+
+B.2. Web Scraper Util
+
+27
+
+28
+
+e l i f a r g s [ 1 ] . l o w e r ( ) == ' gnome ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' b u g s e v e r i t y ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' dup id ' , ' d u p l i s t ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / b u g z i l l a . gnome . o r g / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cchangeddate%2 Cbug id%2Copendate%2C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2 C v e r s i o n&q u e r y b a s e d o n=&q u e r y f o r m a t=advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / b u g z i l l a . gnome . o r g / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output /gnome/ ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' gnome defect rediscovery . csv ' o b j . f i l e i n p u t d i r = ' i n p u t /gnome ' e l i f a r g s [ 1 ] . l o w e r ( ) == ' kde ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / bugs . kde . o r g / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n&q u e r y f o r m a t= advanced " obj . b u g obj . out kde obj . f i l e p r o f i l e u r l = " h t t p s : / / bugs . kde . o r g / show bug . c g i ? i d=" f i l e n a m e = ' output / kde / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' d e f e c t r e d i s c o v e r y . csv ' i n p u t d i r = ' i n p u t / kde '
+
+29 30
+
+31 32
+
+33
+
+34 35 36 37
+
+38 39
+
+40
+
+41 42
+
+43 44 45
+
+46 47 48
+
+e l i f a r g s [ 1 ] . l o w e r ( ) == ' apache ' :
+
+84
+
+Chapter B. Data Extractions Scripts
+49
+
+B.2. Web Scraper Util
+
+50 51
+
+52
+
+o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / bz . apache . o r g / b u g z i l l a / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n&q u e r y f o r m a t= advancedapache " o b j . b u g p r o f i l e u r l = " h t t p s : / / bz . apache . o r g / b u g z i l l a / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / apache / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' a p a c h e d e f e c t r e d i s c o v e r y . csv ' o b j . f i l e i n p u t d i r = ' i n p u t / apache '
+
+53 54
+
+55 56
+
+57
+
+58 59 60 61 62
+
+63 64
+
+65
+
+e l i f a r g s [ 1 ] . l o w e r ( ) == ' documentfoundation ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / bugs . documentfoundation . o r g / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n&q u e r y f o r m a t= advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / bugs . documentfoundation . o r g / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / documentfoundation / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' documentfoundation defect rediscovery . csv '
+
+66 67
+
+68 69
+
+70 71
+
+85
+
+Chapter B. Data Extractions Scripts
+72 73 74 75
+
+B.2. Web Scraper Util
+
+o b j . f i l e i n p u t d i r = ' i n p u t / documentfoundation ' e l i f a r g s [ 1 ] . l o w e r ( ) == ' ooo ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / bz . apache . o r g / ooo / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n&q u e r y f o r m a t= advancedapache " o b j . b u g p r o f i l e u r l = " h t t p s : / / bz . apache . o r g / ooo / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / ooo / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' a p a c h e d e f e c t r e d i s c o v e r y . csv ' o b j . f i l e i n p u t d i r = ' i n p u t / ooo ' e l i f a r g s [ 1 ] . l o w e r ( ) == ' k e r n e l ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] obj . b u g l o o k u p u r l p r e = " https :// b u g z i l l a . k e r n e l . org / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cchangeddate%2 Cbug id%2Copendate%2C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2 C v e r s i o n&q u e r y b a s e d o n=&q u e r y f o r m a t=advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / b u g z i l l a . k e r n e l . o r g / show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / k e r n e l / ' + s t r ( time . s t r f t i m e ( "%c " ) )
+
+76 77
+
+78
+
+79 80
+
+81 82
+
+83
+
+84 85 86 87
+
+88 89
+
+90
+
+91 92
+
+93 94
+
+95
+
+86
+
+Chapter B. Data Extractions Scripts
++ ' k e r n e l d e f e c t r e d i s c o v e r y . csv ' obj . f i l e i n p u t d i r = ' input / kernel '
+
+B.2. Web Scraper Util
+
+96 97 98 99
+
+100 101
+
+102
+
+e l i f a r g s [ 1 ] . l o w e r ( ) == ' r e d h a t ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / b u g z i l l a . r e d h a t . com/ b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n& q u e r y b a s e d o n=&q u e r y f o r m a t=advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / b u g z i l l a . r e d h a t . com/ show bug . c g i ? i d=" o b j . o u t f i l e n a m e = ' output / r e d h a t / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' r e d h a t d e f e c t r e d i s c o v e r y . csv ' obj . f i l e i n p u t d i r = ' input / redhat ' e l i f a r g s [ 1 ] . l o w e r ( ) == ' n o v e l l ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / b u g z i l l a . n o v e l l . com/ b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2C p r i o r i t y%2 C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n%2Copendate& q u e r y b a s e d o n=&q u e r y f o r m a t=advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / b u g z i l l a . n o v e l l . com/ show bug . c g i ? i d="
+
+103 104
+
+105 106
+
+107
+
+108 109 110 111
+
+112 113
+
+114
+
+115 116
+
+117 118
+
+87
+
+Chapter B. Data Extractions Scripts
+119
+
+B.2. Web Scraper Util
+
+120 121 122 123
+
+o b j . o u t f i l e n a m e = ' output / n o v e l l / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' n o v e l l d e f e c t r e d i s c o v e r y . csv ' obj . f i l e i n p u t d i r = ' input / n o v e l l ' e l i f a r g s [ 1 ] . l o w e r ( ) == ' g e n t o o ' : o b j . a t t r s = [ ' i d ' , ' p r o d u c t ' , ' component ' , ' r e p o r t e r ' , ' bug status ' , ' resolution ' , ' pr iori ty ' , ' bug severity ' , ' v e r s i o n ' , ' s h o r t d e s c ' , ' opendate ' , ' d u p i d ' , ' dup list ' ] o b j . b u g l o o k u p u r l p r e = " h t t p s : / / bugs . g e n t o o . o r g / b u g l i s t . c g i ? b u g i d=" o b j . b u g l o o k u p u r l p o s t = "&c o l u m n l i s t=p r o d u c t%2Ccomponent%2 C b u g s t a t u s%2C r e s o l u t i o n%2C s h o r t d e s c%2Cbug id%2Copendate%2 C p r i o r i t y%2C r e p o r t e r%2C b u g s e v e r i t y%2C v e r s i o n&q u e r y f o r m a t= advanced " o b j . b u g p r o f i l e u r l = " h t t p s : / / bugs . g e n t o o . o r g / show bug . c g i ? i d= " o b j . o u t f i l e n a m e = ' output / g e n t o o / ' + s t r ( time . s t r f t i m e ( "%c " ) ) + ' g e n t o o d e f e c t r e d i s c o v e r y . csv ' obj . f i l e i n p u t d i r = ' input / gentoo ' return obj
+
+124 125
+
+126
+
+127 128
+
+129 130
+
+131
+
+132 133 134
+
+88
+
+Appendix C Recommender Scripts
+A prototype tool implementing the novel approach, core features are listed here1 .
+
+C.1
+1 2 3 4 5 6 7 8 9 10 11 12 13 14
+
+Naive Bayes Implementation
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # A p a r a l l e l l i z e d implementaion o f Naive Bayes based recommender . # This s c r i p t must be run t o r e g i s t e r t h e a l g o r i t h m t o recommenderlab pkg . # # : dependency : Must o v e r r i d e t h e recommenderlab s p l i t known unkonwn . # s p l i t known unkonwn o r i g i i s p r o v i d e d f o r t h i s p u r p o s e . # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # r e q u i r e ( recommenderlab ) require ( parallel ) require ( plyr ) r e q u i r e ( hash ) no c o r e s < d e t e c t C o r e s ( ) 1 EvaluateModel < f u n c t i o n ( u=NULL, d=NULL, d . t a b l e . one , d . t a b l e . z e r o , u . t a b l e . one , u . t a b l e . z e r o , p . one , p . z e r o , type ) { d< u< as . c h a r a c t e r (d) as . c h a r a c t e r (u)
+
+15 16 17 18
+
+1
+
+Full code base of the tool will be shared via GitHub.
+
+89
+
+Chapter C. Recommender Scripts
+19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49
+
+C.1. Naive Bayes Implementation
+
+i f ( i s . n u l l ( u . t a b l e . one [ [ u ] ] )==FALSE) { l . u . p . one < u . t a b l e . one [ [ u ] ] l . u . p . zero < u . table . zero [ [ u ] ] } else { l . u . p . one = l . u . p . z e r o = 0 } l . d . p . one < d . t a b l e . one [ [ d ] ] l . d . p . zero < d . table . zero [ [ d ] ] i f ( ( l . u . p . one  l . d . p . one  p . one ) >( l . u . p . z e r o  l . d . p . z e r o  p . z e r o ) ) { p r e d i c t e d . c l a s s < ( l . u . p . one  l . d . p . one  p . one ) } else { i f ( type== ' r a t i n g s ' ) { p r e d i c t e d . c l a s s < NA } e l s e { p r e d i c t e d . c l a s s < 0} } return ( predicted . c l a s s ) } # # A p a r a l l e l b i n a r y Naive Bayes Based Recommender BIN NB < f u n c t i o n ( data , parameter = NULL) { ut . mat = a s ( data , ' matrix ' ) t o t a l . count = dim ( ut . mat ) [ 1 ]  dim ( ut . mat ) [ 2 ] one . count = sum ( ut . mat ) z e r o . count = t o t a l . count one . count u . t a b l e . one = a s . data . frame ( c b i n d ( rownames ( ut . mat ) , a s . numeric ( ( rowSums ( ut . mat ) +1) / one . count ) ) ) u . t a b l e . one [ [ 2 ] ] = a s . numeric ( a s . c h a r a c t e r ( u . t a b l e . one [ [ 2 ] ] ) ) u . t a b l e . z e r o = a s . data . frame ( c b i n d ( rownames ( ut . mat ) , a s . numeric ( ( ( dim ( ut . mat ) [ 2 ] rowSums ( ut . mat ) ) +1) / z e r o . count ) ) ) u . t a b l e . z e r o [ [ 2 ] ] = a s . numeric ( a s . c h a r a c t e r ( u . t a b l e . z e r o [ [ 2 ] ] ) )
+
+50 51 52 53
+
+54 55
+
+90
+
+Chapter C. Recommender Scripts
+56 57 58
+
+C.1. Naive Bayes Implementation
+
+59 60 61
+
+d . t a b l e . one = a s . data . frame ( c b i n d ( colnames ( ut . mat ) , a s . numeric ( ( colSums ( ut . mat ) +1) / one . count ) ) ) d . t a b l e . one [ [ 2 ] ] = a s . numeric ( a s . c h a r a c t e r ( d . t a b l e . one [ [ 2 ] ] ) ) d . t a b l e . z e r o = a s . data . frame ( c b i n d ( colnames ( ut . mat ) , a s . numeric ( ( ( dim ( ut . mat ) [ 1 ] colSums ( ut . mat ) ) +1) / z e r o . count ) ) ) d . t a b l e . z e r o [ [ 2 ] ] = a s . numeric ( a s . c h a r a c t e r ( d . t a b l e . z e r o [ [ 2 ] ] ) ) u . t a b l e . one < hash ( a s . c h a r a c t e r ( u . t a b l e . one [ [ 1 ] ] ) , u . t a b l e . one [ [ 2 ] ] ) u . t a b l e . z e r o < hash ( a s . c h a r a c t e r ( u . t a b l e . z e r o [ [ 1 ] ] ) , u . t a b l e . z e r o [ [ 2 ] ] ) d . t a b l e . one < hash ( a s . c h a r a c t e r ( d . t a b l e . one [ [ 1 ] ] ) , d . t a b l e . one [ [ 2 ] ] ) d . t a b l e . z e r o < hash ( a s . c h a r a c t e r ( d . t a b l e . z e r o [ [ 1 ] ] ) , d . t a b l e . z e r o [ [ 2 ] ] ) p . one < one . count / t o t a l . count p . z e r o < z e r o . count / t o t a l . count model < c ( l i s t ( d . t a b l e . one=d . t a b l e . one , d . t a b l e . z e r o=d . t a b l e . z e r o , u . t a b l e . one=u . t a b l e . one , u . t a b l e . z e r o=u . t a b l e . z e r o , p . one=p . one , p . z e r o=p . z e r o , data=data ))
+
+62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83
+
+84 85 86 87 88 89 90 91
+
+p r e d i c t < f u n c t i o n ( model , newdata , n=10 , data=NULL, type=c ( ' t o p N L i s t ' , ' ratings ' ) , . . . ) { #p r i n t ( a s ( newdata , ' matrix ' ) ) n . data < newdata m. t e s t < a s ( newdata , ' matrix ' ) newdata < a s . data . frame ( a s . t a b l e (m. t e s t ) ) names ( newdata ) [ 1 ] = ' u s r ' names ( newdata ) [ 2 ] = ' d f c t ' names ( newdata ) [ 3 ] = ' c l s '
+
+91
+
+Chapter C. Recommender Scripts
+92 93 94 95 96 97 98 99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 119 120 121 122 123 124 125 126 127 128 129
+
+C.1. Naive Bayes Implementation
+
+newdata $ c l s [ newdata $ c l s == TRUE] < 1 newdata $ c l s [ newdata $ c l s == FALSE ] < 0 newdata $ c l s < mapply ( EvaluateModel , newdata $ u s r , newdata $ d f c t , MoreArgs = l i s t ( model $ d . t a b l e . one , model $ d . t a b l e . z e r o , model $ u . t a b l e . one , model $ u . t a b l e . z e r o , model $ p . one , model $ p . z e r o , type ) ,mc . c o r e s = no c o r e s ) ratings < a s ( newdata , ' r e a l R a t i n g M a t r i x ' )
+
+new data =(n . data ) top N= ( getTopNLists ( r a t i n g s , n=n c o l ( r a t i n g s ) ) )
+
+top N < top N <
+
+removeKnownItems ( top N, new data ) bestN ( top N, n )
+
+r e t u r n ( top N) } # # c o n s t r u c t and r e t u r n t h e recommender o b j e c t new ( ' Recommender ' , method = 'NB. 2VAR ' , dataType = c l a s s ( data ) , n t r a i n = nrow ( data ) , model = model , p r e d i c t = p r e d i c t ) } # # Not implemented y e t REAL NB < f u n c t i o n ( data , parameter = NULL) { model < predict < c ( l i s t ( d e s c r i p t i o n= ' Naive Bayes f o r Real R a t i n g s ' , data=data ) ) f u n c t i o n ( model , newdata , n=10 ,
+
+92
+
+Chapter C. Recommender Scripts
+130
+
+C.1. Naive Bayes Implementation
+
+data=NULL, type=c ( ' t o p N L i s t ' , ' r a t i n g s ' , ' ratingMatrix ' ) , . . . ) { # ##p r i n t ( ' Naive Bayes hasn ' t been implemented f o r Real R a t i n g s yet ' ) } # # c o n s t r u c t recommender o b j e c t new ( ' Recommender ' , method = 'NB. 2VAR ' , dataType = c l a s s ( data ) , n t r a i n = nrow ( data ) , model = model , p r e d i c t = p r e d i c t ) } # # r e g i s t e r recommender recommenderRegistry $ s e t e n t r y ( method= 'NB. 2VAR ' , dataType = ' b i n a r y R a t i n g M a t r i x ' , fun=BIN NB, d e s c r i p t i o n= ' A Naive Bayes C l a s s i f i e r ( b i n a r y data ) . ' ) # # r e g i s t e r recommender recommenderRegistry $ s e t e n t r y ( method= 'NB. 2VAR ' , dataType = ' r e a l R a t i n g M a t r i x ' , fun=BIN NB, d e s c r i p t i o n= ' A Naive Bayes C l a s s i f i e r ( r e a l data ) . ' )
+
+131 132 133 134 135 136 137 138 139 140 141 142 143 144 145 146 147 148
+
+93
+
+Chapter C. Recommender Scripts
+
+C.2. Temporal Splitting Implementation
+
+C.2
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22
+
+Temporal Splitting Implementation
+
+23
+
+24 25 26
+
+27
+
+28 29 30
+
+31
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # Temporal S p l i t t i n g Schema # : param schema type : a s t r i n g from t h e v e c t o r # c ( ' schema1 ' , ' schema2 ' , ' schema3 ' , ' schema4 ' ) # : param d e f . data : an i n p u t dataframe # : param dt : an i n t time i n t e r v a l i n c r e m e n t ( i n y e a r s ) # : r e t u r n : two l i s t o f dataframes , each c o n t a i n i n g a dataframe f o r a # t e m p o r a l f o l d t r a i n and t e s t based on imput params # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # do time s p l i t = f u n c t i o n ( schema type , d e f . data , dt ) { t 0 = min ( d e f . data $ y e a r ) t f = max( d e f . data $ y e a r ) p r i n t ( s p r i n t f ( ' t f = %d t 0 = %d dt = %d ' , t f , t 0 , dt ) ) if (t f t 0 <= dt 1) { return (1) } t r a i n . data = l i s t ( ) t e s t . data= l i s t ( ) f o r ( i i n s e q ( ( t 0 + dt ) , t f , dt ) ) { s w i t c h ( schema type , schema1={ t r a i n . data [ [ p a s t e 0 ( ' schema1 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= t 0 & d e f . data $ y e a r < i , ] t e s t . data [ [ p a s t e 0 ( ' schema1 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= i & d e f . data $ y e a r < i+dt , ] }, schema2={ t r a i n . data [ [ p a s t e 0 ( ' schema2 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= ( i dt ) & d e f . data $ y e a r < i , ] t e s t . data [ [ p a s t e 0 ( ' schema2 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= i & d e f . data $ y e a r < i+dt , ] }, schema3={ t r a i n . data [ [ p a s t e 0 ( ' schema3 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= ( i dt ) & d e f . data $ y e a r < i , ] t e s t . data [ [ p a s t e 0 ( ' schema3 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= i & d e f . data $ y e a r <= t f , ]
+
+94
+
+Chapter C. Recommender Scripts
+32 33 34
+
+C.2. Temporal Splitting Implementation
+
+35
+
+36 37 38 39 40
+
+)
+
+}, schema4={ t r a i n . data [ [ p a s t e 0 ( ' schema4 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= t 0 & d e f . data $ y e a r < i , ] t e s t . data [ [ p a s t e 0 ( ' schema4 ' , i ) ] ] = d e f . data [ d e f . data $ y e a r >= i & d e f . data $ y e a r <= t f , ] }
+
+} r e t u r n ( l i s t ( ' t r a i n '=t r a i n . data , ' t e s t '=t e s t . data ) ) }
+
+95
+
+Chapter C. Recommender Scripts
+
+C.3. Split Known Unknown
+
+C.3
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+
+Split Known Unknown
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # M o d i f i e d v e r s i o n o f s p l i t KnownUnknown t o l e v e r a g e rownames f o r NB # To check o r i g i n a l , p l e a s e v i s i t t h e f o l l o w i n g l i n k : # h t t p s : // g i t h u b . com/ mhahsler / recommenderlab / b l o b / master /R/ e v a l u a t i o # nScheme .R # # : param data : an i n p u t dataframe # : param g i v e n : an i n t , s p e c i f y i n g how many i t e m s t o g i v e t o model # : r e t u r n : a l i s t o f two dataframes , each c o n t a i n i n g a dataframe f o r # a known and unknown s p l i t s need t o l e v e r a g e gi v e n x p r o t o c o l # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # s p l i t KnownUnknown o r i g i= f u n c t i o n ( data , g i v e n ) { # # g i v e n might o f l e n g t h one o r l e n g t h ( data ) i f ( l e n g t h ( g i v e n )==1) g i v e n < r e p ( given , nrow ( data ) ) n i t e m s < rowCounts ( data ) # p r i n t ( nitems ) allBut < given < 0 i f ( any ( a l l B u t ) ) { given [ allBut ] < nitems [ allBut ] + given [ allBut ] } i f ( any ( gi ven >n i t e m s ) ) { s t o p ( ' Not enough r a t i n g s f o r u s e r ' , p a s t e ( which ( gi ven >n i t e m s ) , c o l l a p s e = ' , ' ) ) } l < g e t L i s t ( data , decode=FALSE) known i n d e x < l a p p l y ( 1 : l e n g t h ( l ) , FUN = f u n c t i o n ( i ) sample ( 1 : l e n g t h ( l [ [ i ] ] ) , g i v e n [ i ]) ) known < encode ( l a p p l y ( 1 : l e n g t h ( l ) , FUN = f u n c t i o n ( x ) l [ [ x ] ] [ known i n d e x [ [ x ] ] ] ) , i t e m L a b e l s = i t e m L a b e l s ( data@data ) ) unknown < encode (
+
+30 31 32 33 34 35 36
+
+96
+
+Chapter C. Recommender Scripts
+37 38 39 40 41 42 43 44 45 46 47 48 49 50 51
+
+C.3. Split Known Unknown
+
+l a p p l y ( 1 : l e n g t h ( l ) , FUN = f u n c t i o n ( x ) l [ [ x ] ] [ known i n d e x [ [ x ] ] ] ) , i t e m L a b e l s = i t e m L a b e l s ( data@data ) )
+
+known < new ( ' b i n a r y R a t i n g M a t r i x ' , data = known ) rownames ( known ) = rownames ( data ) unknown < new ( ' b i n a r y R a t i n g M a t r i x ' , data = unknown ) rownames ( unknown ) = rownames ( data ) return ( l i s t ( ' known ' = known , ' unknown ' = unknown )) }
+
+97
+
+References
+[1] Amazon, 2016. http://www.amazon.com. [2] Code Coverage Tool -- Intel Software, 2016. en-us/node/522743. [3] IMDb, 2016. http://www.imdb.com/. [4] Jester joke recommender, 2016. http://eigentaste.berkeley.edu/. [5] Netflix, 2016. http://www.netflix.com. [6] Som toolbox / som make, 2016. http://www.cis.hut.fi/somtoolbox/package/ docs2/som_make.html. [7] Spotify, 2016. http://www.spotify.com. [8] Youtube, 2016. https://www.youtube.com/. [9] Edward N Adams. Optimizing preventive service of software products. IBM Journal of Research and Development, 28(1):2­14, 1984. [10] Anahita Alipour, Abram Hindle, and Eleni Stroulia. A contextual approach towards more accurate duplicate bug report detection. In Proc. of the 10th Working Conf. on Mining Softw. Rep., pages 183­192, 2013. [11] Ethem Alpaydin. Introduction to machine learning. MIT Press, 2nd edition, 2010. [12] Giuliano Antoniol, Kamel Ayari, Massimiliano Di Penta, Foutse Khomh, and YannGa¨ el Gu´ eh´ eneuc. Is it a bug or an enhancement?: a text-based approach to classify 98 https://software.intel.com/
+
+REFERENCES
+
+REFERENCES
+
+change requests. In Proceedings of the 2008 conference of the center for advanced studies on collaborative research: meeting of minds, page 23. ACM, 2008. [13] John Anvik, Lyndon Hiew, and Gail C Murphy. Who should fix this bug? In Proc. of the 28th Int. Conference on Softw. Eng., pages 361­370, 2006. [14] Nicolas Bettenburg, Sascha Just, Adrian Schr¨ oter, Cathrin Weiß, Rahul Premraj, and Thomas Zimmermann. Quality of bug reports in eclipse. In Proceedings of the 2007 OOPSLA workshop on eclipse technology eXchange, pages 21­25. ACM, 2007. [15] Nicolas Bettenburg, Rahul Premraj, Thomas Zimmermann, and Sunghun Kim. Duplicate Bug Reports Considered Harmful... Really? In Proc. Int. Conf. on Softw. Maintenance, pages 337­345, 2008. [16] Eric J Braude and Michael E. Bernstein. Software Engineering: Modern Approaches. John Wiley, 2nd edition, 2010. [17] John S Breese, David Heckerman, and Carl Kadie. Empirical analysis of predictive algorithms for collaborative filtering. In Proceedings of the Fourteenth conference on Uncertainty in artificial intelligence, pages 43­52. Morgan Kaufmann Publishers Inc., 1998. [18] Michael Buckley and Ram Chillarege. Discovering relationships between service and customer satisfaction. In Software Maintenance, 1995. Proceedings., International Conference on, pages 192­201. IEEE, 1995. [19] George Candea, Stefan Bucur, and Cristian Zamfir. Automated software testing as a service. In Proceedings of the 1st ACM symposium on Cloud computing, pages 155­160. ACM, 2010. [20] Iv´ an Cantador and Pablo Castells. Semantic contextualisation in a news recommender system. In Workshop on Context-Aware Recommender Systems (CARS 2009), pages 1­5, 2009. [21] Gianfranco Chicco, Roberto Napoli, and Federico Piglione. Application of clustering algorithms and self organising maps to classify electricity customers. In Power Tech Conference Proceedings, 2003 IEEE Bologna, volume 1, pages 1­7. IEEE, 2003. 99
+
+REFERENCES
+
+REFERENCES
+
+[22] Ram Chillarege, Shriram Biyani, and Jeanette Rosenthal. Measurement of failure rate in widely distributed software. In Fault-Tolerant Computing, 1995. FTCS-25. Digest of Papers., Twenty-Fifth International Symposium on, pages 424­433. IEEE, 1995. [23] Dan Cosley, Shyong K Lam, Istvan Albert, Joseph A Konstan, and John Riedl. Is seeing believing?: how recommender system interfaces aect users' opinions. In Proceedings of the SIGCHI conference on Human factors in computing systems, pages 585­592. ACM, 2003. [24] Paolo Cremonesi, Roberto Turrin, Eugenio Lentini, and Matteo Matteucci. An evaluation methodology for collaborative recommender systems. In Automated solutions for Cross Media Content and Multi-channel Distribution, 2008. AXMEDIS'08. International Conference on, pages 224­231. IEEE, 2008. [25] Yingnong Dang, Rongxin Wu, Hongyu Zhang, Dongmei Zhang, and Peter Nobel. Rebucket: a method for clustering duplicate crash reports based on call stack similarity. In Proceedings of the 34th International Conference on Software Engineering, pages 1084­1093. IEEE Press, 2012. [26] Scott Deerwester, Susan T Dumais, George W Furnas, Thomas K Landauer, and Richard Harshman. Indexing by latent semantic analysis. Journal of the American society for information science, 41(6):391­407, 1990. [27] Emden R. Gansner and Stephen C. North. An open graph visualization system and its applications to software engineering. SOFTWARE - PRACTICE AND EXPERIENCE, 30(11):1203­1233, 2000. [28] Robin Genuer, Jean-Michel Poggi, and Christine Tuleau-Malot. Variable selection using random forests. Pattern Recognition Letters, 31(14):2225­2236, 2010. [29] Miha Gr car, Dunja Mladeni c, Bla z Fortuna, and Marko Grobelnik. Data sparsity issues in the collaborative filtering framework. In International Workshop on Knowledge Discovery on the Web, pages 58­76. Springer, 2005. [30] Paul Grey. How Many Products Does Amazon Sell? -- ExportX, 2015. https: //export-x.com/2015/12/11/how-many-products-does-amazon-sell-2015/. 100
+
+REFERENCES
+
+REFERENCES
+
+[31] Michael Hahsler. Developing and testing top-n recommendation algorithms for 0-1 data using recommenderlab. NSF Industry University Cooperative Research Center for Net-Centric Software and System, 2011. [32] Michael Hahsler. recommenderlab: A framework for developing and testing recommendation algorithms. Nov, 2011. [33] Jon Herlocker, Joseph A Konstan, and John Riedl. An empirical analysis of design choices in neighborhood-based collaborative filtering algorithms. Information retrieval, 5(4):287­310, 2002. [34] Jonathan L Herlocker, Joseph A Konstan, Loren G Terveen, and John T Riedl. Evaluating collaborative filtering recommender systems. ACM Transactions on Information Systems (TOIS), 22(1):5­53, 2004. [35] Kim Herzig, Sascha Just, and Andreas Zeller. It's not a bug, it's a feature: how misclassification impacts bug prediction. In Proceedings of the 2013 International Conference on Software Engineering, pages 392­401. IEEE Press, 2013. [36] Lyndon Hiew. Assisted detection of duplicate bug reports. PhD thesis, University of British Columbia, 2006. [37] Yifan Hu, Yehuda Koren, and Chris Volinsky. Collaborative filtering for implicit feedback datasets. In 2008 Eighth IEEE International Conference on Data Mining, pages 263­272. Ieee, 2008. [38] G. Hughes. On the mean accuracy of statistical pattern recognizers. IEEE Transactions on Information Theory, 14(1):55­63, Jan 1968. [39] Capers Jones. Applied software measurement: global analysis of productivity and quality. McGraw-Hill Education Group, 2008. [40] Leon Wu Boyi Xie Gail Kaiser and Rebecca Passonneau. Bugminer: Software reliability analysis via data mining of bug reports. delta, 12(10):09­0500, 2011. [41] Stephen H Kan. Metrics and models in software quality engineering. Addison-Wesley Longman Publishing Co., Inc., 2002. 101
+
+REFERENCES
+
+REFERENCES
+
+[42] George Karypis. Evaluation of item-based top-n recommendation algorithms. In Proceedings of the tenth international conference on Information and knowledge management, pages 247­254. ACM, 2001. [43] Teuvo Kohonen. Self-Organizing Maps, volume 30 of Springer Series in Information Sciences. Springer, 2001. [44] Joseph A Konstan, Bradley N Miller, David Maltz, Jonathan L Herlocker, Lee R Gordon, and John Riedl. Grouplens: applying collaborative filtering to usenet news. Communications of the ACM, 40(3):77­87, 1997. [45] Yehuda Koren, Robert Bell, Chris Volinsky, et al. Matrix factorization techniques for recommender systems. Computer, 42(8):30­37, 2009. [46] Gerald Kowalski. Information Retrieval Systems: Theory and Implementation. Kluwer Academic Publishers, 1st edition, 1997. [47] Ahmed Lamkanfi and Serge Demeyer. Predicting reassignments of bug reports-an exploratory investigation. In Software Maintenance and Reengineering (CSMR), 2013 17th European Conference on, pages 327­330. IEEE, 2013. [48] Jong-Seok Lee, Chi-Hyuck Jun, Jaewook Lee, and Sooyoung Kim. Classificationbased collaborative filtering using market basket data. Expert systems with applications, 29(3):700­704, 2005. [49] Qing Li and Byeong Man Kim. Clustering approach for hybrid recommender system. In Web Intelligence, 2003. WI 2003. Proceedings. IEEE/WIC International Conference on, pages 33­38. IEEE, 2003. [50] Andy Liaw and Matthew Wiener. Classification and regression by randomforest. R News, 2(3):18­22, 2002. [51] Greg Linden, Brent Smith, and Jeremy York. Amazon. com recommendations: Item-to-item collaborative filtering. IEEE Internet computing, 7(1):76­80, 2003. [52] Nathan N Liu, Evan W Xiang, Min Zhao, and Qiang Yang. Unifying explicit and implicit feedback for collaborative filtering. In Proceedings of the 19th ACM inter102
+
+REFERENCES
+
+REFERENCES
+
+national conference on Information and knowledge management, pages 1445­1448. ACM, 2010. [53] Panagiotis Louridas, Diomidis Spinellis, and Vasileios Vlachos. Power laws in software. ACM Trans. Softw. Eng. Methodol., 18(1):2:1­2:26, October 2008. [54] Victor Luckerson. The Number of Movies on Netflix Is Dropping Fast -- TIME, 2016. http://time.com/4272360/ the-number-of-movies-on-netflix-is-dropping-fast/. [55] Martin Maechler, Peter Rousseeuw, Anja Struyf, Mia Hubert, and Kurt Hornik. cluster: Cluster Analysis Basics and Extensions, 2015. R package version 2.0.3. [56] Christopher D Manning, Prabhakar Raghavan, and Hinrich Sch¨ utze. Introduction to information retrieval. Cambridge University Press, 2008. [57] Charles E Metz. Basic principles of roc analysis. In Seminars in nuclear medicine, volume 8, pages 283­298. Elsevier, 1978. [58] A. V. Miranskyy, E. Cialini, and D. Godwin. Selection of customers for operational and usage profiling. In Proc. of the 2nd Int. Workshop on Testing Database Systems, pages 7:1­7:6, 2009. [59] A. V. Miranskyy, E. Cialini, and D. Godwin. Selection of Customers for Operational and Usage Profiling. In Proceedings of the Second International Workshop on Testing Database Systems, DBTest '09, pages 7:1­7:6, 2009. [60] Andriy V Miranskyy, Matthew Davison, and Mark Reesor. Metrics of risk associated with defects rediscovery. arXiv preprint arXiv:1107.4016, 2011. [61] Audris Mockus and David Weiss. Interval quality: Relating customer-perceived quality to process quality. In Proceedings of the 30th international conference on Software engineering, pages 723­732. ACM, 2008. [62] Robert E Mullen and Swapna S Gokhale. Software defect rediscoveries: a discrete lognormal model. In 16th IEEE International Symposium on Software Reliability Engineering (ISSRE'05), pages 1­10. IEEE, 2005. 103
+
+REFERENCES
+
+REFERENCES
+
+[63] Anh Tuan Nguyen, Tung Thanh Nguyen, Tien N Nguyen, David Lo, and Chengnian Sun. Duplicate bug report detection with a combination of information retrieval and topic modeling. In Proceedings of the 27th IEEE/ACM International Conference on Automated Software Engineering, pages 70­79. ACM, 2012. [64] R Core Team. R: A Language and Environment for Statistical Computing. R Foundation for Statistical Computing, Vienna, Austria, 2016. [65] Per Runeson, Magnus Alexandersson, and Oskar Nyholm. Detection of duplicate defect reports using natural language processing. In Proc. of the 29th Int. Conf. on Softw. Eng., pages 499­510, 2007. [66] Mefta Sadat, Ayse Basar Bener, and Andriy V. Miranskyy. Rediscovery Datasets: Connecting Duplicate Reports, 2017. [67] Mefta Sadat, Ayse Basar Bener, and Andriy V. Miranskyy. Rediscovery datasets: Connecting duplicate reports. In Proceedings of the 14th International Conference on Mining Software Repositories (MSR 2017), (to appear), 2017. [68] Mefta Sadat, Ayse Basar Bener, and Andriy V. Miranskyy. Rediscovery Datasets: Connecting Duplicate Reports of Apache, Eclipse, and KDE, March 2017. https: //doi.org/10.5281/zenodo.400614. [69] Badrul Sarwar, George Karypis, Joseph Konstan, and John Riedl. Analysis of recommendation algorithms for e-commerce. In Proceedings of the 2nd ACM conference on Electronic commerce, pages 158­167. ACM, 2000. [70] Badrul Sarwar, George Karypis, Joseph Konstan, and John Riedl. Application of dimensionality reduction in recommender system-a case study. Technical report, DTIC Document, 2000. [71] Badrul M Sarwar, George Karypis, Joseph Konstan, and John Riedl. Recommender systems for large-scale e-commerce: Scalable neighborhood formation using clustering. In Proceedings of the fifth international conference on computer and information technology, volume 1, pages 1­6, 2002. 104
+
+REFERENCES
+
+REFERENCES
+
+[72] J Ben Schafer, Joseph Konstan, and John Riedl. Recommender systems in ecommerce. In Proceedings of the 1st ACM conference on Electronic commerce, pages 158­166. ACM, 1999. [73] Ian Sommerville. Software engineering. Addison-Wesley, 9th edition, 2011. [74] Yoonki Song, Xiaoyin Wang, Tao Xie, Lu Zhang, and Hong Mei. Jdf: detecting duplicate bug reports in jazz. In Proceedings of the 32nd ACM/IEEE International Conference on Software Engineering-Volume 2, pages 315­316. ACM, 2010. [75] Chengnian Sun, David Lo, Siau-Cheng Khoo, and Jing Jiang. Towards more accurate retrieval of duplicate bug reports. In Automated Software Engineering (ASE), 2011 26th IEEE/ACM International Conference on, pages 253­262. IEEE, 2011. [76] Ashish Sureka and Pankaj Jalote. Detecting duplicate bug report using character n-gram-based features. In Software Engineering Conference (APSEC), 2010 17th Asia Pacific, pages 366­374. IEEE, 2010. [77] Yuan Tian, David Lo, and Chengnian Sun. Drone: Predicting priority of reported bugs by multi-factor analysis. In Proc. of Int. Conf. on Softw. Maintenance, pages 200­209, 2013. [78] Robert Tibshirani, Guenther Walther, and Trevor Hastie. Estimating the number of clusters in a data set via the gap statistic. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 63(2):411­423, 2001. [79] Teemu Tunkelo, Ari-Pekka Hameri, and Yves Pigneur. Improving globally distributed software development and support processes a workflow view. Journal of Software: Evolution and Process, 25(12):1305­1324, 2013. [80] Stefan Wagner and Helmut Fischer. A software reliability model based on a geometric sequence of failure rates. In International Conference on Reliable Software Technologies, pages 143­154. Springer, 2006. [81] Xiaoyin Wang, Lu Zhang, Tao Xie, John Anvik, and Jiasu Sun. An approach to detecting duplicate bug reports using natural language and execution information. 105
+
+REFERENCES
+
+REFERENCES
+
+In Software Engineering, 2008. ICSE'08. ACM/IEEE 30th International Conference on, pages 461­470. IEEE, 2008. [82] Ron Wehrens, Lutgarde MC Buydens, et al. Self-and super-organizing maps in r: the kohonen package. J Stat Softw, 21(5):1­19, 2007. [83] Roel Wieringa and Maya Daneva. Six strategies for generalizing software engineering theories. Science of computer programming, 101:136­152, 2015. [84] Claes Wohlin, Per Runeson, Martin H¨ ost, Magnus C Ohlsson, Bj¨ orn Regnell, and Anders Wessl´ en. Experimentation in software engineering. Springer Science & Business Media, 2012. [85] Alan P Wood. Software reliability from the customer view. Computer, 36(8):37­42, 2003. [86] Jialiang Xie, Minghui Zhou, and Audris Mockus. Impact of triage: a study of mozilla and gnome. In Empirical Software Engineering and Measurement, 2013 ACM/IEEE International Symposium on, pages 247­250. IEEE, 2013. [87] Robert K Yin. Case study research: Design and methods. Sage publications, 5th edition, 2013. [88] Jie Zhang, Xiaoyin Wang, Dan Hao, Bing Xie, Lu Zhang, and Hong Mei. A survey on bug-report analysis. Science China Information Sciences, 58(2):1­24, 2015.
+
+106
+
+Index
+AHC, 62 Defect Discovery, 2 Defect Recommender System (DRS), 6 Defect Rediscovery, 2 Explicit User Feedback, 16 F-measure, 26 FPR, 26 Gini, 49 Graph of Rediscoveries, 3 Implicit User Feedback, 16 Jaccard Similarity, 21 N-BAYES, 22 Non-Zero Elements, 39 Non-zero elements (), 40 POPULAR, 19 Preventive Service (PS), 3 RANDOM, 19 Random Forest, 48 Rating Matrix, 18 Recommender System (RS), 15 ROC, 25 SOM, 67 Sparsity, 23 Temporal Splitting, 26 Top-N Recommendations, 17 TPR, 26 UBCF, 20
+
+108 107
+
+

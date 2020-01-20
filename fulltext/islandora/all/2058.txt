@@ -1,0 +1,1847 @@
+Ryerson University
+
+Digital Commons @ Ryerson
+Theses and dissertations
+
+1-1-2013
+
+Blind Source Separation In The Analysis Of Electrocardiogram Pre-Shock Waveforms During Ventricular Fibrillation
+Marzieh Rasooli
+Ryerson University
+
+Follow this and additional works at: http://digitalcommons.ryerson.ca/dissertations Part of the Electrical and Computer Engineering Commons Recommended Citation
+Rasooli, Marzieh, "Blind Source Separation In The Analysis Of Electrocardiogram Pre-Shock Waveforms During Ventricular Fibrillation" (2013). Theses and dissertations. Paper 2090.
+
+This Thesis is brought to you for free and open access by Digital Commons @ Ryerson. It has been accepted for inclusion in Theses and dissertations by an authorized administrator of Digital Commons @ Ryerson. For more information, please contact bcameron@ryerson.ca.
+
+Blind Source Separation in the Analysis of Electrocardiogram Pre-shock Waveforms During Ventricular Fibrillation
+by Marzieh Rasooli Bachelor of Science, Tehran, Iran, 2010
+
+A thesis presented to Ryerson University in partial fulfillments of the requirements for the degree of Master of Applied Science in Electrical and Computer Engineering
+
+Toronto, Ontario, Canada, 2013 c Marzieh Rasooli 2013
+
+Author's Declaration I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research. I understand that my thesis may be made electronically available to the public.
+
+ii
+
+Abstract Blind Source Separation in the Analysis of Electrocardiogram Pre-shock Waveforms During Ventricular Fibrillation Marzieh Rasooli Master of Applied Science, 2013 Electrical and Computer Engineering Ryerson University
+
+Ventricular fibrillation (VF) is a lethal cardiac arrhythmia and electric shock is the only available treatment option for it. Existing works focus on predicting shock success to help improve cardiac resuscitation outcomes. It is desirable to extract information from the electrograms that relates to the current theories on VF mechanism and associate them to the prediction of shock outcomes. To this effect this study used a unique human VF database to evaluate the independent sources (ISs) extracted from Blind Source Separation approach (BSS) and a correlation of 88% was observed between the dominant ISs extracted using a single lead ECG with the number of rotors (i.e., sources identified using multi-channel spatio-temporal phase maps) supporting the hypothesis that the ISs are associated with the rotors. In predicting the shock outcomes using features extracted from the ISs for the given database, we achieved a classification accuracy of 68%.
+
+iii
+
+Acknowledgments I would like to thank my supervisor Dr. K. Umapathy for his continuous support and guidance and Dr. S. Behesti for all her advice throughout this thesis. I also sincerely thank Dr. P. Dorian, Dr. K. Nanthakumar, Dr. Andrew Ramadeen, Dr. Nima Zamiri, and Mr. Stephane Masse from Toronto General Hospital and St. Michael's Hospital for their clinical expertise and access to deidentifiable electrogram and electrocardiogram data. My sincere thanks also goes to my research lab colleagues, especially Dr. F. H. Foomany and Mr. K. Balasundaram for their help and motivation through this study. Last but not the least, I would like to thank my family for their support.
+
+iv
+
+Contents
+1 Introduction 1.1 Cardiac Electrical Activity . . . . 1.1.1 Sinus Rhythm . . . . . . . 1.1.2 Ventricular Fibrillation . . 1.2 Current Treatment Options for VF 1.2.1 Symptomatic Patients . . . 1.2.2 Asymptomatic Patients . . 1.3 Related Previous Works . . . . . . 1.3.1 VF Mechanism . . . . . . 1.3.2 Cardiac Resuscitation . . . 1.4 Motivation . . . . . . . . . . . . . 1.5 Objective . . . . . . . . . . . . . 1.6 Thesis Organization . . . . . . . . 1 2 2 4 6 6 7 8 9 11 12 14 14 16 17 18 19 22 25 29
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+2
+
+Background 2.1 Time- Frequency Analysis . . . . . . . 2.1.1 Short Time Fourier Transform . 2.1.2 Continuous Wavelet Transform 2.2 Singular Value Decomposition . . . . . 2.3 Independent Component Analysis . . . 2.4 Pattern Classification . . . . . . . . . .
+v
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+2.5 2.6 2.7 3
+
+2.4.1 Fisher Linear Discriminant Analysis . . . . 2.4.2 Leave- One -Out- Method Cross Validation 2.4.3 Classification Accuracy . . . . . . . . . . 2.4.4 Receiver Operating Characteristic Curve . . Phase Analysis of Intra-Cardiac Electrograms . . . Line Fit . . . . . . . . . . . . . . . . . . . . . . . Chapter Summary . . . . . . . . . . . . . . . . . .
+
+. . . . . . .
+
+30 32 33 34 35 38 39 41 42 43 45 45 47 47
+
+Feature Extraction and Analysis 3.1 Human VF Database . . . . . . . . . . . . . . . . 3.2 Pig VF Database . . . . . . . . . . . . . . . . . . 3.3 Data Pre-Processing . . . . . . . . . . . . . . . . . 3.3.1 Human VF Data . . . . . . . . . . . . . . 3.3.2 Pig VF Data . . . . . . . . . . . . . . . . 3.4 Extraction of Independent Sources . . . . . . . . . 3.4.1 Projection of Data into Time-Frequency Domain . . . . . . . . . . . . . . . . . . . . 3.4.2 Projection of the Wavelet Matrix into Frequency and Time Basis . . . . . . . . . . . 3.4.3 Dimensionality Reduction . . . . . . . . . 3.4.4 Independent Component Analysis . . . . . 3.4.5 Independent Sources . . . . . . . . . . . . 3.5 Feature Extraction . . . . . . . . . . . . . . . . . . 3.5.1 Energy Based Features . . . . . . . . . . . 3.5.2 Frequency and Entropy Based Features . . 3.5.3 Existing Features . . . . . . . . . . . . . . 3.6 Feature Analysis . . . . . . . . . . . . . . . . . . 3.6.1 Rotor Correlation . . . . . . . . . . . . . .
+vi
+
+. . . . . .
+
+. 47 . . . . . . . . . . 49 49 51 53 55 55 58 59 60 60
+
+3.7 3.8 4
+
+3.6.2 Prediction of Shock Outcomes . . . . . . . . 64 ROC curves . . . . . . . . . . . . . . . . . . . . . . 64 Chapter Summary . . . . . . . . . . . . . . . . . . . 66 67 68 73 77 79
+
+Results and Discussions 4.1 Rotor Correlation with Independent Sources 4.2 Prediction of Shock Outcomes . . . . . . . 4.2.1 Comparative Analysis . . . . . . . 4.3 Chapter Summary . . . . . . . . . . . . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+5
+
+Conclusion 80 5.1 Summary of Results . . . . . . . . . . . . . . . . . . 81 5.2 Summary of Contributions . . . . . . . . . . . . . . 82 5.3 Future work . . . . . . . . . . . . . . . . . . . . . . 83 95 98
+
+A Details on Existing Features B Choice of Wavelet
+
+C Publications 100 C.1 Conferences . . . . . . . . . . . . . . . . . . . . . 100 C.2 Journals . . . . . . . . . . . . . . . . . . . . . . . . 100
+
+vii
+
+List of Figures
+1.1 1.2 1.3 2.1 2.2 Comparison of normal electrical activity of the heart with electrical acitivity of the heart during VF . . . . 3 Different phases in ECG recorded from surface electrograms [1] . . . . . . . . . . . . . . . . . . . . . . 5 Block diagram of the proposed study . . . . . . . . . 15 Block diagram of the proposed study with highlighted parts covered in this chapter . . . . . . . . . . . . . a) Chirp signal as an example of a time-varying signal. b) Spectrogram of the chirp signal with a window size of 60 samples and 30 samples overlap. c) Spectrogram of the chirp signal with a window size of 20 samples and 10 samples overlap. . . . . . . . . Morlet Wavelet . . . . . . . . . . . . . . . . . . . . a) Chirp signal as an example of a time-varying signal. b) Scalogram of the chirp signal using Morlet as the mother wavelet. . . . . . . . . . . . . . . . . An example of applying ICA on two mixtures of a sinusoid and a sawtooth signal and getting the sources back after applying ICA. a) First mixture. b) Second mixture c) First extracted source d) Second extracted source . . . . . . . . . . . . . . . . . . . . . . . . .
+viii
+
+16
+
+2.3 2.4
+
+20 22
+
+23
+
+2.5
+
+27
+
+2.6
+
+Four time instances of a sample phase map with rotor constructed using 112 electrodes over the surface of the heart . . . . . . . . . . . . . . . . . . . . . . 36 Block diagram of the thesis with highlighted parts covered in this chapter . . . . . . . . . . . . . . . . Sample of multi-channel intracardiac electrograms and surface ECG during human VF . . . . . . . . . Sample ECG with successful and unsuccessful shock outcomes. . . . . . . . . . . . . . . . . . . . . . . . a) Chirp signal as an example of a time-varying signal. b) Time-scale representation of the chirp signal using Morlet as the mother wavelet. . . . . . . . . . Projection of the wavelet matrix of synthetic signal into frequency and time basis and dimensionality reduction . . . . . . . . . . . . . . . . . . . . . . . . Transformed time basis and independent frequency basis of the synthetic signal after applying independent component analysis in frequency domain . . . . First three independent sources of the chirp signal . a) Median of captured energy of independent sources for all the cases in pig database, cases with successful shock outcome and cases with unsuccessful shock outcome. b) Median of captured energy of independent sources for all the cases in human database . . . 41 44 46
+
+3.1 3.2 3.3 3.4
+
+48
+
+3.5
+
+50
+
+3.6
+
+3.7 3.8
+
+52 54
+
+56
+
+ix
+
+Phase map rotors, independent sources and feature values for one organized and one disorganized human cases. The sampling rate for all the sources is 250 Hz. . . . . . . . . . . . . . . . . . . . . . . . . 3.10 Boxplots showing distribution of energy based features between two groups. . . . . . . . . . . . . . . 3.11 Boxplots showing distribution of the entropy and centroid scale of first and second sources between two groups. . . . . . . . . . . . . . . . . . . . . . . . . 3.12 ROC curve for the energy based features . . . . . . . 4.1 4.2 Block diagram of the thesis with highlighted parts covered in this chapter . . . . . . . . . . . . . . . . In the above plot the x-axis shows the number of independent source and y-axis shows the percentage of captured energy by each independent source. Each of these curves show the percentage of energy captured by the independent sources for a surface ECG record that corresponds to a certain number of rotors in the phase maps. Different line styles (different colors) represent different number of rotors. . . . . . Line fit for energy based extracted features and number of rotors . . . . . . . . . . . . . . . . . . . . . . Feature space for CE12 and SL13 which shows that proposed features demonstrate discrimination between successful and unsuccessful cases, although there is some overlap. . . . . . . . . . . . . . . . . . . . . . Boxplot comparison for SDW and SL13 . . . . . . .
+x
+
+3.9
+
+61 62
+
+63 65 67
+
+69 72
+
+4.3 4.4
+
+4.5
+
+76 78
+
+B.1 Median of energy curve plot for successful and unsuccessful group for different wavelets . . . . . . . . 99
+
+xi
+
+List of Tables
+4.1 4.2 4.3 4.4 4.5 4.6 Comparison between number of rotors and features extracted from surface electrogram . . . . . . . . . . Correlation between number of rotors and energy based features from BSS . . . . . . . . . . . . . . . Two group classification results for three energy based feature extracted form independent sources . . . . . Two group classification results for SL13 . . . . . . . Cross validation result for sub-grouped data based on CPR duration . . . . . . . . . . . . . . . . . . . Classification accuracy comparison between existing features with the proposed feature . . . . . . . .
+
+70 71 74 75 77 78
+
+xii
+
+Glossary
+BSS CE CF CS CPR CWT ECG EMS Ent ER ICA ICD LDA LOOM ROC SCD SL SR STFT SVD TF VT VF Blind Source Separation Cumulative Energy Centroid Frequency Centroid Scale Feature Cardio Pulmonary Resuscitation Continuous Wavelet Transform Electrocardiogram Emergency Medical Staff Entropy Feature Energy Ratio feature Independent Component Analysis Implantable Cardioverter Defibrillator Linear Discriminant Analysis Leave-One-Out Method Receiver Operating Characteristics Sudden Cardiac Death Slope Feature Sinus Rhythm Short-time Fourier Transform Singular Value Decomposition Time-frequency Ventricular Tachycardia Ventricular Fibrillation
+
+xiii
+
+Chapter 1 Introduction
+
+C
+
+I rculation of blood in the human body replenishes nutrients and supplies oxygen to vital organs which are essential for sustaining life. The rhythmic contraction and expansion of the cardiac muscle and sequential opening and closing of valves in the human heart governs the circulation of blood. The human heart acts as an versatile electromechical pump that regulates the oxygenated blood flow depending on the needs of the human body. When this pump behaves erratically due to pathophysiological conditions, the blood supply to the organs are compromised leading to serious medical conditions called cardiac arrhythmias. Of the cardiac arrhythmias, ventricular arrhythmias are a subclass which originate due to the improper functioning or uncoordinated contractions of the lower chambers of the heart (called ventricles). Ventricular Tachycardia (VT) and ventricular fibrillation (VF) are two well known types of ventricular arrhythmias. VF is the most lethal of the cardiac arrhythmias and within minutes of onset, if untreated will lead to sudden cardiac death (SCD). Annually about 300,000 SCDs occur in North America (45,000 of them are Canadians) most of which are VF related [2]. Over the last several decades, researchers from various
+1
+
+fields have attempted to understand VF in order to arrive at optimal treatment options to increase survival rates, however the mechanism behind VF is not completely known. Presently the only available treatment option for VF is defibrillation by applying electric shock, which is also not always successful. Specific to this thesis, there have been various engineering methods applied to perform signal processing of the electrical activity of the human heart during VF in order to characterize VF for both mechanistic insights and therapy. The following sections will discuss briefly cardiac electrical activity in the context of VF which is the focus of this thesis, followed by related previous works, and lead to the motivation and objectives of the proposed work. 1.1
+1.1.1
+
+Cardiac Electrical Activity
+Sinus Rhythm
+
+Human heart consists of four chambers, two upper chambers called atria and two lower chambers called ventricles as depicted in Figure 1.1a (the ECG record shown in Figure 1.1a is from PhysioNet [1]). In normal condition, the sinoatrial node (SA node) generates an electric impulse which propagates to atrioventricualr node (AV node) before dispersing through the purkenjee fibers. This propagation of electric impulse causes a sequence of depolarization and repolarization of cardiac cells resulting in the contraction and expansion of the cardiac muscles. This rhythmic contraction and expansion of the cardiac muscle causes the normal pumping action of the heart and commonly known as sinus rhythm. The depolarization phase of the heart contracts the ventricles which is when the oxygenated blood
+2
+
+(a) Electrical activity in a normal heart [1]
+
+(b) Electrical activity during VF
+
+Figure 1.1: Comparison of normal electrical activity of the heart with electrical acitivity of the heart during VF
+
+3
+
+is pumped out to the body and at the same time the de-oxygenated blood received from other parts of the body is sent to the lungs for oxygenation. The different phases of the heart's contraction and expansions correlated with its electrical activity is recorded by placing electrodes on the surface of the body. These surface recordings of the cardiac electrical activity are called the Electrocardiograms (ECGs). A sample ECG recording [1] in sinus rhythm with markings on different phases of the heart is illustrated in Figure 1.2. The P wave in ECG shows the transmission of electrical pulse from SA node to AV node, in this phase the atria are contracted. The complex phase of QRS is caused by the depolarization which happens in ventricles and T wave captures the repolarization of ventricles. In normal conditions, for a healthy adult, the SA node produces 60-70 stimulus or impulses in a minute causing 60-70 rhythmic heart cycles of contraction and expansion of the cardiac muscles. Depending on the physical activities the requirement of blood flow varies and accordingly the heart beat varies to accommodate the demands of the human body. The morphological patterns in the ECG indicate the different phases of the heart and in the event the heart behaves abnormally it is reflected in the changes to the morphology of the ECG waveform.
+1.1.2 Ventricular Fibrillation
+
+As stated earlier rhythmic behavior of heart is essential for human well being. However due to various pathological conditions heart's functionality could be compromised leading to many variants of arrhythmic activity. Although there are many variants of these arrhythmic activities localized to atria or ventricles, for the purpose of this
+4
+
+Figure 1.2: Different phases in ECG recorded from surface electrograms [1]
+
+thesis we focus only on one type of ventricular arrhythmias i.e., VF due to its lethal effects. In contrast to normal conduction of the heart where the electrical activity is coordinated, during VF the heart contracts chaotically in a disorganized fashion at high beat rates of >400 beats per minute [3]. This is illustrated in Figure 1.1b. Instead of a single source (i.e. SA node), many dynamic sources along the cardiac muscle attempt to take control of the heart resulting in disorganized muscle contractions at high rates. Due to this, the heart instead of acting as a pump, just quivers at high frequency without effectively pumping out the blood. Since oxygenated blood is also needed to keep the heart alive, this process of quivering and not being able to pump blood degenerates the heart muscle tissue further leading to increased disorganization as the time progresses and eventually SCD occurs within minutes. A sample ECG during VF is shown in Figure 1.1b. The morphology of the ECG waveform is quite different compared to normal conduction and it reflects the disorganized electrical activity during VF. There are no distinct phases as in the case of ECG during sinus rhythm. ECG during VF can be seen as a combined effect of many
+5
+
+dynamic sources working asynchronously. In general, literature has divided VF into 4 phases over time [4] [5]. It is also broadly categorized into early and late VF based on the time from onset [6]. VF degenerates as time progress reflecting increased disorganized electrical activity in the ECG over time. 1.2 Current Treatment Options for VF
+
+Although researchers from many disciplines are working together for the last several decades in arriving at better treatment options for VF, currently the only available option is defibrillation by applying electric shocks. This is basically like resetting the electrical conduction system of the heart and forcing it to return to normal conduction. This however is not always successful. There are many variables that influence the shock outcomes in addition to the shock variables themselves such as strength of the electric shocks, placement of electrodes, type of shock waveforms etc. Application of electric shocks for defibrillation do have side effects on the neural system [7], hence it is usually desirable to optimize shock parameters for a lower shock threshold. There are two broad groups of affected population who suffer from ventricular arrhythmias: Symptomatic and Asymptomatic (or out of the hospital VF incidents). Depending on this categorization there are differences in the strategies involved in the treatment of VF.
+1.2.1 Symptomatic Patients
+
+Symptomatic patients experience symptoms related to heart disease and seek medical help before they experience arrhythmias. For pa6
+
+tients who are diagnosed to be prone for future VF episodes or did experience earlier stage fibrillatory behavior of the heart or the heart is diagnosed to have significant amount of scar due to past ischemic events, the clinician suggest ablation in cases of VT and placement of an Internal Cardioverter Defibrillator (ICD) [8] in the case of VF. ICDs are small electronic devices implanted with lead wires connected to the heart. These devices are controlled by intelligent algorithms that detect the onset of VT or VF and choose either applying shock or pacing maneuvers to return the heart to normal rhythm. ICDs are usually programmed by trained electrophysiologists who based on the condition of the patient set the defibrillator thresholds and other parameters that is optimal for individual patients. During regular visits the clinician also interrogates the ICD for past VT/VF incidents to monitor the performance of the ICDs and the wellness of the cardiac function.
+1.2.2 Asymptomatic Patients
+
+Asymptomatic patients may or may not have any symptoms and still could experience VF either due to pathophysiological reason or external factors like receiving a high voltage shock or demanding sporting event etc. It is highly critical that these patients receive medical attention as soon as possible before the condition deteriorates leading to SCD. For these patients, emergency medical staff (EMS) arriving at the scene had to make a quick assessment on the state of the heart in choosing appropriate sequence of therapy (i.e. shock first, cardiopulmonary resuscitation (CPR), or drug administration). CPR, which is a combination of chest compression and ventilation maneuvers is recommended by American Heart Association if the
+7
+
+patient has been in the state of VF for long time (e.g.>5 min) [9]. CPR manually forces blood circulation by chest compression and ventilation oxygenates blood. The combination of these keep the vital organs alive including the heart itself. Special drugs are injected in cases where the heart has the tendency to refibrillate (i.e., recurrence of VF after a successful shock) [9]. In some cases where the patient has been in the state of VF for a long time (e.g.>5 - 7min) drugs also help to increase the cardiac function in an attempt to make the heart respond to the electric shock [10]. In aiding the EMS personnel to choose the right sequence of therapy which influences the survival rate of the patient, many works have attempted to quantify the state of the heart using ECG analysis during VF. These works extract waveform markers that predict the shock success, CPR efficacy and provide near real-time feedback to EMS personnel in optimizing the cardiac resuscitation outcomes [11] [12] [13] [14]. 1.3 Related Previous Works
+
+In general existing works can be grouped into two categories, (1) those that attempt to understand the VF mechanism with a focus of long term treatment options [15] and (2) those that attempt to optimize cardiac resuscitation outcomes to increase the survival rates of patients suffering VF especially in a out-of-the hospital setting [9]. Both these areas of research are vital considering the amount of SCDs annually related to VF.
+
+8
+
+1.3.1
+
+VF Mechanism
+
+Identifying and understanding mechanisms that are relevant for VF initiation and maintenance is vital towards developing specific long term treatment options that will provide better solution to terminate and/or prevent VF occurrences. While there may be insights of the mechanisms from the surface ECG, it is often too convoluted because the ECG is an integration of all the electrical activations within the heart. Hence mechanistic studies often rely on more detailed local and regional electrical activity of the heart using spatio-temporal analysis of endocardial (inner surface of the ventricles) or epicardial (outer surface of the heart) surfaces of the heart. In order to study the spatio-temporal electrical distribution during VF, analysis has been performed on animal and human studies employing multi-electrode recordings of intra cardiac electrograms on the epi and endocardium of the heart during VF. There are also studies using optical mapping with a voltage sensitive dye to study the surface electrical activity during VF [16]. Although these multi-electrode acquisitions (or optical mapping) on epi and endocardium are practically not feasible in a real world setup for obtaining mechanistic insights on VF on live human beings, special experimental setup is used to allow the human hearts to be studied in an isolated state while keeping it alive [17]. Early intra-cardiac (consisting of either epicardium, endocardium or both) analysis had initially began with the spatial mapping of the electrical activations in the heart [18] [19], commonly referred to as activation maps. The activation maps were used to track the wavefronts of the electrical activation as it progressed through the myocardium. The tracking of the wavefronts allowed for analysis on the degree of electrical organization during an arrhythmia onset.
+9
+
+Further analysis of the intra-cardiac activation had led to the construction of dominant frequency (DF) maps [20] [21]. DF maps had identified the frequency of electrical activation over a set of time and spatial coordinates. The relative simplicity in constructing DF maps enabled researchers to study the frequency homogeneity of underlying electrical activations in characterizing VF. Phase analysis was later introduced in order to dynamically track activation patterns around phase singularity points leading to the development of phase maps [20] [17] [22] [23]. Based on the intra-cardiac analysis, there are two existing theories that attempt to explain the mechanism behind VF: (1) Mother rotor theory and (2) Multiple wavelet theory. In the mother rotor theory, VF is believed to be maintained by high frequency periodic sources, which are called rotors [24]. In the multiple wavelet theory, it is believed that the activation wavefronts are constantly generated and based on their interactions with each other, they appear and disappear over the entire myocardial surface maintaining VF [21]. There are also studies that have reported the presence of both these mechanisms [25]. Recently studies by Nathakumar et al. and others have shown using DF and Phase maps that there are organizational activity during human VF in contrary to the common belief that VF is completely chaotic [19]. There is also evidence that the early VF tend to be more organized than late VF indicating the transition from rotor theory to multiple-wavelet theory as the duration VF progressively increases [26]. This transition in organization could also be related to the number of underlying sources trying to take control of the heart during VF. It is also well known that a heart in early VF is easier to resuscitate [27], which may be linked to the transition in
+10
+
+organization and the number of underlying sources.
+1.3.2 Cardiac Resuscitation
+
+While the works that are attempting to decode the VF mechanisms are still active, in parallel there are works that have arrived at waveform markers (or features) that could optimize the shock outcomes. Since the only current available treatment is defibrillation by shock and the reaction time from the onset of VF is very critical, extensive research has been directed towards helping EMS personnel to choose the right sequence of therapy in optimizing resuscitation outcomes. Pre-shock waveforms are the portion of ECG signal just before the application of shocks and this period of data is used by existing techniques to predict shock outcomes. It is immediately after this preshock period, a decision was made to shock so if we could infer from this portion of the waveform if the shock would be successful or unsuccessful, it will greatly help the EMS in optimizing the choice of therapy and the optimal time for defibrillation. Hence in this proposed work and all the existing works, these pre-shock waveforms are used to predict the shock outcomes. In a chronological order median frequency (centroid freqeuency or in short CF) of the ECG signal and the amplitude were among the first features that were observed to correlate with the duration of VF and therefore success of defibrillation. The median frequency (centroid frequecy or in short CF) [28], amplitude, and energy [29] [30] of the ECG signal were among the early features that were used in this field. Along with median frequency, Spectral Flatness Measure (SFM), Amplitude Spectrum Area (AMSA) were few of the other well known spectral features
+11
+
+used in this area [30] [31] [32] [14]. The effect of CPR was also analyzed using these spectral features (CF, AMSA and SFM) along with the energy of the signal [30] [33] . In the class of chaotic features, Logrithm of Absolute Correlation (LAC) and Scaling Exponent (SCE) features were introduced by treating VF as a choatic signal [34] [35]. Wavelet-based features were introduced recently due to their suitability of the time-scale analysis for time-varying VF signals. Wavelet entropy and Scale Distribution Width (SDW) are among the wavelet features that have been suggested for prediction of shock outcomes [12] [36] . All these works have attempted to extract signal features with a main focus of classifying two or more categories with different shock outcome. However, in this thesis we attempt to make a connection between the VF mechanisms and their relevance in optimizing cardiac resuscitation. 1.4 Motivation
+
+Based on the existing works on VF mechanisms, during VF there are spatio temporal organizational centers that degenerate as time progresses from the time of VF onset. The identified organizational centers are related to underlying sources that control the heart in maintaining VF. On the other hand from an application view point, existing works on optimizing resuscitation outcomes have identified ECG waveform markers that relate to the shock success using retrospective ECG data. Some of the waveform markers does quantify the organizational aspects of the VF directly or indirectly in associating the shock success [37]. However there are no works to the
+12
+
+knowledge of the author that attempts to relate the mechanistic insights on underlying sources that maintain VF and their relation in characterizing VF for predicting shock success. This strongly motivates us to believe that elucidating this relation will enable us to extract meaningful waveform markers that could be related to shock success which are desirable than the existing markers that are primarily driven by available retrospective data. A major difficulty in establishing this relation is that we need both multi-electrode data for computing the spatio-temporal organization maps to identify the underlying sources and at the same time have access to the global ECG (i.e., recorded simultaneously along with the multichannel epi or endocardial recordings) and resolve them into a combination of multiple sources. Since in an out-of-the-hospital VF incidents the EMS personnel only have access to surface ECGs, it is essential to resolve (or decompose) this single lead ECG to identify the underlying sources otherwise this approach may not have practical benefits in cardiac resuscitation. These limiting factors are mitigated due to the unique collaborative efforts between our research group at Ryerson with Toronto General Hospital and St. Michael's hospital. The proposed work was able to have access to de-identifiable data both from experimental and clinical studies at the hospital. With the availability of these unique datasets and clinical expertise, this thesis attempts to arrive at meaningful features associated with existing VF mechanisms in predicting shock success using single lead ECGs.
+
+13
+
+1.5
+
+Objective
+
+This thesis uses advanced signal analysis methods and attempts to arrive at features extracted from ECGs that relate to VF mechanism and provide feedback to EMS personnel in optimizing cardiac resuscitation. To achieve the above the thesis will focus on the following objectives: · To resolve the single lead ECG into a combination of statistically independent sources and correlate with the number of sources identified using corresponding multi-electrode spatio-temporal organizational maps. · To extract meaningful features from independent sources and associate them with prediction of shock success for optimizing cardiac resuscitation. The proposed method is illustrated in the block diagram shown in Figure 1.3. Different line styles are used to highlight the source correlation and prediction of shock outcome objectives of the thesis. This block diagram will be referred throughout the thesis in parts over the following chapters. 1.6 Thesis Organization
+
+The thesis content is organized as follows: · Chapter 2: This chapter is a review on the algorithms used to complete the proposed work. In order or resolve the single lead ECGs into independent sources various signal processing steps
+14
+
+Surface ECG (Human)
+
+Intra-Cardiac Electrograms
+
+Rotor Analysis
+
+Validation
+
+Surface ECG (Pig)
+
+Preprocessing
+
+Blind Source Separation
+
+Independent
+Sources
+
+Feature Extraction
+
+Pattern Classification
+
+Shock Outcome Prediction
+
+Time-Frequency Transfomation
+
+Singular Value Decomposition
+
+Independent Component Analysis
+
+Figure 1.3: Block diagram of the proposed study
+
+are necessary. The technical details of these steps, pattern classification and phase mapping tools are provided in this chapter. · Chapter 3: In this chapter we provide details on the databases used in the proposed study along with the various steps involved in extracting and analyzing features for their suitability in achieving the objectives. · Chapter 4: Results and discussion on the performance of the proposed features and the influence of study parameters are presented in this Chapter. A comparative analysis with existing techniques is also provided. · Chapter 5: This chapter summarizes the contribution of this thesis and briefly discusses the future directions.
+15
+
+Chapter 2 Background
+
+Surface ECG (Human)
+
+Intra-Cardiac Electrograms
+
+Rotor Analysis
+
+Validation
+
+Surface ECG (Pig)
+
+Preprocessing
+
+Blind Source Separation
+
+Independent
+Sources
+
+Feature Extraction
+
+Pattern Classification
+
+Shock Outcome Prediction
+
+Time-Frequency Transfomation
+
+Singular Value Decomposition
+
+Independent Component Analysis
+
+Figure 2.1: Block diagram of the proposed study with highlighted parts covered in this chapter
+
+T
+
+HIS chapter presents the background on various techniques that will be used in the proposed work. The proposed method is primarily based on Blind Source Separation (BSS). BSS is the extraction of underlying signals from their linear mixture with minimum a priori knowledge. Single mixture source separation is a well- known
+16
+
+approach to estimate underlying independent signals from one linear mixture of them. There exist many works in the field of music and biology [38] [39] [40] [41] [42] which use BSS techniques to extract independent sources from one single mixture. In order to perform BSS efficiently converting the single lead ECGs into matrix form is essential. This is done by choosing appropriate time-frequency (TF) transformation which converts a signal into a 3D time-frequency energy map. Depending on the resolution requirements in time and frequency this matrix dimension could be high. However all the information on these TF maps may not be of use for the proposed work (as will be explained at later sections) and hence a dimensionality reduction technique is applied. Singular Value Decomposition (SVD) aids in performing this action by decomposing and ordering the components according to their variance. Independent Component Analysis (ICA) was then applied on the dominant frequency components in extracting the independent sources. In order to validate these sources extracted from single lead ECGs with the spatiotemporal organizational maps, these spatio-temporal maps needs to be constructed using phase mapping of the multi-channel intracardic electrograms. The following sections will present background on building blocks of BSS and also discuss relevant tools that are required for validation and pattern classification purposes. 2.1 Time- Frequency Analysis
+
+For signals that have time-varying frequency content neither temporal nor frequency only techniques are sufficient for studying their temporal evolution of frequency. These type of signals form a major
+17
+
+class of real world signals. In order to study them jointly in time and frequency we need techniques that will map their energy on to a time-frequency plane. VF is highly non-stationary in nature and the electrogram or ECG during VF exhibit strong time-varying frequency behavior [43]. Hence we need an appropriate time-frequency (TF) technique to decompose the VF ECGs for further analysis and efficient extraction of information.
+2.1.1 Short Time Fourier Transform
+
+Short Time Fourier Transform (STFT) is a method to calculate frequency representation of a time-varying signal over short time windows and it was first used by Gabor [44]. This method breaks down the signal in small stationary segments by windowing the signal. Afterwards, Fourier Transform (FT) is applied on each time segment. In other words, STFT is FT of the signal multiplied by a window. This is a two dimensional transformation and gives information about signal in both time and frequency directions. Equation 2.1 shows the discrete implementation of STFT of a signal [45]. S [N,  ] = x[n] [n - N ]e-jN (2.1)
+
+where x[n] is the signal in time domain, w[n] is the window function (usually a Hann window) and S [N,  ] is time-frequency representation of signal. Spectrogram which shows energy of signal for each frequency is constructed as the squared modulus of STFT (|S [N,  ]|2). Fig. 2.2 shows and example of applying STFT on a time-varying signal. One of the drawbacks of STFT is that its time-frequency resolution depends on the choice of the window and its length. A narrow win18
+
+dow gives a good resolution in time but in this case the resolution in frequency direction is poor. However, when the window is wide, the frequency resolution is good but time resolution becomes poor. Figure 2.2 shows an example of spectrogram computed with two different fixed window for a chirp signal whose frequency varies linearly down, up and then down. The sampling frequency for this signal is 250 Hz. The Spectrogram in the middle plot was calculated for a window size with 60 samples (240 msec) and 30 samples (120 msec) overlap The Spectrogram in the bottom plot was calculated for a window size chosen to be 20 samples (80 msec) with 10 samples (40 msec) overlap. This fixed windowing approach limits its use for highly time-varying signals where we may need adaptive windows for different portions of the signals depending on the nature of the signal. Signal adaptive windowing will help choose appropriate resolution trade-off for better time-frequency representation. This led to the development of a class of techniques that use adaptive mathematical functions that are time and band limited to model time-varying signals.
+2.1.2 Continuous Wavelet Transform
+
+Continuous Wavelet Transform (CWT) is an alternative approach to the STFT to overcome the adaptive resolution problem [46] and is more suitable for our proposed study considering that VF electrograms and ECGs are highly time-varying signals and is also computationally less expensive compared to other adaptive TF techniques. In wavelet analysis a signal is modeled using scale and shifted versions of a mother wavelet (i.e. small waves or mathematical functions). There exists many mother wavelets with different properties
+19
+
+1 0.8
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 -0.2 -0.4 -0.6 -0.8 -1 0 50 100 150 200 250 300 350 400 450 500
+
+Time samples,250 Hz sampling rate
+
+(a)
+
+120
+
+100
+
+Frequency
+
+80
+
+60
+
+40
+
+20
+
+2
+
+4
+
+6
+
+8
+
+10
+
+12
+
+14
+
+Time (window)
+
+(b)
+
+120
+
+100
+
+Frequency
+
+80
+
+60
+
+40
+
+20
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+40
+
+45
+
+Time (window)
+
+(c)
+
+Figure 2.2: a) Chirp signal as an example of a time-varying signal. b) Spectrogram of the chirp signal with a window size of 60 samples and 30 samples overlap. c) Spectrogram of the chirp signal with a window size of 20 samples and 10 samples overlap.
+
+20
+
+that can be chosen based on the application in hand. In CWT a signal x(t) is modeled using all possible translated and dilated versions of a mother wavelet, and the discrete version of CWT is given in Equation 2.2 [47]
+N
+
+S (s, b) =
+n=1
+
+x[n] s,b
+
+(2.2)
+
+where x[n] is the discrete time signal, s and b are the scale and translational parameters.  s,b is complex conjugate of scaled and translated version of mother wavelet given by n-b 1 ) (2.3) s,b =  ( s s and are called wavelet daughters. The parameter b is where the mother wavelet is the located in time domain and s is the location of mother wavelet in frequency domain (scale) location b. Scale represents the expansion or compression of the wavelet that has the best local match for signal structures. The following are the conditions a function needs to satisfy to qualify as a mother wavelet [46]: · It should be time limited or (t) = 0 for t > T when T in the time limit. · It should have a zero average value or
+ - (t)dt
+
+= 0.
+
+· It should satisfy the admisibility criterion which means [48] C = ^ f ) is the FT of . where (
+21
+
+^ f ) |2 | ( < |f |
+
+(2.4)
+
+Figure 2.3: Morlet Wavelet
+
+An example of a mother wavelet is Morlet [49] which is shown in Figure 2.3. The choice of mother wavelet is based on the application. First choice is between real or complex wavelets. Real wavelets are more useful in capturing rapid transitions in signal. Complex wavelet is more useful in temporal evolution study of the signal and it also preserves the phase information of the original signal [46]. Figure 2.4 shows the Scalogram (|S (s, b)|2) for a time varying chirp signal. Due to the inverse and non-linear relation between frequency and scale smaller scales represent higher frequency and vice versa. 2.2 Singular Value Decomposition
+
+As explained earlier once we obtain the time-frequency map from the wavelet analysis, we need to extract dominant and useful information from the decomposition coefficients in the subsequent stages. In order to perform dimensionality reduction, the matrix of wavelet coefficients were then fed to the Singular Value Decomposition (SVD) to only retain the dominant components. SVD is a matrix factoriza22
+
+1 0.8
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 -0.2 -0.4 -0.6 -0.8 -1 0 50 100 150 200 250 300 350 400 450 500
+
+Time samples,250 Hz sampling rate
+
+(a)
+
+1 2 3 4 5
+
+Scales
+
+6 7 8 9 10 11 12 50 100 150 200 250 300 350 400 450 500
+
+Time samples,250 Hz sampling rate
+
+(b)
+
+Figure 2.4: a) Chirp signal as an example of a time-varying signal. b) Scalogram of the chirp signal using Morlet as the mother wavelet.
+
+23
+
+tion method which represents any matrix m × n S as a product of three matrices [50] Smn = UmmDmnVnnT (2.5)
+
+Where U is m × m with orthogonal columns (columns are the eigen vectors of SS T ). D is an m × m diagonal matrix with singular values (square root of eigen values) on its diagonal. V T is n × n with orthogonal rows (rows are the eigen vectors of S T S ). D is a diagonal matrix with the same dimension of S. 1  2  . . .  n  0. Elements of this matrix (i) are the singular values (square roots of eigen values) of matrix S . Each column of U or row in V T corresponds to the relevant singular value. This matrix decomposition can also be written as a summation of product of columns in U and VT 's rows:
+n
+
+S=
+i=1
+
+iuiviT
+
+(2.6)
+
+The higher i the more information is preserved in the ui and viT . The following are the steps to prove the SVD matrix factorization as described in [51]. For a matrix S if m  n, due to spectral theorem there will be n orthogonal basis for this matrix which are eigen vectors of S T A. Two assumptions are made that i = Svi where i = 1, 2, ..., r, (2.7)
+
+is the Euclidean norm and 1 ui = S i
+24
+
+(2.8)
+
+By multiplying both sides of the second equation we will have 1 iui = i Svi i or Svi = iui (2.9) (2.10) considering all the columns of U and V will result in SV = U D (2.11)
+
+Multiplying Equation 2.11 by V T gives S = U DV T . Singular Value Decomposition (SVD) is used to project a matrix into time and frequency basis in the context of our analysis. From which, a number of singular vectors (column of U or row in V T ) which could keep an specific proportion of information can be chosen. This number could be selected based on the percentage of the information to retain. If this number is too small, a lot of information is discarded and remaining information cannot represent the signal accurately. However, choosing an appropriate number of singular vectors based on the application could reduce the dimensionality and thereby the computational expense. 2.3 Independent Component Analysis
+
+In BSS, signals are assumed to be linear mixture of number of independent source signals. One of the approaches to extract independent sources is to use Independent Component Analysis (ICA) [52] which uses higher order statistics. In other words, PCA decorrelates the sources but ICA uses second order decorrelation (independency) [53]. ICA is a useful technique and has been used in sound separation and
+25
+
+biomedical applications. One of the examples of BSS in biomedical signal analysis is the omission of the blinking artifact from the Electroencephalogram (EEG). Eye movement are also projected in EEG records and it needs to be removed when studying the brain's activity [54]. If each record is a linear combination of brain's signal and eye movement artifact, then we will have the following equations for the brain records: y1 = a11x1 + a12x2 y2 = a21x1 + a22x2 (2.12) (2.13)
+
+If only the recorded signal are given, to extract the brains signal from blinking artifact independence property of two signals is used to estimate the weights. In the equation, for the EEG example y1 and y2 are the EEG records, x1 is the brain signal and x2 is the eye blinking artifact. The coefficients a11,a12,a21 and a22 are calculated as Y = AX (2.14)
+
+X (matrix of independent sources) and Y (matrix of observations) are m by n matrices and A (de-mixing matrix) is a m × m matrix The summary of this algorithm is given below [55]. The goal is to extract underlying signals from their linear mixture with minimum a priori knowledge. One of the famous approaches to estimate the sources in ICA is by maximum likelihood estimation and it is equal to minimizing the mutual information between the sources. To formulate the problem it is assumed that the distribution of each source si is ps so the joint distribution of sources will be
+
+26
+
+0.4
+
+0.5
+
+Amplitude (arbitary unit)
+
+0.2
+
+0
+
+Amplitude (arbitary unit)
+100 200 300 400 500
+
+0
+
+-0.2
+
+-0.4 -0.5 100 200 300 400 500
+
+Time samples,250 Hz sampling rate
+
+Time samples,250 Hz sampling rate
+
+(a) First mixture
+1 1
+
+(b) Second mixture
+
+Amplitude (arbitary unit)
+
+0.5
+
+Amplitude (arbitary unit)
+100 200 300 400 500
+
+0.5
+
+0
+
+0
+
+-0.5
+
+-0.5
+
+-1 0
+
+-1 0
+
+100
+
+200
+
+300
+
+400
+
+500
+
+Time samples,250 Hz sampling rate
+
+Time samples,250 Hz sampling rate
+
+(c) First extracted source
+
+(d) Second extracted source
+
+Figure 2.5: An example of applying ICA on two mixtures of a sinusoid and a sawtooth signal and getting the sources back after applying ICA. a) First mixture. b) Second mixture c) First extracted source d) Second extracted source
+
+27
+
+n
+
+p (s ) =
+i=1
+
+p s ( si )
+
+(2.15)
+
+Considering x = As ps(x) = ps(W x).|W | (2.16)
+
+where W = A-1 and |W | is due to the rule of applying a linear transformation on a random variable and its probability density function [56]. Since it is assumed that all the sources are independent so the joint probability of xis is multiplication of the probability of all the xi.
+n
+
+P ( x) =
+i=1
+
+T xi).|W | p s (w i
+
+(2.17)
+
+W will be obtained by a maximum likelihood method. Taking log likelihood from Equation 2.17 will result in the following equation
+m n
+
+l (W ) =
+
+(
+i=1 j =1
+
+g ((wj )T x(i)) + log(|W |)) log(´
+
+(2.18)
+
+where l(W ) is log likelihood of the joint probability density function and maximizing the log likelihood will result in having least error due to log likelihood criteria. To maximize the log likelihood we should start with a starting value for the demixing matrix (W0). After the logarithm converges, we the compute si = W xi to recover the original sources.
+28
+
+ICA is an analogous technique to PCA. The difference between PCA and ICA is that PCA is a technique to find a transformation that un-correlates the variables. However, ICA algorithm is to find a transformation that makes variables as independent as possible. Independency implies uncorrelation but uncorrelation does not imply independency. Another application of ICA in biomedical area is to separate noise from signal or to extract components which may be biologically meaningful. Fig.2.5 shows an example of ICA on a sinusoid and a sawtooth. First, two signals were mixed using a mixing matrix which resulted in Figure 2.5a and 2.5b. Then ICA could extract these two signals from their mixtures as shown in Figure 2.5c and 2.5d of the figure. 2.4 Pattern Classification
+
+Pattern classification is an important module of machine learning which is widely used for performing automated decision making based on measurements. Two major approaches in performing pattern classification is either supervised or unsupervised learning. In supervised approach the classifier is trained with training set or information whose ground truth have been decided by experts. The classifier then arrives at a threshold based on this knowledge and makes the decision for the new test data that is fed without the category information. In unsupervised approach, the classifier attempts to group the given data into natural clusters based on statistical information extracted from the data and initialization parameters provided by the user. For medical expert systems or applications, if the ground truth is available, then it is desirable to use the supervised
+29
+
+approach. In our case we used supervised pattern classification to evaluate the proposed method in discriminating between two groups of VF waveforms with different shock outcome. As mentioned in the introduction, there are a many previous works which have attempted to recognize a distinction between pre-shock VF waveforms which have successful or unsuccessful shock outcome. The results of classification in this area is used to evaluate the robustness and effectiveness of the proposed markers in providing feedback for medical staff and help in choosing the right therapy.
+2.4.1 Fisher Linear Discriminant Analysis
+
+The following is a brief summary on linear discrimination Analysis (LDA) [57]. LDA is a supervised classification method which uses some of the samples in the dataset as a training set. If the goal is to make the least classification error when using LDA, the objective will be to make the number of miss-classified points as small as possible. Separator is a rule which defines that object belongs to which group based on its feature value. If we define the conditional probability as a rule for classification using Bayesian theory an object is grouped in group i if P (i | x) > P (j | x) , for  j = i. P (i | x) is the probability of a feature belonging to group i when x is known (a set of measurements). When data is grouped in c classes each two groups will be separated by a line and there will be c - 1 lines to separate all groups and each group will hold one region in the space. There might be some regions between the lines which does not belong to any group. Fisher discriminant analysis project d dimensional matrix x into a less dimensional matrix y using a weight
+
+30
+
+vector called W . Each class has a weight vector wi which is d × c - 1 y = W tx The criteria to find W is given in Equation 2.20 |W tSB W | J (W ) = |W tSW W | (2.20) (2.19)
+
+where SB is between class variance and SW is within class variance and is sum of the variance of all the classes which are given by Equations 2.21 and 2.22
+c
+
+SB =
+i=1 c
+
+ni(mi - m)(mi - m)t
+
+(2.21)
+
+SW =
+
+(
+i=1 x Di
+
+(x - mi)(x - mi)t)
+
+(2.22)
+
+ni and mi are number of samples and mean for group i and m is the mean value for the total samples. To get the best value for W and as a result the best projection of x into y , J (W ) should be maximized. In order to find the best value for W , the classifier is trained for a subset of data and the rest of samples are used to test the classifier. However, the choice of training subset could influence the obtained test results. Hence to make the results independent of training and test data, cross validation procedures are used. In cross validation, many classifications are performed by choosing different sets of data for training and testing and average these results. Commonly it is called as 'm-fold cross validation', where the m specifies how many times the data is split into different training and testing sets in arriving at the overall classification accuracy. The extreme case of this
+31
+
+cross validation is the leave-one-method which will be explained in the next section.
+2.4.2 Leave- One -Out- Method Cross Validation
+
+The influence of choice of training subset and testing test on the classification accuracies is high especially for small databases where a few signals could change the decision boundary drastically. This is especially applicable to biomedical studies where often the database is small due to various reasons (i.e., practical difficulties in acquiring data, rarity of the data, ethical limitations, expensive in terms of time and money etc). In order overcome this bias due to the choice of training and testing subset, cross validation was introduced. In cross validation the samples in dataset are divided in m groups with equal number of samples. Each time one of the groups are left out and training is done by the rest of the groups and the left group is used to test the classifier. This will be repeated for m times. Each time the validation error is calculated and the average error is used as a measurement for classification accuracy. The extreme case of this cross validation is the Leave-one-out method (LOOM). In LOOM cross validation, each sample from the database is taken out as a test sample and the classifier is trained with the all remaining samples. The algorithm is repeated this for all samples and the accuracy of classification is calculated. The average of classification accuracies is later determined as the final classification accuracy. Thus the independence between the training and testing data is preserved. The following example shows the LOOM approach for computing a simple mean of the data and is summarized here from [57]. In a data set with n samples, when the ith sample is removed, the mean of the
+32
+
+remaining samples is calculate from Equation 2.23 1 µi = n-1
+n
+
+xj
+j =i
+
+(2.23)
+
+and Jackknife mean µ(.)is the mean of the all the means calculated from removing each point in the dataset and is given by 1 µ(.) = n
+2.4.3 Classification Accuracy
+n
+
+µi
+i=1
+
+(2.24)
+
+Classification accuracy is a measurement of classifier's performance. This value is obtained from Equation 2.25 Accuracy = where · TP (True Positive) = correctly classified as abnormal (abnormal cases which are classified as abnormal) · FP (False Positive) = incorrectly classified as abnormal (normal cases which are classified as abnormal) · TN (True Negative) = correctly classified as normal (normal cases which are classified as normal) · FN (False Negative) = incorrectly classified as normal (abnormal cases which are classified as normal)
+33
+
+TP + TN TP + FP + TN + FN
+
+(2.25)
+
+From these definitions the sensitivity and specificity of the classification technique are determined as Sensitivity = TP TP + FN (2.26)
+
+TN (2.27) FP + TN The sensitivity and specificity are calculated to get the overall classification accuracy of the technique and these analysis are helpful in evaluating the performance of the technique in correctly identifying normal and abnormal cases. Specif icity =
+2.4.4 Receiver Operating Characteristic Curve
+
+Receiver Operating Characteristic (ROC) defines how sensitivity and specificity changes by a small change in between classes boundaries (decision boundaries). This curve is a measure of goodnessof-fit. We calculate sensitivity and specificity pairs for each possible boundary and plot sensitivity on the y axis by (1-specificity) on the x axis. The area under the ROC curve ranges from 0.5 and 1.0 with larger values indicative of better fit [58]. This value defines the robustness of the classifier specially when each group in the data base has a different loss function. The higher the value of the area under the ROC curve the higher is the robustness for the classifier.
+
+34
+
+2.5
+
+Phase Analysis of Intra-Cardiac Electrograms
+
+In order to study multichannel electrograms to find the number of underlying rotors we need to use phase mapping tool. The analysis of the intracardiac electrical activation of the heart has been of special interest in recent years. Many recent findings [22] have highlighted that the phase analysis of the intracardiac heart signals could identify special regions of interests known as phase singularities or rotors. Rotors have been considered as organizational centers and believed to be the sources that drive and sustain VF. The identification of rotors requires the acquisition of the intracardiac electrical activity using a specialized electrode array system. This electrode array captures the electrical activation over the endocardium (within the heart) and epicardium (outside surface of the heart). While this electrode array captures the spatial electrical activation over time, interpolation over the surface is performed in order to increase the spatial resolution, which improves the ability to identify a rotor. Figure 2.6 highlights a typical phase map that was constructed using interpolated spatial electrical activation. The electrode array system used in this study was an 112 electrode system consisting of 14 columns with 8 electrodes in each column. The electrode array, which is highlighted in Figure 2.6 as black points, is usually sampled at 1000 Hz. A limitation to capturing the intracardiac electrical activation using the electrode system is that an incision or opening must be made in the chest cavity to insert the electrode system, which makes it impractical or extremely difficult for live patient diagnosis, but is often used for research to better understand the mechanism of the heart during VF.
+35
+
+Phase Map
+Rotor
+
+Frame: 735
+
+Phase Map
+
+Frame: 750
+
+Electrodes
+
+Rotation Direction
+
+(a) Phase Map Time Instance 1
+Phase Map Frame: 770
+
+(b) Phase Map Time Instance 2
+Phase Map Frame: 785
+
+(c) Phase Map Time Instance 3
+
+(d) Phase Map Time Instance 4
+
+Figure 2.6: Four time instances of a sample phase map with rotor constructed using 112 electrodes over the surface of the heart
+
+36
+
+Upon interpolating the surface electrogram, the analytical version of the signal is constructed using the Hilbert transform (H ). If we consider that a single electrode has an electrical activation x[n], then the complex signal x ^[n] of x[n] can be acquired through Equation 2.28 and 2.29 [59]. x ^[n] = x[n] + jH [x[n]] 1 H [x[n]] = 
+
+
+(2.28) (2.29)
+
+N -
+
+x [N ] [n - N ]
+
+^[n] is the sum of the real In Equation 2.28, the complex signal x component x[n] and imaginary component H [x[n]]. The term H [x[n]] is the Hilbert transform of the electrical signal x[n] and is highlighted in Equation 2.29. The Hilbert transform essentially removes the negative frequency component in a real signal to transform it into a complex signal [59]. From the complex signal, the instantaneous phase (IP ) at some sample time n is calculated using Equation 2.30. H [x([n]] ) (2.30) x[n] The instantaneous phase for every electrical activation is calculated in order to generate the phase maps. The phase of a signal can vary from - to + . The phase map that is observed in Figure 2.6 highlights the phase, where blue represents the - phase and red represents the + phase. By using the interpolated phase maps, it is possible to identify a rotor in Figure 2.6. A rotor is identified when the phase pattern rotates at least twice around a phase singular point [59] IP [n] = tan-1(
+37
+
+Two important characteristics of a rotor is the spin or rotation of the rotor and the migration of the rotor. The rotation or a rotor is considered as the direction in which the phase cycle changes over time. The migration of the rotor is the spatial change of the rotor axis over time. These characteristics is analogous to a tornado, where the tornado rotates around a central point and the central point migrates to different locations. This can also be observed in the four time instances in Figure 2.6. The first time instance (Figure 2.6a) identifies the rotor with the rotation direction highlighted by the arrow. In the second time instance (Figure 2.6b), we observe that the phase around the rotor has been rotated when compared to the first time instance (Figure 2.6a). Similarly, we could observe the rotation in the third (Figure 2.6c) and fourth (Figure 2.6d) time instances. The migration of the rotor is highlighted by the different spatial location of the rotor over the four time instances. For the organization analysis of the heart, a rotor was considered to be valid only if it completed at least two rotations [59]. 2.6 Line Fit
+
+We used the goodness of line fit in order to evaluate the relationship between the number of rotors and independent sources. If we have n pairs of data such that dataset={(x1,y1),(x2,y2),...,(xn,yn)} the a line can be fitted to the data given by Equation(2.31) f (x) = x +  (2.31) To obtain a good fit a criteria should be defined. One common criteria is the least square error is to that minimizes the of square orthogonal distance between the points in dataset and the fitted line. and is
+38
+
+given in the following equation:
+n
+
+error =
+i=1
+
+(yi - (xi +  ))2
+
+(2.32)
+
+To minimize the error in Equation 2.32 two conditions should be satisfied · ·
+error  error 
+
+=0 =0
+
+when  is constant when  is constant
+
+if we solve this two equation we will find a f (x) with least square distance with points in the dataset. In simple words if a linear relation exists between two variables, we should be able to fit a line with a minimal error. 2.7 Chapter Summary
+
+In this chapter we introduced blind source separation as a method that will be used to extract statistically independent sources for a VF waveform in the next chapter. A background on all the necessary tools to implement this algorithm was given. LOOM was explained as a good method to perform cross validation (especially for small databases that are common in biomedical studies) to test the extracted features from independent sources in Chapter 4. Phase analysis of intra-cardiac eectrograms was explained as a tool to identify the special regions of interests known as phase singularities or rotors. This analysis will allow us to test our proposed hypothesis in Chapter 4 in relating the number of independent sources to the number of rotors. A brief description on the line fit method was
+39
+
+also presented to quantify the goodness of fit in testing the relation between number of independent sources and thenumber of rotors.
+
+40
+
+Chapter 3 Feature Extraction and Analysis
+Surface ECG (Human)
+
+Intra-Cardiac Electrograms
+
+Rotor Analysis
+
+Validation
+
+Surface ECG (Pig)
+
+Preprocessing
+
+Blind Source Separation
+
+Independent
+Sources
+
+Feature Extraction
+
+Pattern Classification
+
+Shock Outcome Prediction
+
+Time-Frequency Transfomation
+
+Singular Value Decomposition
+
+Independent Component Analysis
+
+Figure 3.1: Block diagram of the thesis with highlighted parts covered in this chapter
+
+I
+
+N order to achieve the set objectives, we used two databases. One of them to validate the correlation between the extracted independent sources with the rotors and the other for the main objective of evaluating the proposed approach in predicting shock outcomes. As presented earlier in Chapter 2, the process of extracting independent sources involves various signal processing steps and once these sources are identified it is essential to extract meaningful and quan41
+
+tifiable features in characterizing the pre-shock waveforms. This chapter will provide details on the databases (as highlighted in Figure 3.1), data acquisition protocols and the various steps involved in extracting features from the independent sources extracted from the pre-shock VF ECGs. 3.1 Human VF Database
+
+Existing works on rotor or multiple wavelet mechanism on VF rely on the observations of spatio-temporal surface activity on the heart. For generating spatio-temporal maps multi-channel intracardiac electrogram recordings of ECG during VF are required. Hence for our objective of validating the extracted independent sources from a single channel ECG with rotors we need data that has both spatiotemporal multi-channel electrograms and at the same time also has a single channel global surface ECG. Spatio-temporal mapping of electrical activity on the surface of the heart is a complex procedure [59] and hence mostly performed only on isolated hearts using a Langendorff setup. However, there are few hospitals in the world that still perform VT (less lethal than VF) ablations in a open chest procedure and use spatio-temporal mapping of electrical activity to identify the source of VT. In these procedures while testing the efficacy of VT ablation, accidentally the stimulations result in VF. These are rare invivo spatio-temporal VF data from real live patients. All these data were previously used for VF research by clinical researchers with informed consent from the patients. Due to our collaboration with Toronto General Hospitals, we obtained only the deidentifiable retrospective surface ECG and 112 channel spatio
+42
+
+temporal intracardiac electrogram data from 3 patients and 2 isolated human heart for the purpose of validation. These electrograms were sampled at 1KHz with an average duration of 16 sec. From these we used 10 VF episodes (3 from patients and 7 from isolated human hearts). Since VF is non-stationary in nature, each VF episode can be treated as an independent observation [60]. Figure 3.2 illustrates samples of few intracardiac electrograms and surface ECG of a patient during VF. 3.2 Pig VF Database
+
+For the main objective of predicting shock success we obtained deidentifiable surface ECGs from a cardiac resuscitation study using pigs at the St. Michael's hospital. Fifty (n=50) previously healthy pigs of both genders were used with weight between 27-35 kg. VF was induced by burst pacing by 10 V of 60 Hz current for 2 seconds and left untreated for 3 or 4 minutes. At the end of this period, chest compressions was started using a pneumatic device (Lucas, Jolife AB, Lund, Sweden) at 100 compressions/min and manual ventilation at 6 breath/min using 5-6 liters/min of 100% O2 with an Artificial Manual Breathing Unit (AMBU) bag was performed. CPR was continued at a rate of 30:2 (compressions to respirations) per minute for 3 minutes with no interruption of chest compressions. At the end of this period, defibrillation was attempted at 150J. If the animal failed to respond, CPR was continued for 2 min followed by defibrillation at 200J (and a stepwise increase to 300J (+2min CPR)360J (+30 sec CPR)360J (+30 sec CPR)360J360J in case of failure). The protocol was approved by the Animal Care Committee of
+43
+
+Amplitude (arbitary unit)
+
+0.04 0.02 0 -0.02 -0.04 -0.06 200 400 600 800 Time samples,250 Hz sampling rate 1000
+
+(a) Electrogram number 1
+
+Amplitude (arbitary unit)
+
+0.04 0.02 0 -0.02 -0.04 -0.06 200 400 600 800 Time samples,250 Hz sampling rate 1000
+
+(b) Electrogram number 65
+0.06
+
+Amplitude (arbitary unit)
+
+0.04 0.02 0 -0.02 -0.04 -0.06 200 400 600 800 Time samples,250 Hz sampling rate 1000
+
+(c) Electrogram number 105
+
+Amplitude (arbitary unit)
+
+0.06 0.04 0.02 0 -0.02 -0.04 -0.06 200 400 600 800 Time samples,250 Hz sampling rate 1000
+
+(d) Surface ECG (integration of heart's electrical activity)
+
+Figure 3.2: Sample of multi-channel intracardiac electrograms and surface ECG during human VF
+
+44
+
+St. Michaels Hospital, Toronto, Canada. The criteria for successful defibrillation is defined as sustained ROSC (at least 12 normal heartbeats) within one minute post shock. Of the 50 deidentifiable pre-shock waveforms used for analysis in the proposed work, 25 of them were successful and 25 of them had unsuccessful outcomes. The pre-shock waveform used in this study were limited to be from first three shocks. Figure 3.3 illustrates a sample ECGs from successful and unsuccessful outcomes with labels indicating pre-shock, shock, and post-shock portions of the waveform. 3.3 Data Pre-Processing
+
+The raw deidentifiable data obtained from the hospital were properly formatted and pre-processed as described below to make them suitable for further analysis.
+3.3.1 Human VF Data
+
+The multi-channel electrogram data was originally sampled at 1kHz. This was downsampled to 250 Hz to reduce the computation complexity and at the same time retaining the frequency components in the VF range (1.5Hz to 12Hz) [60]. The downsampled intracardiac electrograms and the surface ECG were then filtered using a bandpass filter which passes [1.5 to 12] Hz to attenuate high and low frequency artifacts. The signals were then normalized to remove the effect of absolute amplitude.
+
+45
+
+Amplitude (arbitary unit)
+
+0.5
+Amplitude saturation
+
+0
+Pre-shock
+
+0.5
+Shock
+
+Post- shock
+
+1
+
+0.5
+
+1
+
+1.5
+
+2
+
+Time samples, 250 Hz sampling rate
+
+2.5 4 x 10
+
+(a) Successful outcome example
+
+Amplitude (arbitary unit)
+
+0.5
+Amplitude saturation
+
+0
+Pre-shock
+
+0.5
+Shock Post- shock
+
+1
+
+0.5
+
+1
+
+1.5
+
+2
+
+2.5
+
+3
+
+Time samples, 250 Hz sampling rate
+
+3.5 4 x 10
+
+(b) Unsuccessful outcome example
+
+Figure 3.3: Sample ECG with successful and unsuccessful shock outcomes.
+
+46
+
+3.3.2
+
+Pig VF Data
+
+Pre-shock waveforms are the portion of the ECG signals just before the shock was applied. We extracted 50 pre-shock waveforms from the pig database and care was taken to only select portions of the pre-shock waveforms that are not corrupted by the movement artifacts due to CPR maneuvers. These waveforms were downsampled from 1KHz (original acquisition sample rate) to 250Hz to reduce the computational complexity and also maintain uniformity with the Human VF database. A bandpass (filter 3 to 15 Hz) was used to remove high and low frequency artifacts. Please note the frequency range of Pig VF is higher than humans. The length of the pre-shock waveforms used in this study was 4sec for all the cases. The signals were then normalized to remove the effect of absolute amplitude. 3.4 Extraction of Independent Sources
+
+After pre-processing and formatting the electrogram and ECG signals from the human and pig database, these were fed to a series of stages in order decompose these signals into independent sources. The following subsection will briefly present these stages and illustrate with a synthetic signal.
+3.4.1 Projection of Data into Time-Frequency Domain
+
+In order to be able to use ICA for a single channel signal, the single channel signal should be decomposed to multiple observations. For this purpose time- frequency representation of signal is obtained by applying CWT. CWT was used to map the pre-shock waveform into
+47
+
+1 0.8
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 -0.2 -0.4 -0.6 -0.8 -1 0 50 100 150 200 250 300 350 400 450 500
+
+Time samples,250 Hz sampling rate
+
+(a)
+
+1 2 3 4 5
+
+Scales
+
+6 7 8 9 10 11 12 50 100 150 200 250 300 350 400 450 500
+
+Time samples,250 Hz sampling rate
+
+(b)
+
+Figure 3.4: a) Chirp signal as an example of a time-varying signal. b) Time-scale representation of the chirp signal using Morlet as the mother wavelet.
+
+time-frequency domain and it is given by
+N
+
+S=
+n=1
+
+x[n] s,b
+
+(3.1)
+
+Where S is the matrix of wavelet coefficients, x is the VF waveform and a,b is scaled and delayed version of mother wavelet. The mother wavelet used in this study is complex Morlet since it has better correlation with signal structures in ECG during VF. We also tested other wavelets for suitability for our application. However, the obtained results justifies that complex Morlet was more suitable for our study (Appendix B).
+48
+
+A chirp signal was used as a synthetic signal to show all the further steps to get the independent sources. The signal was sampled at 250 Hz sampling rate and CWT was performed on it. Signal and absolute value of its relevant wavelet coefficients are shown in Figure 3.4. As it is shown, 20 scales (this depends on the signal frequency content) were needed to transform the signal into wavelet domain.
+3.4.2 Projection of the Wavelet Matrix into Frequency and Time Basis
+
+The matrix of wavelet coefficients obtained in the previous section were fed to the SVD module to identify and retain only the dominant components. SVD was performed on the transpose of S in which the columns represent time slices and rows the frequency bins. The SVD operation on S is given by S T = U DV T (3.2)
+
+where the columns of U are the right singular vectors of S (here time components) and columns of V are left singular vectors (frequency components) and D is a diagonal matrix with square root of eigen-values in descending order.
+3.4.3 Dimensionality Reduction
+
+All the columns in U (time basis) and columns in V (frequency basis) are ordered according to their relevant singular values. Each singular value shows the amount of information that its corresponding basis contains. In general, based on the signal we could restrict
+49
+
+first 15 columns of U (time basis)
+
+first 15 rowss of VT (frequency basis)
+
+50
+
+2
+
+Time sample,250 Hz sampling rate
+
+100 150
+
+4
+
+250 300
+
+No. of row
+5 10 No. of column 15
+
+200
+
+6
+
+8
+
+10 350 400 450 500 12
+
+14 5 10 Scale 15
+
+Figure 3.5: Projection of the wavelet matrix of synthetic signal into frequency and time basis and dimensionality reduction
+
+to the first d singular values that contain most of the information of the signal. In selecting a certain number of vectors in SVD (d), we are selecting a proportion of information to retain for further analysis. It is worth noting that if the signal is simply reconstructed from the principal components retained from SVD (i.e. skipping the further stages of operation), there will be noticeable degradation. It is a problem which gets worse as the information ratio decreases as more details are discarded. So we chose the number of vectors in U and V to preserve more than 90% of the energy of all the signals in the database. The remaining 10% or less are usually noise like structures. Reducing the dimension further does not affects the signal approximation, while more dimensions increase the complexity with no improvements in extracted information. With this in mind, a good approximation of S was obtained by retaining a minimum of
+50
+
+90% of the signal energy and could be given by ¯T = UdDdVdT S (3.3)
+
+Here Ud and Vd are first d columns of original matrices U , V , and Dd is a matrix which contains first d elements of D. These steps are shown in Figure 3.5 for the synthetic signal. In this example the d was chosen to be 15 (which contains 90% of the information of signal and the rest 10% were more noisy like). The right image shows the first 15 columns of U and each column is a time basis. U was a 500 × 500 matrix which which was reduced to a 500 × 15 matrix and the rest of columns are discarded due to their noisy like behavior. The left image shows the first 15 rows of the V which contains the frequency basis.
+3.4.4 Independent Component Analysis
+
+ICA was performed on the matrix Vd to acquire independent frequency components. First d columns of V (d most significant frequency components) will be treated as observations and ICA was applied on them to acquire independent frequency components VdT = M (VdICA)T (3.4)
+
+M is mixing matrix (a d by d matrix) and M (VdICA)T is matrix of independent frequency components which is obtained by minimizing the mutual information between the frequency components and columns of (VdICA)T are independent frequency components (this matrix has the same dimension as VdT ). So the matrix of approximated Scalogram can be written as
+51
+
+Transformed time basis
+
+Independent frequency basis
+
+50
+
+2
+
+Time sample, 250 Hz sampling rate
+
+100 150
+
+4
+
+250 300
+
+No. of row
+5 10 No. of row 15
+
+200
+
+6
+
+8
+
+10 350 400 450 500 12
+
+14 5 10 scale 15
+
+Figure 3.6: Transformed time basis and independent frequency basis of the synthetic signal after applying independent component analysis in frequency domain
+
+¯T = UdDdM (VdICA)T S and the new matrix of time domain components is ¯d = UdDdM U
+
+(3.5)
+
+(3.6)
+
+In other words, in this way the independence of frequency basis in guaranteed. In order to have a constant energy for S T the columns of Ud were transformed to the new space to have a one by one correspondence with columns of new spectral matrix (Vd) using the equation 3.6. ¯d to ensure that the time basis Here ICA could also be applied on U are also independent. But since VF signals are time-varying, independence in time cannot be applied on these signals. In other words,
+52
+
+in our case of processing VF signals the goal is to find whether a specific event occurs in a signal or not but one pattern might occur in different time locations in two non-stationary signals. Due to chaotic behavior of VF signals, localization in time domain may not be practical hence ICA is only applied on frequency basis. Figure 3.6 is the outcome of this step for the synthetic signal. In this figure, the left figure shows the first 15 columns of Ud which are the columns of U after the transformation of demixing matrix. The right figure shows 15 independent frequency (scale) basis.
+3.4.5 Independent Sources
+
+The wavelet coefficients corresponding to the independent sources ¯d and rows of were then calculated by multiplying the columns of U (VdICA)T as given by ¯d(VdICA)T ScT = U c = 1, 2, ..d (3.7)
+
+From these wavelet matrices corresponding to the independent sources, we could reconstruct an approximation of the separated source signals in time domain using inverse of wavelet transform from Equation 3.8 ISc = 1 C  s2 < x[n], s,b > s,b
+s b
+
+c = 1, 2, ..d
+
+(3.8)
+
+C was introduced in Section 2.1.2. The statistically independent sources extracted based on all the above steps are shown for the synthetic signal in Figure 3.7.
+53
+
+0.8
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 0 2 0 4 0 6 100
+Time samples, 250 Hz sampling rate
+
+200
+
+300
+
+400
+
+500
+
+(a) First independent source
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 0 2 0 4 0 6 100
+Time samples, 250 Hz sampling rate
+
+200
+
+300
+
+400
+
+500
+
+(b) Second independent source
+0.8
+
+Amplitude (arbitary unit)
+
+0.6 0.4 0.2 0 0 2 0 4 0 6 100 200 300 400 500
+Time samples, 250 Hz sampling rate
+
+(c) Third independent source
+
+Figure 3.7: First three independent sources of the chirp signal
+
+54
+
+3.5
+
+Feature Extraction
+
+The extracted independent sources were then analyzed in terms of their energy distribution, frequency content, and entropy. If these independent sources are related to the sources that maintain VF, then the energy distribution over these sources should have a correlation with the number of dominant sources and the way they share energy between them. Existing literature also shows that frequency features derived from ECGs during VF changes over time and has been used as one of the common features in prediction of shock outcomes. Entropy have been also commonly used in literature to measure the disorganization in the VF signals. Hence we focused on these features extracted from the independent sources and evaluated their discriminating ability between the successful and unsuccessful shock outcomes. It should be noted that unlike the existing methods which operate on the global ECG during VF, the proposed method operates on the independent sources extracted from the global ECGs and hence these features are more specific for the proposed study.
+3.5.1 Energy Based Features
+
+We computed energy for each of the independent sources and analyzed their average distribution per IS over the first 6 sources. Figure 3.8 shows the average curves of energy distribution per source for all cases, successful cases, and unsuccessful cases. Based on our analysis, it is evident that the first 2-3 sources on average capture significant amount of the signal energy and also there is a subtle difference between the slope of the successful and unsuccessful groups. Hence for validating the correlation between the IS and rotors we extracted
+55
+
+(a) Pig data
+
+(b) Human data
+
+0.55 0.5
+Median of percentage of captured energy
+
+Median of percentage of captured energy
+
+Successful group Unsuccessful group All the cases
+
+0.6
+
+0.45 0.4 0.35 0.3 0.25 0.2 0.15 0.1 0.05 1 2 3 4 5 6
+
+0.5
+
+0.4
+
+0.3
+
+0.2
+
+0.1
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+No. of independent source
+
+No. of independent source
+
+Figure 3.8: a) Median of captured energy of independent sources for all the cases in pig database, cases with successful shock outcome and cases with unsuccessful shock outcome. b) Median of captured energy of independent sources for all the cases in human database
+
+energy based features as the goal here is to relate the number of significant sources extracted to number of rotors. For the prediction of shock outcomes we tested energy, frequency, and entropy based features along with well known existing features in the literature for comparison.
+Cumulative Energy
+
+This feature is extracted as the cumulative energy over N sources and is given by:
+56
+
+k
+
+CEk =
+N =1
+
+EN
+
+(3.9)
+
+and EN = (ISN )2 (3.10)
+
+where EN is the energy of the N th independent source (IS) and k represents the first k dominant IS in decreasing order of their energy.
+Energy Ratio
+
+This feature is extracted as the energy ratio between two successive dominant sources and is given by: EP (3.11) EQ where EP and EQ are the energies of two successive dominant sources P and Q. ERP Q =
+Slope of Energy Curve
+
+This feature is extracted as the slope of the energy curve between P th and Qth sources and is given by: ( EP - EQ ) (Q - P )
+
+SLP Q =
+
+(3.12)
+
+EP is the percentage of energy for the P th dominant IS and EQ is the percentage of energy captured by the Qth independent source.
+57
+
+3.5.2
+
+Frequency and Entropy Based Features
+
+In wavelet analysis the distribution of energy for each scale is different and different scales capture different amount of energy of signal. From matrix of energy of each independent source in wavelet domain (Scalogram) the distribution of energy over all scales was calculated by summation of the coefficients matrix of energy of signal in wavelet domain over all the times for each scale. This vector which is distribution of energy among scales and is defined as E in the following equation.
+N
+
+ESik =
+b=1
+
+|Sk (i, b)|2
+
+(3.13)
+
+where ESik represents the sum of energy at ith scale for the k th IS, Sk is the matrix of wavelet coefficient resulting in matrix of Scalogram for the k th independent source ( |Sk (i, b)|2 ) and N is the number of scales.
+Centroid Scale
+
+Scale in wavelet domain is inversely related to frequency. Hence, the proposed Centroid Scale (CS) is a frequency related feature and is calculated as weighted mean of scales given in Equation 3.14 CSk =
+i ESik si i ESik
+
+(3.14)
+
+where CSk is the entropy of k th independent source, i is the undex of scale and si is the ith scale.
+
+58
+
+Entropy
+
+Entropy is a measurement of disorganisation of a distribution and it is defined as
+N
+
+Entk = -
+i=1
+
+ESi log10 ESik ,
+
+(3.15)
+
+We used energy distribution among scales in Entropy formula so will result in a measurement of how uniform energy is distributed among the scales for each IS.
+3.5.3 Existing Features
+
+In order to perform comparative analysis of performance in predicting shock outcomes, we chose Centroid Frequency (CF), Logarithm of Absolute Correlation (LAC), Amplitude Spectral Area (AMSA), and Scale Distribution Width (SDW). Centroid Frequency (CF) is the weighted mean of the frequencies in the bandwidth of the signal [33]. SDW is a wavelet-based feature and is computed as the number of scales which have energy value equal to or higher than half of the maximum scale energy [13]. AMSA is a spectral feature derived from the spectrum as the product of the frequency and its amplitude [30]. LAC is one of the choatic features and is computed as the logarithm of summation of correlation with different lags [34]. These features were chosen to represent diverse methodologies for a healthy comparison. More details of these techniques are provided in Appendix A.
+
+59
+
+3.6
+
+Feature Analysis
+
+In this section we analyzed the performance of the proposed extracted features and their suitability for the application in hand.
+3.6.1 Rotor Correlation
+
+In order to test the existence of any correlation between the number of rotors and the number of independent sources, phase maps as explained in Chapter 2 were constructed for each of the 10 human VF episodes using the 112 multi-channel intracardiac electrograms and corresponding surface ECGs were decomposed into independent sources. All the above discussed energy features (CE, ER, and SL) were extracted. From the dynamic movies generated using the phase maps for every instant of time, number of rotors were identified. The criteria for identifying rotors were described in [59] which is that at least there should be two complete rotation of activation pattern around a phase singularity point. Using this criteria rotors were identified for each of the 10 human VF episodes which ranged from 1 to 3 (or more rotors). Figure 3.9 shows two samples cases of human VF. The first columns shows two VF episodes with 1 and 3 (or more rotors) rotors. On the right column the corresponding three dominant independent sources extracted from surface ECG are shown. The energy features extracted for each of the case is shown in text on the right side column. From the feature values and the number of rotors there is a correlation indicating that the ER12, CE2, and SL13 are inversely proportional to number of rotors. A more detailed results on the correlation analysis will follow in the next chapter.
+
+60
+
+(a) Phase Map of an organized case
+
+(b) First three sources and feature values for an organized case
+
+(c) Phase Map of a disorganized case
+
+(d) First three sources and feature values for a disorganized case
+
+Figure 3.9: Phase map rotors, independent sources and feature values for one organized and one disorganized human cases. The sampling rate for all the sources is 250 Hz.
+
+61
+
+CE2
+
+ER12
+
+0.95 0.9 0.85 0.8 15 0.75 10 0.7 0.65 0.6
+Successful Unsuccessful
+
+25
+
+20
+
+5
+
+0
+
+Successful
+
+Unsuccessful
+
+(a) Distribution of value for CE2 between two groups
+
+(b) Distribution of value for ER12 between two groups
+SL13
+
+0.45 0.4 0.35 0.3 0.25 0.2 0.15 0.1 0.05
+Successful Unsuccessful
+
+(c) Distribution of value for SL13 between two groups
+
+Figure 3.10: Boxplots showing distribution of energy based features between two groups.
+
+62
+
+CS1
+
+Entropy1
+
+4.5 11 4 10.5 3.5 10 9.5 9 1.5 8.5 1 8
+Successful Unsuccessful
+
+3 2.5 2
+
+0.5
+Successful Unsuccessful
+
+(a) Distribution of value for CS1 between two groups
+CS2
+
+(b) Distribution of value for Ent1 between two groups
+Entropy2
+
+11 10.5
+
+4 3.5
+
+10 3 9.5 2.5 9 8.5 8 7.5 7
+Successful Unsuccessful
+
+2 1.5 1 0.5
+Successful Unsuccessful
+
+(c) Distribution of value for CS2 between two groups
+
+(d) Distribution of value for Ent2 between two groups
+
+Figure 3.11: Boxplots showing distribution of the entropy and centroid scale of first and second sources between two groups.
+
+63
+
+3.6.2
+
+Prediction of Shock Outcomes
+
+Having observed a correlation between the number of rotors and the energy features, the proposed features were tested for predicting the shock outcomes. All the 50 pre-shock waveforms from the pig database were processed and all the above discussed energy, frequency, entropy and existing features were extracted. For the analysis part of this Chapter we only used our proposed features. Boxplots were generated to examine the discriminating ability of the features. Figures 3.10 and 3.11 show the feature distribution for the successful and unsuccessful groups for 3 energy features CE2, ER12 and SL13 and Ent1, CS1, Ent2, CS2. From the boxplots of the energy features especially CE2 and SL13 it is evident that they do demonstrate discrimination, while the frequency and entropy features perform poorly. Hence we proceeded with the energy based features of the independent sources. 3.7 ROC curves
+
+Based on our analysis and illustration, the energy based features demonstrate higher potential in discriminating successful from unsuccessful groups. We computed the ROC curves for the energy based features and are shown in Figure 3.12. All the energy based features are above the diagonal line demonstrating certain degree of discriminatory power. To quantify we analyzed the area under the curve and found to be 72.2%, 62.4%, and 69.8% for CE2, ER12 and SL13 respectively. For a perfect classification an area under the curve should be 100% and hence the area under the curve for the proposed features does show certain overlap.
+64
+
+(a) ROC curve for CE2
+
+(b) ROC curve for ER12
+
+(c) ROC curve for SL13
+
+Figure 3.12: ROC curve for the energy based features
+
+65
+
+3.8
+
+Chapter Summary
+
+In this chapter we presented the details on the databases used in this study along with the various steps involved in extracting the independent sources. It also covers the motivation and approach in arriving at energy based, frequency, and entropy based features. Analysis of these features for their ability to correlate with number of rotors and discriminate the success and unsucessful groups was presented. Using box plots and ROC curves it was shown that the proposed energy based features performing better towards achieving the set goals for this study. This chapter also briefly presents the existing features that will be used for comparative analysis in the following chapter.
+
+66
+
+Chapter 4 Results and Discussions
+Surface ECG (Human)
+
+Intra-Cardiac Electrograms
+
+Rotor Analysis
+
+Validation
+
+Surface ECG (Pig)
+
+Preprocessing
+
+Blind Source Separation
+
+Independent
+Sources
+
+Feature Extraction
+
+Pattern Classification
+
+Shock Outcome Prediction
+
+Time-Frequency Transfomation
+
+Singular Value Decomposition
+
+Independent Component Analysis
+
+Figure 4.1: Block diagram of the thesis with highlighted parts covered in this chapter
+
+I
+
+N this chapter we present the results obtained in evaluating the proposed features in achieving our set goals. The results are organized as follows; the first section presents the correlation analysis of the number of rotors to the number of statistically independent sources obtained from blind sources separation algorithm. In Section 4.2 we present the results of the our main objective in evaluating the proposed features extracted from independent sources for predicting
+67
+
+defibrillator shock outcomes. 4.1 Rotor Correlation with Independent Sources
+
+The number of underlying rotors for human database was extracted using phase mapping of multi-channel electrogram records. Phase maps were built for each time instant as a movie from the multichannel electrogram records. The number of rotors were identified by observing the phase map of each VF episode and considering the fact that a phase singularity point qualifies as the center of the rotor if the phase pattern rotates around this point for two full rotations. To test whether the number of underlying sources during VF is reflected in the surface electrograms, percentage of captured energy of each statistically independent source were calculated and is plotted in Fig. 4.2. Based on our analysis and identification of rotors in the 10 VF episodes we observed three groups. First group was very organized and maintained by a single rotor. The second group were also organized but not to the level of organization in group one. This group had two dominant rotors. Last group was very disorganized and had more than two excitation points and were more like multiple wavelets than rotors. The identified number of rotors were compared to features extracted from the energy curve of the independent sources of the surface ECG for each case and results are shown in Table 4.1. In this table the first column is the label for each human VF episode, the second column shows the number of rotors obtained from phase map analysis and validated by independent experts. Next four columns are energy of the first source (CE1), cumulative energy of first two sources (CE2), slope of energy between
+68
+
+0.9 0.8
+Percentage of captured energy
+
+One rotor Two rotors Three rotors
+
+0.7 0.6 0.5 0.4 0.3 0.2 0.1 1 2 3 4
+No. of independent source
+
+5
+
+6
+
+7
+
+Figure 4.2: In the above plot the x-axis shows the number of independent source and y-axis shows the percentage of captured energy by each independent source. Each of these curves show the percentage of energy captured by the independent sources for a surface ECG record that corresponds to a certain number of rotors in the phase maps. Different line styles (different colors) represent different number of rotors.
+
+69
+
+Table 4.1: Comparison between number of rotors and features extracted from surface electrogram Label case 1 case 2 case 3 case 4 case 5 case 6 case 7 case 8 case 9 case 10 Number of rotors CE1 1 0.630 1 0.920 1 0.790 1 0.970 2 0.635 2 0.496 2 0.505 2 0.7627 3 (>2 or more) 0.368 3 (>2 or more) 0.381 CE2 SL13 0.797 0.271 0.990 0.457 0.922 0.363 0.987 0.482 0.787 0.270 0.788 0.197 0.835 0.213 0.914 0.357 0.709 0.0792 0.705 0.137 ER12 3.793 13.137 5.960 57.209 4.157 1.697 1.532 5.0182 1.080 1.181
+
+first and the third sources (SL13) and the energy ratio between first and the second sources (ER12). The first four rows of Table 4.1 represent VF episodes that are very organized and maintained by a single rotor. These cases have a high value for CE1 and CE2. The ratio of energy of first two sources ER12 is high and the slope of energy between first and third source SL13 is high which shows a fast decay for energy level between the first three ISs. Next four cases are less organized compared to the first group and their phase map contains two rotors. The first independent source captures less energy compared to the first source in the previous group. This group has smaller CE1 and CE2 and energy decreases gradually from IS1 to IS3 . The last three rows in Table 4.1 show the third group which are very disorganized and are maintained by more than two rotors (or inclined towards multiple wavelets). These group have the smallest value for CE1 and CE2 and the energy drops very slowly and energy is distributed almost equally between the first few sources.
+70
+
+Table 4.2: Correlation between number of rotors and energy based features from BSS Feature E1 CE2 SL13 ER12 correlation coefficient -0.88 -0.85 -0.88 -0.48
+
+To quantify the correlation between the number of rotors and the features extracted from the energy curve, a line was fitted to the number of rotors obtained from the multi-channel data and the proposed features extracted from the surface ECG. These lines are shown in the Figure 4.3 and the correlation between this line and data is calculated and shown in Table 4.2. From this table it could be concluded that there is a high correlation between CE1, CE2, and SL13 of the surface ECG and number of rotors. The highest correlation of -0.88 was observed for both CE1 and SL13 ,followed by -0.85 for CE2. The negative value for correlation coefficient means an increase in number of rotors will result in a reduction in feature value (they are related in the opposite direction). This high correlation suggests strong association between the rotors and the proposed features extracted through BSS from surface ECGs. From these observations, we concluded that the more organized the electrical activity (or less rotors) during VF, its surface ECG needs less number of independent sources to model it and vice versa. Based on the proposed method now we can decompose a surface signal and approximately infer the characteristics of VF sources that is otherwise possible only through multi-channel intracardiac electrograms. This is a novel and additional information especially to the
+71
+
+1.5
+Points Fitted Line
+CE1 (Energy of first source)
+
+1.4
+CE2 (Cumulation of energy of first two sources)
+
+1 0.5 0 0 60
+Points Fitted Line
+
+1.2 1
+
+Points Fitted Line
+
+0.8 0 0.6
+Points Fitted Line
+
+1
+
+2
+Number of rotors
+
+3
+
+4
+
+1
+
+2
+Number of rotors
+
+3
+
+4
+
+ER12 (Energy ratio between first and second source)
+
+40 20 0 0
+
+SL13 (Slope of energy between first and third source)
+
+0.4 0.2 0 0
+
+1
+
+2
+Number of rotors
+
+3
+
+4
+
+1
+
+2
+Number of rotors
+
+3
+
+4
+
+Figure 4.3: Line fit for energy based extracted features and number of rotors
+
+72
+
+EMS staff who only have access to surface ECG and this information could lead to better understanding of the heart's dynamic condition in choosing their therapy. 4.2 Prediction of Shock Outcomes
+
+In the previous section it has been shown that the number of rotors obtained from study of human database and their organization level has a relationship with number of statistically independent sources obtained from surface ECG. In this section we will evaluate the features extracted from the independent sources in predicting the shock outcomes. The results are provided for the proposed features and compared with the performance with the existing features. Influence of protocol variabilities on the obtained results are also presented. In order to quantify the ability of the extracted features in a numerical manner, an LDA based classifier was used to categorize the data in two groups. Based on our analysis in the Chapter 3, the energy based feature demonstrated better discriminatory ability than the frequency and entropy based features. Hence only the energy based features were used in numerically quantifying their discriminatory ability. The features were evaluated individually and for combinations in classifying the pig database into successful and unsuccessful categories. Table 4.3 presents the individual classification accuracy of the each of the three energy based features. From Table (4.3) it is evident that CE2 and SL13 are performing with 60% and 64% accuracies for the successful category and 68% and 72% for the unsuccessful category respectively. ER12 performs
+73
+
+Table 4.3: Two group classification results for three energy based feature extracted form independent sources Feature CE2 ER12 SL13 Number of extracted ISs=6 Successful% Unsuccessfu%l Total% 60 68 64 28 92 64 64 72 68 P-valuel 0.0040 0.1103 0.0106
+
+well for the unsuccessful category with a 92% accuracy but poorly for the successful cases with an accuracy of 28%. All these presented values were cross validated using the leave-one-out method. The P-value for each of these features are also provided in the last column. SL13 and CE12 are statistically significant for P-value less than 2%. The highest overall classification accuracy was found to be 68% for SL13 feature. 16 out of the 25 successful cases and 18 out of the 25 unsuccessful cases were correctly classified based on the observed phenomenon that the unsuccessful cases need more number of sources to capture comparable signal energy with respect to successful group. The SL13 feature also provides approximately equal sensitivity and specificity. Table 4.4 provides detail classification results for SL13. As the choice of number of demixing sources could influence the way the energy is decomposed among the sources, we repeated the experiments by varying the choice of d (the number of sources). For 5, 6, 7, 8 and 9 independent sources the classification accuracy remained unchanged at 68% except for 5 sources which decreased to 64%. This also indicates that 6 sources to be an optimal threshold for the proposed work. We also tested the classification accuracy for combination of features. This analysis however did not yield better results.
+74
+
+Table 4.4: Two group classification results for SL13 Method Cross Validated with LOOM Percentage of Classification % Group Successful Unsuccessful Total Successful 16 9 25 Unsuccessful 7 18 25 Successful 64 36 100 Unsuccessful 28 72 100
+
+To visualize the classification boundary we computed the 2D feature space plot with the top two features CE2 and SL13 as axes. Since in our method we use leave-one-out cross validation, the decision boundary for each of the trial will be changing as only one sample is used as a test sample in a sequential manner. So for visualization purpose only, we trained the LDA classifier with a different set of training data to obtain the boundary and drew this boundary on the whole distribution of the 50 samples. Figure 4.4 shows the feature space plot with one possible linear boundary and it is evident that the two groups are separated by the linear boundary with some overlap. The successful cases seems to be more spread in the space and have high values in both x direction which is CE2 and y direction which is SL13. However, the unsuccessful cases seems to be more concentrated in small values of CE2 and SL13. The available VF records in the studied data-base have different CPR length after the untreated VF and before the shock. In order to test if this variation in CPR length influences the results we subclassified the database into two groups with at four minutes of CPR duration (CPR> 4 min) and less than four minutes CPR duration (CPR<4 min). The first group with this group CPR> 4 min had 17 successful and 21 unsuccessful cases. In the second group i.e.
+75
+
+0.4 0.35 0.3
+SL13
+
+Successful UnSuccessful
+
+0.25 0.2 0.15 0.1 0.05 0.65 0.7 0.75
+CE12
+
+0.8
+
+0.85
+
+0.9
+
+Figure 4.4: Feature space for CE12 and SL13 which shows that proposed features demonstrate discrimination between successful and unsuccessful cases, although there is some overlap.
+
+CPR<4 min there were 8 successful and 4 unsuccessful cases. In order to evaluate if this parameter affects the results we performed a subclassifications on each sub-group. The classification results for this subgroups with the SL13 feature are shown in Table 4.5. Although the results are inclined to support the CPR<4 min and better overall accuracy (i.e. 75% vs 65%), P values are insignificant and the subset of data for the group CPR<4 min is relatively small (8 successful and 4 unsuccessful). Hence it is inconclusive if the effect of length CPR positively or negatively influences the pre-shock signal features.
+
+76
+
+Table 4.5: Cross validation result for sub-grouped data based on CPR duration Number of extracted ISs=6 CPR duration Successful% Unsuccessfu%l More than four minutes 64.7 66.2 Less than four minutes 75 75 Total% 65.8 75 P-valuel 0.0377 0.0918
+
+4.2.1
+
+Comparative Analysis
+
+As explained in Chapter 3 we included five well known existing features from different methodologies for comparative performance analysis. We extracted these features from the 50 pre-shock waveforms and fed to the LDA based classifier. The Table 4.6 shows the classification accuracies for the comparative analysis. In the Table 4.6 the first column is the extracted existing features in the literature, second column shows the classification accuracy for successful category, third column for the unsuccessful category, and the last column for the overall classification accuracy. We have also provided our proposed feature that performed well SL13 in the last row for ready reference. As it could be observed the proposed feature outperforms most of the existing techniques for the given databases with good and balanced specificity and sensitivity. The only comparable existing feature was SDW which can classify successful group with 80% but it performs poorly for unsuccessful cases with 56%. The boxplot comparison between SDW and SL13 is provided in Figure 4.5. This figure shows that for SDW the boxplot for successful is completely inside the distribution of unsuccessful group. In comparison, in our feature SL13 the distributions are centralized for both groups and show separation with certain overlap which is more desirable. This also explains the unbalanced sensitivity and specificity
+77
+
+Table 4.6: Classification accuracy comparison between existing features with the proposed feature Classification Accuracy successful group unsuccessful group 80 56 60 44 84 40 35 56 60 80 40 30 64 72
+SDW
+
+0.45 0.4 0.35 0.3
+SL13
+
+Feature SDW CS AMSA AMSA-N LAC SL13
+
+Total 68 52 62 58 60 68
+
+P-value 0.0015 0.2407 0.1569 0.3066 0.1669 0.0106
+
+0.25 0.2 0.15
+
+25 20 15
+
+0.1 0.05
+Successful Unsuccessful
+
+10
+Successful Unsuccessful
+
+(a) Distribution of value for SL13 between two groups
+
+(b) Distribution of value for SDW between two groups
+
+Figure 4.5: Boxplot comparison for SDW and SL13
+
+of SDW in comparison with our SL13 feature. From the results presented above, it is evident that the proposed features based on the independent sources extracted through BSS perform well in achieving our set goals. The proposed features do demonstrate a strong correlation with existing VF mechanisms and more importantly are extracted from the single channel surface ECG. These features add novel information to the existing literature in the way that now the inference on the source distribution can be approximated from single channel surface ECG. Their prediction ability of shock outcomes although not very high, performed well in comparison with existing techniques in the literature.
+
+78
+
+4.3
+
+Chapter Summary
+
+In this chapter we presented the results obtained by performing correlation between number of rotors and the features extracted from the independent sources obtained from single channel ECG. The results showed there is a high correlation (88%) between number of rotors and the proposed IS based features. In the next step we analyzed the shock outcome prediction ability of the extracted features from independent sources. A cross validated classification accuracy of 68% was achieved. A comparative analysis with existing techniques found the proposed features performing better than existing approaches for the given database. In next chapter we will conclude the study and discuss future directions.
+
+79
+
+Chapter 5 Conclusion
+the cardiovascular system maintains blood flow effecting exchange of essential nutrients and oxygen transport to all parts of the body. The heart is the central organ in the system that acts as a versatile pump operating in a rhythmic fashion. When this rhythmic operation is compromised, blood flow to vital organs ceases resulting in death within a short span of time. Arrhythmias are a subclass of cardiac disorders that could seriously compromise the heart's function. Of the cardiac arrhythmias, VF needs immediate medical intervention to avoid SCD. This is especially true when VF occurs in an out-of-the-hospital setting, where the longer the wait time for the arrival of EMS staff the lesser the chances of survival. There have been existing works in this area to study the ECG during VF and provide feedback to EMS in order to optimize treatment options to resuscitate heart to normal rhythm. There are also works that study the mechanic insights of VF in an attempt to understand and characterize VF so as to arrive at better long term treatment strategies. In this thesis, we attempted to associate a relation between the underlying sources of VF (as presented by existing theories) to the signal characteristics of the pre-shock surface ECG waveforms that results
+80
+
+in either successful or unsuccessful outcomes. A major challenge in establishing this relation was that we needed both spatio-temporal mapping of the surface of the heart using multi-channel electrode arrays and simultaneously recorded surface ECGs during VF. Due to the collaborative efforts with the Toronto General and St. Micheal's hospitals, it was possible to have access to both of these uniques electrogram and ECG data. The proposed study used BSS approach in decomposing the surface ECGs into statistically independent sources and extracted features for both establishing a relation with the existing theories and also for predicting the shock outcomes. Based on the results obtained, the proposed methodology performed well in achieving the set goals of the thesis. 5.1 Summary of Results
+
+In establishing a relation between the number of rotors obtained using spatio-temporal maps with the independent sources extracted from the surface ECGs, the proposed energy features performed well. A unique human database with 10 VF episodes comprising of three patients and two isolated human hearts was used in this study. A line fit for the relation yielded a correlation of 88% indicating a strong association between the energy distribution over the independent sources (or the number of dominant independent sources) and the number of rotors observed in the spatio-temporal phase maps. The predication capability of the proposed features were tested using a pig database consisting of 50 pre-shock waveforms extracted from 50 different pigs. A maximum classification accuracy of 68% was achieved with approximately equal sensitivity and specificity.
+81
+
+The obtained results were tested for statistical significance and found to be significant for P<2%. The results were cross validated using LOOM which ensured the independence of training and testing data. A comparative analysis was performed to benchmark the performance of the proposed features. Features from diverse methodologies were included for the analysis. The results suggest that the proposed method performs relatively well for the given database. 5.2 Summary of Contributions
+
+The proposed study achieved the set objectives of the thesis and following are the summary of the contributions: · We have established the existence of a relation between the underlying sources (rotors) during VF to the statistically independent sources extracted from a single channel surface ECG. This inference on underlying source distribution is a novel and additional information that could be extracted from the surface ECGs. Considering that the field EMS staff only have access to surface ECGs, this inference on the approximate number of sources could provide additional information on the state of the heart that could lead to better planning of their treatment options. · From a mechanistic point of VF, the proposed approach provides a way to decompose the surface ECG during VF and resolving them into independent sources and these independent source signals might reveal hidden signal characteristics that are not obvious on the surface ECG.
+
+82
+
+· The energy features introduced in this work demonstrate high potential for predicting shock outcomes with a good sensitivity and specificity and performs well in comparison with existing techniques. 5.3 Future work
+
+The proposed BSS approach in analyzing VF signals demonstrates a way to decompose VF signal in a statistical sense. This leads to many possibilities in characterizing VF into signal components and may provide more details especially in studies where the effect of pharmacological or electrophysiolocal interventions are studied. Using multi-lead surface ECGs the proposed method could improve upon the source identification and might enable the possibility of source localization. The energy based features extracted from the independent sources did perform well in predicting the shock outcomes and could be improved by understanding the influence of the shock parameters (e.g. shock thresholds, placement of pads, CPR efficacy etc).
+
+83
+
+Bibliography
+[1] A. L. Goldberger, L. A. N. Amaral, L. Glass, J. M. Hausdorff, P. Ch. Ivanov, R. G. Mark, J. E. Mietus, G. B. Moody, C.-K. Peng, and H. E. Stanley, "PhysioBank, PhysioToolkit, and PhysioNet: Components of a new research resource for complex physiologic signals," Circulation, vol. 101, no. 23, pp. e215­e220, 2000 (June 13), Circulation Electronic Pages: http://circ.ahajournals.org/cgi/content/full/101/23/e215 PMID:1085218; doi: 10.1161/01.CIR.101.23.e215. [2] Heikki V Huikuri, Agust´ in Castellanos, and Robert J Myerburg, "Sudden death due to cardiac arrhythmias," New England Journal of Medicine, vol. 345, no. 20, pp. 1473­1482, 2001. [3] JF Leclercq, P Maisonblanche, B Cauchemez, and Ph Coumel, "Respective role of sympathetic tone and of cardiac pauses in the genesis of 62 cases of ventricular fibrillation recorded during holter monitoring," European heart journal, vol. 9, no. 12, pp. 1276­1283, 1988. [4] Peng-Sheng Chen, Patrick D Wolf, Ellen G Dixon, Ned D Danieley, David W Frazier, William M Smith, and Raymond E Ideker, "Mechanism of ventricular vulnerability to single premature stimuli in open-chest dogs.," Circulation research, vol. 62, no. 6, pp. 1191­1209, 1988.
+84
+
+[5] Claudio Bonometti, Chun Hwang, Dustan Hough, John J Lee, Michael C Fishbein, Hrayr S Karagueuzian, and Peng-Sheng Chen, "Interaction between strong electrical stimulation and reentrant wavefronts in canine ventricular fibrillation," Circulation research, vol. 77, no. 2, pp. 407­416, 1995. [6] Ronald J Prineas, Richard S Crow, Henry W Blackburn, et al., The Minnesota code manual of electrocardiographic findings: standards and procedures for measurement and classification, J. Wright Boston, 1982. [7] Salim Yusuf, Rory Collins, Richard Peto, C Furberg, MJ Stampfer, SZ Goldhaber, and CH Hennekens, "Intravenous and intracoronary fibrinolytic therapy in acute myocardial infarction: overview of results on mortality, reinfarction and sideeffects from 33 randomized controlled trials," European Heart Journal, vol. 6, no. 7, pp. 556­585, 1985. [8] Eric S Fain and Roger A Winkle, "Implantable cardioverter defibrillator," Journal of cardiovascular electrophysiology, vol. 4, no. 2, pp. 211­223, 1993. [9] Lars Wik, Trond Boye Hansen, Frode Fylling, Thorbjørn Steen, Per Vaagenes, Bjørn H Auestad, and Petter Andreas Steen, "Delaying defibrillation to give basic cardiopulmonary resuscitation to patients with out-of-hospital ventricular fibrillation," JAMA: the journal of the American Medical Association, vol. 289, no. 11, pp. 1389­1395, 2003. [10] Joseph D Minardo, James J Heger, William M Miles, Douglas P Zipes, and Eric N Prystowsky, "Clinical characteristics of pa85
+
+tients with ventricular fibrillation during antiarrhythmic drug therapy.," The New England journal of medicine, vol. 319, no. 5, pp. 257, 1988. [11] James J Menegazzi, Jon C Rittenberger, Brian P Suffoletto, Eric S Logue, David D Salcido, Joshua C Reynolds, and Lawrence D Sherman, "Effects of pre-arrest and intra-arrest hypothermia on ventricular fibrillation and resuscitation," Resuscitation, vol. 80, no. 1, pp. 126, 2009. [12] James N Watson, Paul S Addison, Gareth R Clegg, Michael Holzer, Fritz Sterz, and Colin E Robertson, "A novel wavelet transform based analysis reveals hidden structure in ventricular fibrillation," Resuscitation, vol. 43, no. 2, pp. 121­127, 2000. [13] K. Umapathy, F.H. Foomany, P. Dorian, T. Farid, G. Sivagangabalan, K. Nair, S. Masse, S. Krishnan, and K. Nanthakumar, "Real time electrogram analysis for monitoring coronary blood flow during human ventricular fibrillation: Implications for CPR," Heart Rhythm, 2010. [14] Y Nakagawa, Y Sato, T Kojima, T Wakabayashi, S Morita, M Amino, and S Inokuchi, "Electrical defibrillation outcome prediction by waveform analysis of ventricular fibrillation in cardiac arrest out of hospital patients.," The Tokai journal of experimental and clinical medicine, vol. 37, no. 1, pp. 1, 2012. [15] Mikio Kakishita, Takashi Kurita, Kiyotaka Matsuo, Atsushi Taguchi, Kazuhiro Suyama, Wataru Shimizu, Naohiko Aihara, Shiro Kamakura, Fumio Yamamoto, Junjiro Kobayashi, et al., "Mode of onset of ventricular fibrillation in patients with bru86
+
+gada syndrome detected by implantable cardioverter defibrillator therapy," Journal of the American College of Cardiology, vol. 36, no. 5, pp. 1646­1653, 2000. [16] Kumaraswamy Nanthakumar, Jos´ e Jalife, St´ ephane Mass´ e, Eugene Downar, Mihaela Pop, John Asta, Heather Ross, Vivek Rao, Sergey Mironov, Elias Sevaptsidis, et al., "Optical mapping of langendorff-perfused human hearts: establishing a model for the study of ventricular fibrillation in humans," American Journal of Physiology-Heart and Circulatory Physiology, vol. 293, no. 1, pp. H875­H880, 2007. [17] St´ ephane Mass´ e, Eugene Downar, Vijay Chauhan, Elias Sevaptsidis, and Kumaraswamy Nanthakumar, "Ventricular fibrillation in myopathic human hearts: mechanistic insights from in vivo global endocardial and epicardial mapping," American Journal of Physiology-Heart and Circulatory Physiology, vol. 292, no. 6, pp. H2589­H2597, 2007. [18] Kang-An Cheng, Derek J Dosdall, Li Li, Jack M Rogers, Raymond E Ideker, and Jian Huang, "Evolution of activation patterns during long-duration ventricular fibrillation in pigs," American Journal of Physiology-Heart and Circulatory Physiology, vol. 302, no. 4, pp. H992­H1002, 2012. [19] Kumaraswamy Nanthakumar, Gregory P Walcott, Sharon Melnick, Jack M Rogers, Matthew W Kay, William M Smith, Raymond E Ideker, and William Holman, "Epicardial organization of human ventricular fibrillation," Heart Rhythm, vol. 1, no. 1, pp. 14­23, 2004.
+87
+
+[20] Faramarz H Samie, Omer Berenfeld, Justus Anumonwo, Sergey F Mironov, Sharda Udassi, Jacques Beaumont, Steven Taffet, Arkady M Pertsov, and Jos´ e Jalife, "Rectification of the background potassium current a determinant of rotor dynamics in ventricular fibrillation," Circulation research, vol. 89, no. 12, pp. 1216­1223, 2001. [21] J Jeyaratnam, K Umapathy, S Masse, K Nair, T Farid, S Krishnan, and K Nanthakumar, "Relating spatial heterogeneities to rotor formation in studying human ventricular fibrillation," in Engineering in Medicine and Biology Society, EMBC, 2011 Annual International Conference of the IEEE. IEEE, 2011, pp. 231­234. [22] Kirsten HWJ Ten Tusscher, Azzam Mourad, MP Nash, Richard H Clayton, Chris P Bradley, David J Paterson, Rok Hren, Martin Hayward, Alexander V Panfilov, and Peter Taggart, "Organization of ventricular fibrillation in the human heart: experiments and models," Experimental Physiology, vol. 94, no. 5, pp. 553­562, 2009. [23] Stuart P Thomas, Aravinda Thiagalingam, Elisabeth Wallace, Pramesh Kovoor, and David L Ross, "Organization of myocardial activation during ventricular fibrillation after myocardial infarction evidence for sustained high-frequency sources," Circulation, vol. 112, no. 2, pp. 157­163, 2005. [24] Kirsten HWJ Ten Tusscher, Alexander V Panfilov, et al., "Organization of ventricular fibrillation in the human heart," Circulation research, vol. 100, no. 12, pp. e87­e101, 2007.
+88
+
+[25] Rikkert H Keldermann, Kirsten HWJ Ten Tusscher, Martyn P Nash, Chris P Bradley, Rok Hren, Peter Taggart, and Alexander V Panfilov, "A computational study of mother rotor vf in the human ventricles," American Journal of Physiology-Heart and Circulatory Physiology, vol. 296, no. 2, pp. H370­H379, 2009. [26] M.P. Nash, A. Mourad, R.H. Clayton, P.M. Sutton, C.P. Bradley, M. Hayward, D.J. Paterson, and P. Taggart, "Evidence for multiple mechanisms in human ventricular fibrillation," Circulation, vol. 114, no. 6, pp. 536­542, 2006. [27] Kenneth G Spearpoint, C Paula McLean, and David A Zideman, "Early defibrillation and the chain of survival in inhospitaladult cardiac arrest; minutes count," Resuscitation, vol. 44, no. 3, pp. 165­169, 2000. [28] Charles G Brown, Robert F Griffith, Peter Van Ligten, James Hoekstra, Grace Nejman, Lynn Mitchell, and Roger Dzwonczyk, "Median frequencya new parameter for predicting defibrillation success rate," Annals of emergency medicine, vol. 20, no. 7, pp. 787­789, 1991. [29] Hans-Ulrich Strohmenger, Trygve Eftestol, Kjetil Sunde, Volker Wenzel, Mechthild Mair, Hanno Ulmer, Karl H Lindner, and Petter A Steen, "The predictive value of ventricular fibrillation electrocardiogram signal frequency and amplitude variables in patients with out-of-hospital cardiac arrest," Anesthesia & Analgesia, vol. 93, no. 6, pp. 1428­1433, 2001. [30] Trygve Eftestøl, Kjetil Sunde, Sven Ole Aase, John H° akon
+89
+
+Husøy, and Petter Andreas Steen, "Predicting outcome of defibrillation by spectral characterization and nonparametric classification of ventricular fibrillation in patients with out-of-hospital cardiac arrest," Circulation, vol. 102, no. 13, pp. 1523­1529, 2000. [31] Heitor P Povoas, Max Harry Weil, Wanchun Tang, Joe Bisera, Kada Klouche, and Ann Barbatsis, "Predicting the success of defibrillation by electrocardiographic analysis," Resuscitation, vol. 53, no. 1, pp. 77­82, 2002. [32] David D Salcido, James J Menegazzi, Brian P Suffoletto, Eric S Logue, and Lawrence D Sherman, "Association of intramyocardial high energy phosphate concentrations with quantitative measures of the ventricular fibrillation electrocardiogram waveform," Resuscitation, vol. 80, no. 8, pp. 946­950, 2009. [33] Trygve Eftestøl, Lars Wik, Kjetil Sunde, and Petter Andreas Steen, "Effects of cardiopulmonary resuscitation on predictors of ventricular fibrillation defibrillation success during out-ofhospital cardiac arrest," Circulation, vol. 110, no. 1, pp. 10­15, 2004. [34] Lawrence D Sherman, James D Waters, Thomas D Rea, James J Menegazzi, and Clifton W Callaway, "Logarithm of the absolute correlations of the ecg waveform estimates duration of ventricular fibrillation and predicts successful defibrillation," Resuscitation, vol. 78, no. 3, pp. 346, 2008. [35] Clifton W Callaway, Lawrence D Sherman, Vincent N Mosesso, Thomas J Dietrich, Eric Holt, and M Christopher
+90
+
+Clarkson, "Scaling exponent predicts defibrillation success for out-of-hospital ventricular fibrillation cardiac arrest," Circulation, vol. 103, no. 12, pp. 1656­1661, 2001. [36] FH Foomany, K. Umapathy, L. Sugavaneswaran, S. Krishnan, S. Masse, T. Farid, K. Nair, P. Dorian, and K. Nanthakumar, "Wavelet-based markers of ventricular fibrillation in optimizing human cardiac resuscitation," in Engineering in Medicine and Biology Society (EMBC), 2010 Annual International Conference of the IEEE. IEEE, 2010, pp. 2001­2004. [37] Clifton W Callaway and James J Menegazzi, "Waveform analysis of ventricular fibrillation to predict defibrillation," Current opinion in critical care, vol. 11, no. 3, pp. 192, 2005. [38] C. Uhle, C. Dittmar, and T. Sporer, "Extraction of drum tracks from polyphonic music using independent subspace analysis," in Proc. ICA. Citeseer, 2003, pp. 843­847. [39] P. Gao, E.C. Chang, and L. Wyse, "Blind separation of fetal ECG from single mixture using SVD and ICA," in Information, Communications and Signal Processing, 2003 and Fourth Pacific Rim Conference on Multimedia. Proceedings of the 2003 Joint Conference of the Fourth International Conference on. IEEE, 2003, vol. 3, pp. 1418­1422. [40] ME Davies and CJ James, "Source separation using single channel ICA," Signal Processing, vol. 87, no. 8, pp. 1819­ 1832, 2007. [41] Gil-Jin Jang and Te-Won Lee, "A maximum likelihood ap91
+
+proach to single-channel source separation," The Journal of Machine Learning Research, vol. 4, pp. 1365­1392, 2003. [42] Tzyy-Ping Jung, Scott Makeig, Colin Humphries, Te-Won Lee, Martin J Mckeown, Vicente Iragui, and Terrence J Sejnowski, "Removing electroencephalographic artifacts by blind source separation," Psychophysiology, vol. 37, no. 2, pp. 163­178, 2000. [43] Karthikeyan Umapathy, Stephane Masse, Elias Sevaptsidis, John Asta, Sidhar Krishnan, and Kumaraswamy Nanthakumar, "Spatiotemporal frequency analysis of ventricular fibrillation in explanted human hearts," Biomedical Engineering, IEEE Transactions on, vol. 56, no. 2, pp. 328­335, 2009. [44] Dennis Gabor, "Theory of communication," J. Institute of Elec. Engr, 1947. [45] Alan V Oppenheim, Ronald W Schafer, John R Buck, et al., Discrete-time signal processing, vol. 5, Prentice hall Upper Saddle River, 1999. [46] C Sidney Burrus, Ramesh A Gopinath, Haitao Guo, Jan E Odegard, and Ivan W Selesnick, Introduction to wavelets and wavelet transforms: a primer, vol. 23, Prentice hall Upper Saddle River, 1998. [47] L Angrisani, P Daponte, M D'apuzzo, and A Testa, "A measurement method based on the wavelet transform for power quality analysis," Power Delivery, IEEE Transactions on, vol. 13, no. 4, pp. 990­998, 1998.
+92
+
+[48] C Garcia, Giorgos Zikos, and G Tziritas, "Wavelet packet analysis for face recognition," Image and Vision Computing, vol. 18, no. 4, pp. 289­297, 2000. [49] Inc MathWorks, MATLAB: the language of technical computing. Desktop tools and development environment, version 7, vol. 9, MathWorks, 2005. [50] Peter Benner, Volker Ludwig Mehrmann, and D Danny C Sorensen, Dimension Reduction of Largescale Systems: Proceedings of a Workshop Held in Oberwolfach, October 19-25, 2003, vol. 45, Springer, 2005. [51] AG Akritas, GI Malaschonok, and PS Vigklas, "The SVDfundamental theorem of linear algebra," Nonlinear Analysis: Modelling and Control, vol. 11, no. 2, pp. 123­132, 2006. [52] Kirk Baker, "Singular value decomposition tutorial," 2005. Available at www. ling. ohio-state. edul-kbaker/... ISingular Value Decomposition Tutorial. pdf, 2005. [53] James V Stone, Independent component analysis: a tutorial introduction, The MIT Press, 2004. [54] Ricardo Vig´ ario, Veikko Jousm¨ aki, M Haemaelaeninen, R Haft, and Erkki Oja, "Independent component analysis for identification of artifacts in magnetoencephalographic recordings," Advances in neural information processing systems, pp. 229­235, 1998. [55] Aapo Hyv¨ arinen and Erkki Oja, "Independent component analysis: algorithms and applications," Neural networks, vol. 13, no. 4, pp. 411­430, 2000.
+93
+
+[56] A Papoulis Probability, "Random variables and stochastic processes," 1991. [57] Richard O Duda, Peter E Hart, and David G Stork, Pattern classification, Wiley-interscience, 2012. [58] Andrew P Bradley, "The use of the area under the ROC curve in the evaluation of machine learning algorithms," Pattern recognition, vol. 30, no. 7, pp. 1145­1159, 1997. [59] Karthikeyan Umapathy, Krishnakumar Nair, Stephane Masse, Sridhar Krishnan, Jack Rogers, Martyn P Nash, and Kumaraswamy Nanthakumar, "Phase mapping of cardiac fibrillation," Circulation: Arrhythmia and Electrophysiology, vol. 3, no. 1, pp. 105­114, 2010. [60] K Umapathy, S Masse, E Sevaptsidis, J Asta, H Ross, N Thavandiran, K Nair, T Farid, R Cusimano, J Rogers, et al., "Regional frequency variation during human ventricular fibrillation," Medical engineering & physics, vol. 31, no. 8, pp. 964­ 970, 2009.
+
+94
+
+Appendix A Details on Existing Features
+In this section we will explain and give mathematical equations for the existing features used for comparative analysis in this study. In wavelet analysis the distribution of energy for each scale is different and different scales capture different amount of energy of signal. From matrix of energy of signal in wavelet domain (Scalogram) the distribution of energy over all scales is calculated by summation of the coefficients matrix of energy of signal in wavelet domain over all the times for each scale. This vector which is distribution of energy among scales and is defined as E in the following equation.
+N
+
+Ei =
+b=1
+
+|S(i, b)|2
+
+(A.1)
+
+where Ei represents the sum of energy at ith scale , S is the matrix of wavelet coefficient resulting in matrix of Scalogram ( |S (i, b)|2 ) and N is the number of scales. · The Scale Distribution Width (SDW) was calculated as the number of scales which have energy value equal to half of the energy of scale which captures maximum of energy compared to all the existing scales. It defines the range of scales within which the
+95
+
+signal is operating. It can be represented by
+
+SDW = si - sj Esl  2 × Esm , l > m Esi  2 × Esm , j < m
+
+(A.2) (A.3) (A.4)
+
+where m is the index for the scale which captures maximum of energy, l is the largest index which satisfies the conditions and j is the smallest. [36]. · CS the weighted mean of the scales in the scale width of the signal CS =
+i Ei si i Ei
+
+(A.5)
+
+Esi is total energy for ith scale in scale width, i is the undex of scale, si is the ith scale and N is total number of scales. . · AMSA is a combination of dominant scale and mean amplitude. AMSA used in this study is calculated based on the equation given Nakagawa et al. 2012 in [14] given in Equation A.6 AM SA =
+i
+
+|Eisi|
+
+(A.6)
+
+Where scale of si is the ith scale. Normalized-AMSA (AMSAN) is also calculated from Equation A.6 but normalization is performed on A.
+
+96
+
+· LAC (Logarithm of Absolute Correlation) is a roughness measurement for the signal and is calculated as
+m n-m
+
+LAC = Log (
+k =1
+
+(|
+i=1
+
+(x[i]x[i + m])(n - k )|)
+
+(A.7)
+
+97
+
+Appendix B Choice of Wavelet
+The main features of this study were energy based features which were extracted from distribution of signal's energy over all extracted sources. In choosing the optimal wavelet for the application in hand we tested the energy distribution over all sources using different wavelets. The following four wavelets were tested; Paul, Mexican hat, Dog and Morlet. The energy curve for these wavelets are shown in Figure B.1 (Please refer to the next page) Based on these curves for the pig database we observed the median energy distribution obtained from Morlet wavelet to be more discriminatory than other wavelets and hence Morlet wavelet was chosen for the proposed study.
+
+98
+
+Median of Decay of energy for paul wavelet
+
+Median of Decay of energy for mexican hat wavelet
+
+0.7
+Percentage of captured energy
+
+Successful group Unsuccessful group
+
+0.7
+Percentage of captured energy
+
+Successful group Unsuccessful group
+
+0.6 0.5 0.4 0.3 0.2 0.1
+
+0.6 0.5 0.4 0.3 0.2 0.1
+
+1
+
+1.5
+
+2
+
+2.5
+No. of independent source
+
+3
+
+3.5
+
+4
+
+1
+
+1.5
+
+2
+
+2.5
+No. of independent source
+
+3
+
+3.5
+
+4
+
+(a) Median of energy curve for Paul wavelet
+Median of Decay of energy for dog wavelet
+
+(b) Median of energy curve for Mexican hatl wavelet
+Median of Decay of energy for morlet wavelet
+
+0.7
+Percentage of captured energy
+
+Successful group Unsuccessful group
+
+0.5 0.45
+Percentage of captured energy
+
+Successful group Unsuccessful group
+
+0.6 0.5 0.4 0.3 0.2 0.1
+
+0.4 0.35 0.3 0.25 0.2 0.15 0.1 0.05
+
+1
+
+1.5
+
+2
+
+2.5
+No. of independent source
+
+3
+
+3.5
+
+4
+
+1
+
+1.5
+
+2
+
+2.5
+No. of independent source
+
+3
+
+3.5
+
+4
+
+(c) Median of energy curve for Dog wavelet
+
+(d) Median of energy curve for Morlet wavelet
+
+Figure B.1: Median of energy curve plot for successful and unsuccessful group for different wavelets
+
+99
+
+Appendix C Publications
+List of publications arised/arising from this thesis work
+
+C.1
+
+Conferences
+
+M. Rasooli, F. H. Foomany, K. Balasundaram, S. Masse, N. Zamiri, A. Ramadeen, X. Hu, P. Dorian, K. Nanthakumar, S. Beheshti, K. Umapathy, "Blind Source Separation in Characterizing ECG Preshock Waveforms During Ventricular Fibrillation," accepted in Proc. IEEE Engineering in Medicine and Biology Society 2013 conference (EMBC 2013), Osaka, Japan (in press)
+
+C.2
+
+Journals
+
+M. Rasooli, F. H. Foomany, K. Balasundaram, S. Masse, N. Zamiri, A. Ramadeen, X. Hu, P. Dorian, K. Nanthakumar, S. Beheshti, K. Umapathy, "Blind Source Separation in the Analysis of Electrocardiogram Pre-shock Waveforms During Ventricular Fibrillation". Under preparation
+100
+
+101
+
+

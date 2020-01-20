@@ -1,0 +1,918 @@
+Deterministic Planning in Incompletely Known Domains with Local Effects
+
+by
+
+Vitaliy Batusov Bachelor of Applied Science, University of Toronto, 2009
+
+A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Science in the Program of Computer Science
+
+Toronto, Ontario, Canada, 2014 c Vitaliy Batusov 2014
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+iii
+
+Deterministic Planning in Incompletely Known Domains with Local Effects Master of Science 2014 Vitaliy Batusov Computer Science Ryerson University
+
+Abstract
+Conformant planning has been traditionally studied in the form of classical planning extended with a mechanism for expressing unknown facts and/or disjunctive knowledge. Despite a sizable body of research, most approaches do not attempt to move beyond essentially propositional planning. We address this shortcoming by defining conformant planning in terms of the situation calculus semantics and use recent advances in the fields of first-order knowledge base progression and query answering to develop a sound and complete conformant planning algorithm capable of handling knowledge defined in an expressive fragment of first-order logic. We implement a prototype planner and evaluate its performance on several existing domains.
+
+v
+
+Contents
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Appendices . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1 Introduction 2 Background 2.1 Propositional Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.1.1 2.1.2 2.1.3 2.2 2.2.1 2.2.2 2.2.3 2.3 2.4 2.3.1 2.4.1 2.4.2 2.4.3 2.5 Classical Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Conformant Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Beyond STRIPS . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Situation Calculus and Basic Action Theories . . . . . . . . . . . . . . . . . . . . . iii v ix 1 3 4 4 5 9 9 9
+
+Planning with Situation Calculus . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Semantics of Open World Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . 13 Regression-based Planning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 Local-Effect Progression . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16 proper and proper+ . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 Evaluation-Based Reasoning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21 Progression of proper+ KB . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+
+Progression . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16 Uncertainty in the Initial KB . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19
+
+Discussion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33 35
+
+3 A Conformant Planner 3.1 3.1.1 3.1.2 3.1.3 3.2 3.2.1 3.2.2
+
+Basic considerations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35 The search space . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36 Query answering using SAT and the projection problem . . . . . . . . . . . . . . . 37 Planning algorithm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39 Planning domain and instance specification . . . . . . . . . . . . . . . . . . . . . . 40 Search logic . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41 vii
+
+Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+
+3.3
+
+Experiments . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43 3.3.1 3.3.2 3.3.3 Cube . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44 Adder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 46 Blocks World . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 49
+
+3.4
+
+Discussion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51 53
+
+4 Conclusion 4.1 4.2
+
+Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 53 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 54 74
+
+References
+
+viii
+
+List of Appendices
+1 Domains and Instances 1.1 1.1.1 1.1.2 1.2 1.2.1 1.2.2 1.3 1.3.1 1.3.2 57
+
+Cube . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57 Domain . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57 Instances . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58 Domain . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62 Instances . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63 Domain . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 65 Instances . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 66
+
+Adder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62
+
+Blocks World . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 65
+
+ix
+
+Chapter 1
+
+Introduction
+Loosely formulated, planning is a way for an agent to come up with a course of action that, once executed, would achieve the agent's goals. Automated planning has been one of the central problems of AI for decades. It is possible to distinguish many flavours of automated planning, each based on its own set of assumptions: the world in which the agent operates could be described using formal languages with varying levels of expressiveness and semantic clarity; the description of the world could be complete or it could contain unknown facts; the effects of the agent's actions could be deterministic or otherwise; the agent could be unique or there could be multiple agents acting simultaneously; the agent could be limited to finding simple sequences of actions, or it could be allowed to perform multiple actions in parallel; actions could be not only physical, but also sensory -- the number of the possible sets of assumptions is immense. In this thesis, we focus on conformant planning -- planning with incomplete information but no sensing actions: the agent is acting in the presence of uncertainty, but is unable to acquire information to resolve it except by altering the state of the world. Specifically, we address the problem of conformant planning in domains formulated in an expressive fragment of first-order logic. To simplify the treatment, we avoid the unnecessary complications such as multiple agents, parallel actions, non-determinism and the like. Since planning has been a major area of AI research for many years, there exist numerous approaches to it. The approaches differ in the kind of compromise they make between abstraction and practicality and can be classified by the underlying formal framework. The frameworks, in turn, can be associated with formal languages on which they are based. On one end of the spectrum of formal languages is propositional logic, which allows for tractable reasoning, but can only deal with Boolean combinations of structureless facts. On the other end are higher-order logics which are able to quantify over objects, relations, and functions at the price of undecidability and incompleteness. Likewise, in the range of existing planning frameworks, the two extremities are STRIPS [11] and situation calculus [30]. The former, referred to as "classical planning", historically corresponds to a set of inexpressive procedural approaches with a focus on computational efficiency but with little regard for formal semantics, while the latter is based on expressive logics with an emphasis on semantically sound reasoning about actions and situations. 1
+
+CHAPTER 1. INTRODUCTION Common to all approaches, the description of the world in which an intelligent agent operates consists of three parts: the initial state, the desired state, and the dynamics of the world. The latter includes a set of actions and a description of how each of them affects the state of the world. The output of a planning algorithm--a plan--can take many forms. In the most basic form, a plan is a sequence of actions which achieves the agent's goals. In conformant planning, the sought action sequence needs to be able to achieve the desired state of the world regardless of the uncertainty about the initial state; that is, it needs to be a correct plan for every initial world state that is possible within the bounds of the given uncertainty. Due to this fact, conformant planning is considerably harder than classical planning. In this thesis, we express the problem of conformant planning in its most general form using the semantics of situation calculus and use recent advances in the areas of query answering and knowledge base progression to propose an algorithm which implements a sound and complete conformant planner for domains formulated in an expressive fragment of first-order logic. In the process, we formulate and prove a set of existing and new results, which serve as the theoretical basis for our implementation. Specifically, we prove the existence, under certain constraints, of (1) finite representations for infinite query answer sets and (2) finite propositional representations for knowledge bases which are equivalent to possibly infinite sets of clauses. After formalizing conformant planning as a problem of logical entailment, we prove that it is possible, within the outlined constraints, to solve it using a simple iterative deepening search in conjunction with a generic SAT solver. We describe a prototype implementation of a conformant planner based on these results and evaluate its performance. The distinguishing feature of our algorithm is its ability to work with more expressive knowledge bases than traditionally accepted in conformant planning literature; specifically, our formalism does not enforce domain closure. We start by outlining, in Chapter 2, the historical background behind automated planning in general and conformant planning specifically. Then, we provide the standard axiomatization of situation calculus and describe the semantics of conformant planning in that context. We review the notions of knowledge base regression (reasoning backward) and progression (reasoning forward) and focus on the latter, summarizing the latest advances in that area. We proceed by addressing query answering with respect to expressive theories. In the conclusion of Chapter 2, we arrive at a set of constraints which we are willing to apply to action theories in order to produce a conformant planning algorithm while preserving all of the semantics and much of the expressive power of situation calculus. In Chapter 3, we describe the design and implementation of a conformant planning algorithm based on the preceding background and developments, followed by an experimental evaluation of its theoretical abilities. We confirm that the algorithm's performance is adequate for the tasks that it is addressing. We conclude our work with a discussion of the results and future work in Chapter 4.
+
+2
+
+Chapter 2
+
+Background
+The term conformant planning was first introduced in [40] to denote conditional planning without sensing. Conditional planning is planning in non-deterministic and possibly incompletely known domains where information about the world can be acquired at runtime using sensing actions. Thus, a conditional plan is a tree whose branches are sequences of actions. A particular branch is chosen during plan execution depending on the outcome of sensing actions carried out previously. A conditional plan is successful if it achieves the goals regardless of what the actual initial state is as long as it is consistent with the given incomplete description of the initial state. Likewise, a successful conformant plan must achieve the goals in every initial state that is possible within the given uncertainty. However, without sensing actions, there can be no branching, and a conformant plan is a simple sequence of non-sensing actions. Most of the existing practical approaches to conformant planning are based on classical planning, a body of research centered around a simple historical formalism for describing planning domains. For this reason, we begin with a brief overview of classical planning followed by propositional approaches to conformant planning. Then, we overview a more general account of planning based on situation calculus. We outline the essential reasoning problems associated with situation calculus and review the most prominent approaches to them. After providing the necessary preliminaries and motivation, we focus on the notions of knowledge base progression and query answering in a restricted class of action theories and survey important recent results in those areas. Among the contributions of this chapter are proofs of new results derived from existing work. This chapter uses the following basic terminology. An atom is a formula that uses no logical connectives and no quantifiers. In propositional logic, an atom is a propositional symbol; in first-order logic, an atom is a formula of the form P (t1 , . . . , tn ) where P is an n-ary predicate symbol and t1 , . . . , tn are terms. A literal is an atom or its negation. A clause is a finite disjunction of literals, commonly represented as a set of literals. A unit clause is a clause consisting of a single literal. A formula is in conjunctive normal form (CNF) if it is a conjunction of clauses. A ground expression (i.e. term or formula) is an expression that contains no free variables. 3
+
+2.1. PROPOSITIONAL PLANNING
+
+CHAPTER 2. BACKGROUND
+
+2.1
+2.1.1
+
+Propositional Planning
+Classical Planning
+
+Classical planning refers to a range of approaches based on the STRIPS ("Stanford Research Institute Problem Solver") representation, which is an early and simple formalism for specifying planning domains [11, 5]. A STRIPS problem is a tuple P, I, O, G of sets, where · P is a set of propositional symbols (fluents) which represent simple facts that can be true or false. · I  P is the initial state database which specifies the truth values of all propositional symbols in P . If an atom is in I , it is true in the initial state. Otherwise, it is assumed to be false. This is known as the closed-world assumption (CWA), as opposed to the open-world assumption (OWA) where the true and false values have to be specified explicitly, and the rest are unknown. · O is a set of operators (actions). An action is a quadruple of sets of propositional symbols. The first two sets represent the action's preconditions: those required to be true and those required to be false, respectively, for the action to be executable. The remaining two sets, commonly called the add list and the delete list, represent the action's effects. The propositions in the add list (resp., delete list ) become true (resp., false) as the result of the action execution. · G  P lists the goals to be made true. It is easy to see that every subset of P , like I , describes a valid world state. Applying actions (that are possible according to their preconditions) in a world state yields another world state. A STRIPS plan is simply a sequence of actions; a STRIPS plan is successful if every proposition appearing in G becomes true as the result of executing the plan starting with the state described by I . It is natural to model a STRIPS planning problem as a search in a graph where nodes are world states and edges are actions. However, in a STRIPS instance with n fluents, there could be a total of 2n reachable world states. Thus, the main objective is to find a procedure that can efficiently deal with such a large search space. Multiple such procedures have been investigated and implemented. This graph-based direction of research culminated in the development of Graphplan [3], an elaborate, sound and complete planner which departs from the notion of state space, but is still based on graph search algorithms. An alternative to the graph-based approach was given in [16], where STRIPS planning is reduced to propositional theorem proving. As outlined in [6], propositional reasoning is an important task that arises in many areas of Computer Science, and, as a result, numerous efficient theorem provers, called SAT solvers, are readily available. This fact makes it possible to focus on efficient encodings of STRIPS problems as satisfiability problems and outsource the computation to the state-of-the-art in propositional theorem proving. This approach was shown to be more effective by orders of magnitude compared to contemporary graph-based approaches and has been extended to other kinds of planning, including conformant planning. More recently, a new generation of classical planners, e.g. Fast Downward [14], have far surpassed the abilities of purely SAT-based planners. 4
+
+CHAPTER 2. BACKGROUND
+
+2.1. PROPOSITIONAL PLANNING
+
+2.1.2
+
+Conformant Planning
+
+In conformant planning, the state of the world at any given point is allowed to contain uncertainty. In STRIPS, this usually means, at the very least, dispensing with the closed-world assumption in the description of the initial state. Some approaches also allow ways to express disjunctive knowledge : e.g., the values of propositions P and Q are unknown, but P  Q is known to hold. Other kinds of uncertainty are also possible. An incompletely specified world state is called a belief state ; it can be thought of as a set of all deterministic states that are possible within the given uncertainty. Then the task of conformant planning can be seen as a search in the belief state space, the space of all belief states. The belief state space is much larger than the already large classical state space. Thus, propositional approaches to conformant planning tend either (1) to look for compact explicit representations for possible worlds and store only a small portion of the search space at a time, or (2) to not store possible worlds at all, instead computing them on demand. In the terminology of [35], the first method models the belief state space at the world level and works directly with sets of possible worlds, whereas the second method operates at the knowledge level and works with logical formulas that represent belief states. An early example that assumes an explicit graph-based representation of belief states is Bonet and Geffner [4]. As far as sensorless planning is concerned, the approach overall and the resulting planner GPT rely solely on search heuristics for the standard search algorithm A*. Although the explicit representation allows other techniques such as probabilistic reasoning to be used, like it is done in [15], it is ineffective compared to knowledge-level planners. An advanced approach by Cimatti et al. [2, 8] uses techniques from both camps: the possible worlds are still explicit, but they are represented in a compact symbolic manner. The planning domain is an extension of the traditional STRIPS domain with a certain level of non-determinism. In particular, the authors dispense with CWA, and allow actions with conditional and uncertain effects. The planning domain is converted from a domain description language to an automaton whose states correspond to planning states and whose transitions correspond to actions. The approach is focused on implementing an effective search strategy by borrowing from the area of symbolic model checking the idea of binary decision diagrams (BDD). BDDs are an efficient representation for propositional formulas and allow easy application of Boolean operators. At the core of the approach is a choice of BDD-based data structures and optimal manipulation thereof. The search is accelerated by a simple domain-independent heuristic based on the observation that the cardinality of a belief state is inversely proportional to the amount of knowledge that it contains; thus, when planning forward, it is profitable to select the smallest (most knowledgeable) of all available belief states, and vice versa. As a result, a conformant planner HSCP is obtained, which is superior to other contemporary planners. The clever choice of data structures is reflected in the low computational and memory requirements of HSCP compared to other planners. However, despite the efficient data structures, explicit belief state representation does not scale up well, and the size of the BDD-based representation is still prohibitive in general. Another drawback is that plans produced by HSCP are not necessarily optimal (i.e., shortest). In [8], Cimatti et al. elaborate on [2] by further developing the means of directing the search in the belief space. 5
+
+2.1. PROPOSITIONAL PLANNING
+
+CHAPTER 2. BACKGROUND
+
+Similarly to classical planning, theorem proving has been successfully used for propositional conformant planning. One of the early examples is the planner C -PLAN [6], which uses a SAT-solver to both generate candidate plans and evaluate their success, incrementing the candidate plan length until a successful plan is found. Another prominent example of a SAT-based conformant planner is Conformant-FF by Hoffman and Brafman [?]. Belief states are represented implicitly by storing only the action sequence that leads to them. Together with the given (incomplete) initial state, this representation identifies each belief state, but makes it computationally hard to decide whether the plan is successful. An essential assumption is then made that the goal and the action preconditions be simple conjunctions of propositions. Consequently, only the intersection of the all worlds contained in each belief state is of importance, since they are the only ones guaranteed to be true in the belief state regardless of the uncertainty associated with the initial state (the actions are deterministic). Given a belief state and the corresponding intersection of its worlds, checking whether the goal (or an action precondition) is fulfilled is reduced to checking if the set of goal propositions (resp., action precondition propositions) belongs to that intersection. This is done by testing whether each proposition in question is entailed by a CNF which incorporates the initial knowledge and the semantics of the action sequence. Specifically, the CNF is built by associating with each proposition a numerical "time index". The initial knowledge is indexed with time 0 and added to the CNF. Then, each subsequent action contributes to the CNF a set of effect and frame axioms whose atoms are appropriately indexed. The construction is proved to express the semantics of the action sequence in the sense that an n-step plan is successful in reaching a goal proposition p whenever p(n) is satisfied by every truth assignment which is consistent with the initial knowledge. This testing is preformed by a SAT solver. Thus, memory is traded for time, compared to approaches that use explicit belief state representations. The resulting representation is efficient and the accompanying computation is manageable; however, finding a correct plan still involves a search in the set of all action sequences, which is subject to combinatorial explosion. To circumvent this, the authors resort to using a heuristic function, which is the state transition function with the negative effects of the actions discarded. The result of this work is a competitive conformant planner Conformant-FF. To, Son, and Pontelli in [43] point out that SAT-based approaches, including Conformant-FF, do not scale up very well when the degree of uncertainty in the initial state is large. To counter this problem, they propose an alternative belief state representation that features small size while also providing an efficient way for determining the satisfaction of a set of literals. They settle on two representations that complement each other: the prime implicate form and the minimal CNF form. A prime implicate of some formula  is a clause  such that  |=  and there is no other implicate of  that subsumes  (i.e., is a subset of ). A formula  is in prime implicate form if it is a conjunction of all its prime implicates. One benefit of this normal form is that checking the entailment of a literal by a formula takes linear time in the size of the set of all propositions. Another benefit is that each equivalence class within the set of all CNF formulas has a unique representative in prime implicate form, which is useful for keeping track of repetitive belief states. Moreover, under minor assumptions, the state transition function can be computed in polynomial time in the size of the parent state. This representation is very compact in many cases, but in other cases the exact opposite is true: the number of clauses can be exponential in 6
+
+CHAPTER 2. BACKGROUND
+
+2.1. PROPOSITIONAL PLANNING
+
+the number of propositional symbols. Formal criteria for distinguishing between the two scenarios have not been described; instead, authors rely on an empirical assessment of performance during runtime, and select an alternative representation, minimal CNF, if it superior in the test run against the prime implicate form. Minimal CNF is defined to be the result of a simple CNF optimization: it contains neither trivially redundant clauses nor clauses whose resolvent subsumes another clause belonging to the formula. Using this framework, To et al. implement a progression-based planner PIP which dynamically selects one of the two representations and performs heuristic search in the belief state space. In spite of the simplicity of the heuristic, PIP is shown to be competitive and, in instances with highly uncertain initial states, highly superior to all other planners. Petrick and Bacchus [35, 36] provide a rigorous overhaul of conditional planning by reconciling it with formal logic and situation calculus. In his approach, Petrick brings forward an important distinction between the state of the world and the state of the agent's knowledge about the world. Although this premise is implicit in all knowledge-level approaches, it is especially important in Petrick's approach due to the presence of sensing actions. The approach borrows from classical planning the idea of modeling knowledge as a database and actions as updates to it. However, instead of using a single database, it uses a collection of five databases that store different kinds of knowledge. For example, the database Kf stores ground literals under the open-world assumption, the database Kw stores the planning-time effects of sensing actions, and the database Kx stores restricted disjunctive knowledge in the form of sets of literals such that exactly one of the literals in each set is true. The expressive power of such a setup is clearly superior to STRIPS, but nevertheless very restrictive in comparison to first-order logic. In further contrast to classical planning and conformant extensions thereof, Petrick provides formal semantics for this representation by specifying a translation of the databases into formulas of first-order modal logic of knowledge -- that is, first order logic extended with the modal operator K , with the intended meaning that, given a set of first-order structures W = {w1 , w2 , . . .} representing a belief state as a set of possible worlds, a non-modal formula  is true in some world w  W iff w |= , but K () is true in w iff wi |=  for all wi  W . Thus, a set of databases specifies a belief state, incorporating the possible worlds intuition in a rigorous way. An incomplete yet practically useful inference algorithm is provided for querying knowledge states, which is necessary for checking action preconditions and goals. The actions, likewise, are a generalization of STRIPS actions, but are specified by their effects on the knowledge state, as opposed to the world state. While retaining the familiar notion of database updates with add and delete lists, Petrick describes the semantics of the knowledge dynamics based on situation calculus (see Section 2.2.1). The resulting planner, PKS, uses forward chaining to find a conditional plan in an incomplete world. PKS features expressivity, including an ability to work with functions, and the high quality of the resulting plans due to its ability to abstract away from certain irrelevant considerations encountered by world-level planners. A novel approach to propositional conformant planning was proposed by Palacios and Geffner in [33]. At the core of the approach is the observation that, while the approaches based on SAT or BDD have shown significant improvements in the compactness of belief state representations, the domainindependent heuristics they employ are inferior to the state-of-the-art in classical planning and are not 7
+
+2.1. PROPOSITIONAL PLANNING
+
+CHAPTER 2. BACKGROUND
+
+improving as much due to the challenges involved. The solution that [33] proposes is to reformulate a conformant planning problem as a classical one and use off-the-shelf classical planners to do the work. In the approach, the planning problem is defined in a STRIPS-like manner as a quadruple P = F, I, O, G . However, the initial state I is allowed to be a set of clauses, which are more expressive than Petrick's "one-of" clauses; also, the goals G and the action conditions and effects (O) are allowed to be sets of literals. A state of the world is defined as a propositional truth assignment over the set of propositional symbols F ; any such state that satisfies I is a possible initial state. This forms the semantics behind planning: given a truth assignment s over F and the set I  F of atoms satisfied by s, the problem P/s = F, I , O, G is a classical planning problem. Then an action sequence is a conformant plan for P if and only if it is a classical plan for P/s for all truth assignments s that satisfy I. Similarly to Petrick's approach, the approach of Palacios & Geffner uses the modal operator K to denote knowing. In the basic translation K0 , the uncertainty about a fluent L is removed by replacing it with two new fluents: KL, meaning that L is known to hold, and K ¬L, meaning that ¬L is known to hold. The goal situation translates trivially, but only the unit clauses from the initial situation translate into the classical problem. Each conditional action a : C  L translates into two: a support action a : KC  KL and a cancellation action a : ¬K ¬C  ¬K ¬L. This basic translation is sound but incomplete. The reason behind this is the failure of K0 to properly translate disjunctive information about the initial situation. To achieve completeness, a more elaborate translation is proposed with the help of two additional concepts: tags and merges. A tag t  T is a conjunction of literals from P whose truth value in the initial situation is unknown. A new class of literals KL/t is introduced with the following semantics: L holds if t was true in the initial situation. A merge m is a non-empty disjunction of tags, and, as such, it is applicable if one of its disjunct tags holds in the initial situation. A merge m yields a new kind of action in the translation KT,M (P ), the action am :
+tm
+
+KL/t  KL, the
+
+sole purpose of which is to `merge' a set of conditional literals into a hard fact, hopefully contributing towards the goal. Here, T is the set of all possible initial situations of the conformant problem P plus the empty tag, and M contains, for each initial and goal literal in P , a single merge m on all possible situations. A particular choice of T and M results in an instance KS 0 of KT,M which is both sound and complete. KS 0 is computationally intractable, but it is possible to have a complete translation of polynomial complexity by making assumptions about the initial situation. One useful assumption is to confine the initial situation uncertainty to the prime implicate form, discussed above. The approach introduces an overhead in the form of the translation, which is generally exponential, but polynomial for most domains. The planner T0 implementing this approach was the best conformant planner in the 2006 International Planning Competition [31]. STRIPS-based approaches to conformant planning have been steadily improving over the years. The improvements tackle such essential problems as compact problem representation and efficient reasoning. In the attempt to increase the expressiveness, the STRIPS framework has been extended from a closedworld database to incorporate incomplete and disjunctive knowledge, which necessitated the introduction of formal semantics. Nevertheless, STRIPS-based planning is inherently propositional and remains fundamentally less expressive than first-order planning based on situation calculus. 8
+
+CHAPTER 2. BACKGROUND
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+2.1.3
+
+Beyond STRIPS
+
+Being one of the earliest action languages, STRIPS was initially defined in [11] as a set of imprecise albeit plausible syntactical rules with little consideration for the underlying semantics. As STRIPS gained prominence, it was observed that minor, meaningful modifications to the canonical examples of STRIPS cause the standard STRIPS problem solver to malfunction. To address this issue, definitive investigations into the semantics of STRIPS were undertaken in [21] and [23]. A notable enhancement over STRIPS was proposed in [34] in the form of the language ADL ("Action Description Language"), which introduced conditional and indirect effects and explored the notions of non-deterministic and concurrent actions. To that end, ADL drops the CWA and lifts many of the syntactical restrictions inherent to STRIPS. PDDL ("Planning Domain Definition Language"), an expressive language with clear semantics and a prominent successor to both STRIPS and ADL, was introduced in [32] with the intent to foster exchange and reuse of research and provide a unified framework for direct comparison of diverse approaches to planning. Since its introduction, PDDL has indeed become the standard language for planning research and spawned multiple versions which attend to various flavours of planning. The International Conference on Automated Planning and Scheduling uses PDDL for its recurring International Planning Competition (IPC)[31]. The prototype planner developed in this thesis does not utilize any specific planning language, relying instead on plain first-order logic represented by Prolog expressions. For evaluation, however, we borrow some of the planning domains from the conformant track of IPC2006, the last IPC to date to include a conformant track.
+
+2.2
+2.2.1
+
+Planning with Situation Calculus
+Situation Calculus and Basic Action Theories
+
+Situation calculus is an expressive language Lsc for modeling and reasoning about dynamic worlds. It was first proposed by McCarthy & Hayes in [30] and refined by Reiter in [38]. We consider a simplified, function-free version of the Reiter's axiomatization. That is, we omit generic functions and functional fluents but retain the special-purpose function symbols listed below. Lsc is based on first order logic with elements of second order logic. It has the standard set of logical symbols and equality. There are three sorts: action, situation, and object, with a countably infinite set of variables for each sort. Additionally, terms can be constructed using the following: · A countably infinite set C of constant symbols of sort object. These are used to refer to physical objects in the domain. · A finite set of action symbols. An action symbol uniquely identifies an action, and the arguments of an action term refer to the physical objects operated upon. Thus, the arguments can only be of sort object. 9
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+CHAPTER 2. BACKGROUND
+
+· The special constant symbol S0 which denotes the initial situation. The special functional symbol do is used to construct complex terms of sort situation. For example, do(, do(, S0 )) is interpreted as the situation that arises after performing the actions  and  in sequence, starting in the initial situation. It is common to write complex situation terms do(k , do(k-1 , . . . , do(1 , S0 ) . . .)) as do([1 , . . . , k ], S0 ). The special predicate symbol < is used to denote an ordering relation on situations. Given two situation terms s1 and s2 , s1 < s2 holds whenever s2 can be reached from s1 by applying a nonempty sequence of actions. For example, do(, S0 ) < do(, do(, S0 )) should hold, but do(, S0 ) < S0 should not. The axiomatization for this is provided in the set  described below. The symbol abbreviation: s1 s2 stands for s1 < s2  s1 = s2 . is an
+
+The special binary predicate symbol P oss is used to define a relation which holds whenever an action is executable in a given situation, as described below. Finally, for each n  0, there are countably infinite sets of n-ary predicate symbols and (n + 1)-ary fluent symbols. All arguments of a predicate symbol and all but one arguments of a fluent symbol must be of sort object ; the last argument of a fluent symbol must be of sort situation. These symbols are used to describe the world using a set of relations over a set of terms. The predicate symbols describe static facts. The fluent symbols describe dynamic facts which change depending on the situation term. Of all well-formed Lsc -formulas, the ones that are uniform in a certain situation term are of special interest. Given a situation term s, an Lsc -formula  is uniform in s whenever it does not contain symbols {P oss, <} in its signature, does not quantify over situations, does not contain equality on situations, and every term of sort situation in  is s. The language Lsc can be used to define a basic action theory, which, like a STRIPS instance, is a formal description of a planning domain. Definition 1. A basic action theory (BAT) is a collection of axioms D =   Duna  DS0  Dss  Dap , where  are the four foundational axioms for situations: (, , s1 , s2 ) do(, s1 ) = do(, s2 )   =   s1 = s2 (P ) P (S0 )  as[P (s)  P (do(a, s))]  s P (s) (s) ¬ s < S0 (s1 , s2 , ) s1 < do(, s2 )  s1 s2 (2.1) (2.2) (2.3) (2.4)
+
+The axioms (2.1, 2.2) postulate unique names for situations and describe the sort situation as the smallest set which contains S0 and is closed under the application of do. The induction axiom (2.2) is similar to that of the Peano axiomatization of natural numbers and is the only second-order sentence in the theory. The axioms (2.3, 2.4) describe the ordering on situations and mark S0 as the least element of this ordering. Duna are the unique-name axioms for actions. 10
+
+CHAPTER 2. BACKGROUND
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+DS0 are the initial state axioms (or the initial knowledge base ), a set of first-order sentences uniform in S0 . These axioms describe the initial state of the world using predicate and fluent symbols, and include the unique name axioms for constant symbols C . Dap are the action precondition axioms. For each n-ary action symbol A, an action precondition axiom (AP) is an Lsc sentence of the form (x1 , . . . , xn , s) P oss(A(x1 , . . . , xn ), s)  A (x1 , . . . , xn , s), (2.5)
+
+where A (x1 , . . . , xn , s) is a formula which is uniform in s and all of whose free variables are among {x1 , . . . , xn , s}. Dss are the successor state axioms. For each (n + 1)-ary fluent symbol F , a successor state axiom (SSA) is an Lsc sentence of the form (x1 , . . . , xn , a, s) F (x1 , . . . , xn , do(a, s))  F (x1 , . . . , xn , a, s), (2.6)
+
+where F (x1 , . . . , xn , a, s) is a formula uniform in s, all of whose free variables are among {x1 , . . . , xn , a, s}. Hereafter, we assume that the successor state axioms have the following more specific syntax, which incorporates the Reiter's solution [38] to the frame problem -- the problem of specifying the behaviour of the fluents which are unaffected by the execution of an action. This syntax is a de facto standard in the existing approaches [26, 41, 10] to planning in situation calculus. Here and below, x ¯ is an abbreviation for x1 , . . . , xk for some k inferred from context.
++ - (x ¯, a, s) F (¯ x, do(a, s))  F (¯ x, a, s)  F (¯ x, s)  ¬F (¯ x, a, s),
+
+(2.7)
+
++ - where F (¯ x, a, s) and F (¯ x, a, s) are first-order formulas uniform in s which express the conditions that
+
+need to be satisfied for the fluent to become, respectively, true or false in situation do(a, s). Note that when neither condition is satisfied, the truth value of the fluent at do(a, s) is carried over from the previous situation, s. Example 2.2.1. Consider as an example a situation calculus axiomatization of the classical Block World domain given in [12]. The object domain consists of identical blocks which can be located either on the table or on top of one another forming vertical stacks, and the goal is to arrange the blocks in a certain desired way. The fluents that represent the properties of the blocks are: · clear(x, s): holds iff there is no other block on top of the block x in situation s. · on(x, y, s): holds iff block x is immediately on top of block y in situation s. · onT able(x, s): holds iff block x is on the table in situation s. 11
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+CHAPTER 2. BACKGROUND
+
+The actions are move(x, y ) meaning "move block x on top of block y " and moveT oT able(x) meaning "move block x to the table". The preconditions Dap for the actions are axiomatized as follows: P oss(move(x, y ), s)  clear(x, s)  clear(y, s)  x = y, P oss(moveT oT able(x), s)  clear(x, s)  ¬onT able(x, s). The world dynamics is axiomatized in Dss as follows: clear(x, do(a, s))  y z (a = move(y, z )  on(y, x, s))  y (a = moveT oT able(y )  on(y, x, s))  clear(x, s)  ¬y (a = move(y, x)), on(x, y, do(a, s))  (a = move(x, y ))  on(x, y, s)  ¬(a = moveT oT able(x)  z (a = move(x, z ))), onT able(x, do(a, s))  (a = moveT oT able(x))  onT able(x, s)  ¬y (a = move(x, y )). Notice that the universal quantifiers are omitted for brevity. It is evident that the SSA conform nicely to the syntactic form of Equation (2.7). The fundamental reasoning problem in situation calculus, referred to as the projection problem [38], is the task of establishing whether a given action sequence executed in a given action theory results in the desired goal state. More precisely, let D be a BAT, let 1 , . . . , n be a sequence of ground action terms, let s = do([1 , . . . , n ], S0 ) be the situation that results from executing the action sequence beginning with the initial situation S0 , and let (s) be a first-order sentence uniform in s that represents the desired state. Then the projection problem amounts to determining whether the entailment D |= (s ) holds, which is a theorem proving task. Recall that D includes the second-order induction axiom (2.2); in secondorder logic, theorem proving is well known to be ineffective, in comparison with more situationally-aware approaches called regression and progression. Regression is a mechanism of transforming the sentence (s ) into an equivalent formula that is uniform in S0 and, as such, can be reasoned about with no regard for the dynamic components of the BAT, namely , Dap , and Dss . This is achieved by sequentially embedding the information about the dynamics of the world relative to each ground action in do([1 , . . . , n ], S0 ) into the regressed formula, starting from n and moving backwards. The formula that is to undergo regression needs to be regressable, that is, it needs to follow certain syntactic constraints, the discussion of which we omit. Assuming that (s ) is regressable, the equivalent regressed formula R[(s )] is uniform in S0 , and the entailment D |= (s ) holds whenever DS0  Duna |= R[(s )] holds. The projection problem is thus reduced to first-order theorem proving, which is not complicated by the presence of distinct situations and thus requires no reasoning about situations. Another approach to the projection problem is progression, proposed in [23]. In contrast to regression which transforms the goal formula, progression sequentially transforms the initial state axioms DS0 12
+
+CHAPTER 2. BACKGROUND
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+according to each given ground action in the sequence [1 , . . . , n ] and the dynamics associated with it, starting with 1 and moving forward. Specifically, progression uses the successor state axioms to determine which fluents change their values upon the execution of the next action i . Assertions about the new fluent values get added to DS0 , while the outdated knowledge about the same fluents is eliminated from it via forgetting, described in detail in Section 2.3.1. Once the BAT has been progressed through the entire action sequence, it is possible, again, to reason about its relationship with (s ) in terms of first-order satisfiability uncomplicated by situations, since the new S0 of the BAT is the same as s of the goal sentence. In this thesis, we focus solely on progression-based planning. Progression is superior to regression in that, once computed for a given situation do([1 , . . . , n ], S0 ), it performs the projection-to-satisfiability reduction for all possible goal state formulas, whereas the regression needs to be computed for each such formula individually; thus, progression is more suitable for continuous planning. Moreover, the length of the regressed formula may grow exponentially in the length of the action sequence, making it unsuitable for continuous iterative planning. However, progression has not been studied as thoroughly, it is not as easily computed, and the progressed BAT may also grow at an impractical rate unless the BAT is properly constrained [26].
+
+2.2.2
+
+Semantics of Open World Planning
+
+The semantics behind situation calculus planning is based on the following definition, given in [19].
+
+Definition 2. A ground situation term do([1 , . . . , n ], S0 ) is a plan for a BAT D and a goal Goal(s) iff D |= P oss(1 , S0 )  P oss(2 , do(1 , S0 ))  . . .  P oss(n , do([1 , . . . , n-1 ], S0 ))  Goal(do([1 , . . . , n ], S0 )). A planning algorithm is sound if every plan that it generates satisfies the equation above, and complete if it generates every such plan that exists.
+
+This definition is very general and can be used as a semantic foundation for classical planning, given a translation from STRIPS to situation calculus. However, since the initial state in a BAT is described by a set of first-order sentences, this definition of planning allows for all kinds of first-order uncertainty in the initial state. This leads to unprecedented expressivity and computational challenges. Since the right-hand side of the entailment in Definition 2 is a conjunction, the entailment of the entire expression from D can be established by considering the entailment of each separate conjunct. It is easy to see that each such sub-problem constitutes a projection problem with respect to a different 13
+
+2.2. PLANNING WITH SITUATION CALCULUS situation term: D |= P oss(1 , S0 ) D |= P oss(2 , do(1 , S0 )) ... D |= P oss(n , do([1 , . . . , n-1 ], S0 )) D |= Goal(do([1 , . . . , n ], S0 )).
+
+CHAPTER 2. BACKGROUND
+
+(2.8) (2.9)
+
+(2.10) (2.11)
+
+Since a plan in situation calculus is a sequence of ground actions, the set of all plans is the infinite set of all such sequences. Obviously, naively generating this set is both impossible and unnecessary, since executable plans should amount to a small fraction of this set. The notion of plan executability is captured by the subformula P oss(1 , S0 )  . . .  P oss(n , do([1 , . . . , n-1 ], S0 )) of the right-hand side expression from Definition 2, or, equivalently, by the set of entailments (2.8­2.10). A plan is executable if its every constituent ground action is possible to execute with respect to the previous situation, as axiomatized by Dap . To generate the set of all possible actions with respect to a given situation, it is necessary to evaluate the right-hand side of the corresponding action precondition axiom. Formally, the set of all ground actions that are possible in situation s is {A(¯ c) | A is an action name, c ¯ are constants, and D |= A (¯ c, s)}. Observe that the last set inclusion condition is a yet another instance of the projection problem. Therefore, it can be approached via progression as discussed above. However, there remains the problem of finding all groundings of the free object variables of A . This problem is known as query answering, and in most cases it is computationally expensive. A special class of queries -- conjunctive queries -- has been identified and extensively studied as a tradeoff between expressiveness and computational complexity. These notions are formalized in the seminal work [7] as follows. We denote the object assignment to variables x1 , . . . , xn as a1 , · · · , an . Definition 3. A query is a first-order formula (x1 , · · · , xn ) which contains no free variables other than x1 , . . . , xn . The free variables are called the distinguished variables or answer variables. A boolean query is a first-order sentence. A conjunctive query is a query of the form y ¯ conj (¯ x, y ¯), where conj (¯ x, y ¯) is a conjunction of atoms and equalities over the variables x ¯, y ¯, and possibly constants. An answer to the query (x1 , · · · , xn ) with respect to an interpretation M is the set of tuples {(a1 , · · · , an ) | M, a1 , · · · , an |= (x1 , · · · , xn )}. The answer to a boolean query is either an empty tuple, read as true, or the empty set, read as f alse. Thus, an answer to a query is defined as a set of domain element tuples which correspond to object 14
+
+CHAPTER 2. BACKGROUND
+
+2.2. PLANNING WITH SITUATION CALCULUS
+
+assignments that satisfy the query in a given interpretation. We are, however, interested in the answers with respect to a knowledge base, not an interpretation. To this end, we borrow the notion of certain answers from [42]. Definition 4. A certain answer to a query (¯ x) with respect to a knowledge base K is the set of constant tuples {c ¯ | K |= (¯ c)}. The certain answers have the following semantics: the constant tuple c ¯ belongs to the answer to the query (¯ x) wrt a KB K whenever K |= x ¯(¯ x = c ¯  (¯ x)). For conjunctive queries, c ¯ belongs to the answer to y ¯ conj (¯ x, y ¯) wrt K whenever K |= x ¯y ¯(¯ x=c ¯  conj (¯ x, y ¯)). As remarked in [42], Definition 4 implies that query answering wrt a KB can be reduced to testing whether the KB entails every boolean query that is obtained by substituting every conceivable constant tuple in place of the distinguished variables. We expand on this idea in Section 2.4.
+
+2.2.3
+
+Regression-based Planning
+
+Finzi et al. [12] develop an open-world planner wspdf which uses regression as the underlying mechanism. Their choice of regression over progression is partly due to the fact that, at the time, there did not exist a provably correct algorithm for progressing an incomplete initial database. This approach, although based on situation calculus, addresses exactly the same problem as the propositional approaches described in Section 2.1.2: planning without sensing in an incompletely known world. Wspdf stands for the "world's simplest planner, depth-first". It is indeed a very simple planner which takes as the input a BAT, a plan length bound, a planning goal, and an axiomatization of a domain-specific predicate badSituation which is used to heuristically avoid plans known in advance to be bad. Despite the expressiveness of the situation calculus, wspdf is not very far removed from the STRIPSbased approaches. It implements a domain closure assumption (DCA) over a finite set of constants -- that is, the object domain is finite and usually small. This restriction is strong enough to allow typed quantifiers x :  and x :  in the initial and goal formulas; a type  (x) is an abbreviation for (x = c1  x = c2  . . .  x = ck ), where C = {c1 , . . . , ck } is the set of all constants in the language. Thus the quantified formula Qx :  (x) is merely an abbreviation for a conjunction or a disjunction of formulas (ci ) over the set of all constants ci  C . Wspdf implements a regression-based theorem prover. The regression is performed as described in Section 2.2.1, deepening until the goal sentence is uniform in S0 . There is a minor optimization: the regression is performed depth-first on the components of the goal sentence with the hope that a component simplification renders the rest of the sentence irrelevant. The result of regression, a propositional formula, is converted into CNF. The algorithm returns success iff the initial knowledge base entails every conjunct of this CNF. The entailment can be tested using two methods. The first is based on prime implicates, the same approach as that of [43] mentioned earlier, with the same overhead of precomputing prime implicates for faster reasoning thereafter and the same drawback of a possibly very large number of resulting clauses. The second method for testing entailment uses an off-the-shelf SAT-solver, which 15
+
+2.3. PROGRESSION
+
+CHAPTER 2. BACKGROUND
+
+eliminates the need for precomputation but makes the reasoning harder. Overall, despite the first-order situation calculus framework, wspdf eliminates much of the available expressiveness by using DCA, essentially reducing it to that of propositional logic. In a notable contrast to all propositional conformant planners which rely on domain-independent heuristic functions, wspdf requires additional control knowledge to be supplied. If that knowledge is of high quality, wspdf, despite its simplicity, is able to vastly outperform other planners.
+
+2.3
+
+Progression
+
+Progression for situation calculus was introduced by Lin & Reiter in [23], but it was shown to require second order logic to completely characterize a progressed knowledge base. In [26], Liu & Lakemeyer proved that, for a specific class of action theories, progression is always first-order definable and computable. These results have been exploited in a number of approaches and are of fundamental importance to this thesis. We begin with the general definition of progression due to Lin & Reiter and then move on to the details of its practical variant, progression of local-effect action theories. Definition 5 (Progression). Let S denote the situation term do(, S0 ). Let D be a BAT,  a ground action, and DS a set of sentences uniform in S . DS is a progression of the initial knowledge base DS0 with respect to  if, for every interpretation M, M |= DS iff there exists a model M of D such that: 1. M and M have identical domains for sorts action and object, 2. M and M interpret all situation-independent predicate and function symbols identically, and 3. For every fluent F and every variable assignment  , we have M,  |= F (¯ x, S ) iff M ,  |= F (¯ x, S ). The key idea of Definition 5 is that the original BAT is a complex theory that mentions distinct situational terms, axiomatizes their relationships, and describes the dynamics of the world, whereas the progression is a situationally simple theory which, nevertheless, entails exactly the same information about the world at a particular situation as the original BAT. Notice that the word "progression" can refer to both a knowledge base DS (as in the definition above) and the procedure that was used to construct it (as in the discussion in Section 2.2.1).
+
+2.3.1
+
+Local-Effect Progression
+
+In [26], Liu & Lakemeyer showed that limiting the scope of the actions' effects results in significant benefits: the progressed knowledge base no longer needs second-order logic to be defined. The actions are classified as having either local effects or global effects. Intuitively, a local-effect action is one which affects the properties of only those objects that it explicitly mentions. In Example 2.2.1, the action move(a, b) would affect the status of the block (call it c) on which a resided prior to the action, if there was one. Specifically, the values of the fluent atoms clear(c, s) and on(a, c, s) would change despite the 16
+
+CHAPTER 2. BACKGROUND
+
+2.3. PROGRESSION
+
+fact that the action did not mention block c at all. This is an example of a global-effect action. A different, local-effect axiomatization is given below.
++ - For the next definition, recall that F (¯ x, a, s) and F (¯ x, a, s) are sub-formulas of a successor state
+
+axiom as per Equation (2.7).
+- + Definition 6. An SSA is local-effect if both F (¯ x, a, s) and F (¯ x, a, s) are disjunctions of formulas of the
+
+form z ¯[a = A(w ¯ )  cc (w, ¯ s)], where A is an action function symbol, w ¯ contains x ¯, z ¯ are the remaining variables of w ¯ (if any), and cc is a formula describing a context condition. A BAT D is local-effect if every SSA in Dss is local-effect. In Example 2.2.1, only the SSA for the fluent onT able(x, s) conforms to this definition. In the SSA
++ for clear(x, s), for instance, F (¯ x, a, s) consists of two disjuncts: y z (a = move(y, z )  on(y, x)) and
+
+y (a = moveT oT able(y )  on(y, x, s)), neither one of which is local-effect since neither action mentions x, the fluent's object argument. Example 2.3.1. Consider an alternate axiomatization of the Blocks World SSA from [26]. It redefines the moving action as a local-effect one by making it ternary: move(x, y ) is replaced by move(x, z, y ), meaning "move block x from the top of block z to the top of block y ". The notion of the table is not used in this version. clear(x, do(a, s))  y z (a = move(y, x, z ))  clear(x, s)  ¬y z (a = move(y, z, x)), on(x, y, do(a, s))  z (a = move(x, z, y ))  on(x, y, s)  ¬z (a = move(x, y, z )). The restricted syntax of local-effect SSA can be beneficially exploited with the help of the unique name axioms for actions and a logically equivalent transformation. To that end, we introduce the notion of a transformed SSA, similarly to [41], and related concepts used in the definition of local-effect progression. Definition 7. Let D be a local-effect BAT and  a ground action. The transformed SSA for fluent F wrt  is the result of substituting  into the SSA for F and simplifying the right-hand side using axioms from Duna and replacing every instance of the subformula z (z = t  (z )) with the expression (t), where  is arbitrary. The argument set of fluent F with respect to  is the set ¯ | (¯ ¯) appears in the transformed SSA for F }. F = {t x=t The characteristic set of  is the set of atoms ¯, s) | F is a fluent and t ¯  F }. (s) = {F (t We use Dss [] to denote the instantiation of Dss with respect to the characteristic set of  at situation do(, S0 ); i.e. the set of all formulas that arise as a result of substituting each member of each fluent's argument set into the corresponding transformed SSA. 17
+
+2.3. PROGRESSION
+
+CHAPTER 2. BACKGROUND
+
+Example 2.3.2. The transformed SSA with respect to the ground action move(c1 , c2 , c3 ) for the fluent clear(x, s) from Example 2.3.1 is clear(x, do(move(c1 , c2 , c3 ), s))  (x = c2 )  clear(x, s)  ¬(x = c3 ). The argument set for clear(x, s) is then {c2 , c3 }, and its contribution to the characteristic set is {clear(c2 , s), clear(c3 , s)}. Intuitively, the characteristic set contains the atoms subject to change as a result of performing the action in question. If c3 is "clear" at s, it would cease being "clear" at do(move(c1 , c2 , c3 ), s), and the opposite would happen to c2 . The "clear" status of c1 , however, cannot be altered by this action, and so clear(c1 , s) is not in the characteristic set. To avoid introducing notions used in [26] that are non-essential to this thesis, we present local-effect progression as per [10]. The latter work bases its definition on the notion of forgetting, due to Lin & Reiter [22], which we present in the following definitions. ¯) be a ground atom and let M1 and M2 be two interpretations. We define Definition 8. Let p = P (t M1 p M2 to hold whenever M1 and M2 agree on everything except possibly on the interpretation of p. Specifically, M1 and M2 have the same domain and interpret every constant the same. For every ¯ predicate symbol Q distinct from P , (Q)M1 = (Q)M2 . Finally, for every tuple of domain elements d ¯  (P )M1 iff d ¯  (P )M2 . ¯)M1 , d that is distinct from (t Definition 9 (Forgetting). Let T be a first-order theory and p a ground atom. A theory T is a result of forgetting p in T , denoted forget(T, p), if, for every interpretation M , M |= T iff there is a model M of T such that M p M . Since, by Proposition 6 from [22], the order of forgetting a sequence of ground atoms is irrelevant to the end result of forgetting, we will reuse the same notation for the result of forgetting a set S of n ground atoms from a theory T as follows: let forget(T, S ) denote forget(forget(. . . forget(T, p1 ) . . . , pn-1 ), pn ) for an arbitrary enumeration of ground atoms pi  S . We are now ready to present the result from [10] concerning the progression of local-effect action theories. The notation (µ/µ ) stands for the result of replacing every occurrence of µ in  with µ . Theorem 1. Let D be a local-effect BAT and  a ground action. The progression of DS0 with respect to , denoted prog(DS0 , ), is forget(DS0  Dss [], (S0 ))(S0 /S ). To illustrate how progression can be computed, we need a more constructive approach to forgetting. The following propositional result, appearing in the form of a definition in [18], illustrates the intuition behind the theorem to follow. Definition 10. Let T be a propositional formula and p a propositional atom. Then forget(T, p) = T (p/true)  T (p/f alse). 18
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+In other words, the result of forgetting an atom p from a sentence T is a weaker sentence T which entails the same set of sentences that do not depend on p. The next theorem, from [22], provides a syntactic result about forgetting a ground atom from a first-order sentence. This is without loss of generality since every first-order theory can be expressed as an equivalent singleton theory by replacing its constituent sentences with their conjunction. The theorem uses the following notation. Given a ¯), let [P (t ¯)] denote the result of replacing every occurrence of the formula  and a ground atom P (t ¯ )] (the result is clearly logically equivalent to ). Let ¯ ¯ ¯ ¯ ¯ ¯ form P (t ) in  by [t = t  P (t)]  [t = t  P (t
+- ¯ ¯ + ¯) denote the result of replacing P (t) by true in [P (t)] and let P (t ¯) denote the result of replacing P (t ¯) by f alse in [P (t ¯)]. P (t
+
+Theorem 2. Let T = {} be a first-order theory and p a ground atom. Then
+- forget(T, p)  + p  p .
+
+Example 2.3.3. Let D be a local-effect BAT implementing Blocks World from Example 2.3.1. Let us compute the progression of the initial knowledge base with respect to the ground action  = move(c1 , c2 , c3 ) assuming that there are no other fluents. Let S denote do(move(c1 , c2 , c3 ), S0 ). From the previous example we know that {clear(c2 , s), clear(c3 , s)}  (s). Working out a transformed SSA for on(x, y, s) yields (s) = {clear(c2 , s), clear(c3 , s), on(c1 , c3 , s), on(c1 , c2 , s)}. Using these atoms to instantiate the transformed SSA, we obtain the set Dss [] of formulas like on(c1 , c3 , S )  c1 = c1  c3 = c3  on(c1 , c3 , S0 )  ¬(c2 = c3  c3 = c2 ), which are trivially simplified to produce Dss [] = {clear(c2 , S )  true, clear(c3 , S )  f alse, on(c1 , c3 , S )  true, on(c1 , c2 , S )  f alse}. It remains to use the equation from Theorem 2 to forget, in an arbitrary order, the atoms {clear(c2 , S0 ), clear(c3 , S0 ), on(c1 , c3 , S0 ), on(c1 , c2 , S0 )} from the conjunction of all formulas from DS0 and Dss [], and replace the situation term S0 with S everywhere in the result. A progression of DS0 is thus obtained. The notion of irrelevance, introduced in Section 2.4, can be used to optimize the forgetting step by skipping the computation for the atoms known to be irrelevant to DS0  Dss []. Note that the formulas in Dss [] simplify to such a trivial form only when the corresponding SSA are context-free, as per Definition 6.
+
+2.4
+
+Uncertainty in the Initial KB
+
+As outlined in Section 2.2.2, planning in situation calculus requires an ability to solve the projection problem, which arises when checking the action preconditions and the goal condition. In Section 2.3, we demonstrated that it is possible to avoid reasoning about situationally complex theories by computing the 19
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+CHAPTER 2. BACKGROUND
+
+progression and working with a situationally simple representation of the relevant knowledge. However, establishing the entailment in first-order logic is still a major challenge. First-order logic is a very powerful language that is capable of describing complex relationships between objects while allowing uncertainty in the description and providing clear and intuitive semantics, but deductive reasoning in an unconstrained first-order theory is undecidable in principle. As argued by Levesque in [20], the only logically correct deductive technique that is feasible on very large knowledge bases is database retrieval under the closed-world assumption. Allowing unknown facts into a propositional knowledge base reduces deductive reasoning to propositional theorem proving, which is much harder than database retrieval, but still manageable. It is reasonable, then, to focus on fragments of first-order logic, trading some of the expressive power for computational benefits. We focus on the fragment called proper+ , introduced in [17], for the remainder of this thesis. The reasons for this are twofold. First, Liu & Lakemeyer [26] show that a proper+ initial KB is one of the two constraints that result in an efficiently computable local-effect progression. Second, the same constraint has been used for achieving efficient (albeit limited) query answering in first-order planning approaches.
+
+2.4.1
+
+proper and proper+
+
+The proper+ normal form is an extension of the earlier proper normal form, introduced in [20]. We begin with presenting the framework on which both rely. Let L be a first-order language with equality and no function symbols except for a countably infinite set of constants C = {c1 , c2 , . . .}. Let the set E be the union of axioms of equality (reflexivity, symmetry, transitivity, substitution of equals for equals) and the infinite set of unique name axioms for constants {ci = cj | i = j }. Let an equality well-formed formula (ewff ) stand for a quantifier-free formula whose only predicate is equality. Let  denote the universal closure of . Let  range over substitutions of all variables by constants, and let  denote the result of applying  to . That is, a substitution is a mapping from variables to constants, and (x1 , x2 , . . .) = ((x1 ), (x2 ), . . .). For convenience, we will sometimes treat substitutions as tuples of constants (c1 , . . . , cn ) implying that, for 1  i  n, the i-th element of the tuple replaces the i-th free variable in a formula (x1 , . . . , xn ) to produce . Given two sets of formulas S1 and S2 , let S1 |=E S2 denote E  S1 |= S2 , and let S1 E S2 denote S1 |=E S2 and S2 |=E S1 . Definition 11. The set of formulas S is proper if E  S is consistent and S is a finite set of formulas of the form (e  ) and/or (e  ¬), where e is an ewff and  is an atom. Definition 12. A -clause is a formula of the form (e  d), where e is an ewff and d is a disjunction of literals whose arguments are distinct variables. The number of distinct variables in d is the width of the -clause. A knowledge base is proper+ if it is a finite non-empty set of -clauses. The width of a proper+ KB is the maximum of the widths of the constituent -clauses. Given a proper+ knowledge base K, let gnd(K) denote the set {d | (e  d)  K and E |= e}. 20
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+A proper knowledge base is a generalization of classical databases and can be seen as a finite representation of a possibly infinite set of ground literals. For example, (x = c1  ¬P (x)) denotes a countably infinite set of literals {¬P (c2 ), ¬P (c3 ), . . .}. Likewise, a proper+ knowledge base is a finite representation of a possibly infinite set of ground clauses gnd(K). Observe that proper and proper+ knowledge bases should always be interpreted with respect to the axioms E of equality and unique names for constants. For example, let K contain a single sentence x(x = c1  (x)), where (x) is either a literal or a clause. Then K |=E (c2 ), but K |= (c2 ) since a model M of K could map c1 and c2 to the same domain element. Remark. The requirement for d in Definition 12 to have only distinct variables as the arguments is not logically significant, since a -clause which has constants or repeating variables as some of the arguments of the disjunction can be trivially transformed into an equivalent formula which agrees with the definition. Henceforth, we will relax this requirement when referring to proper+ . Note that Definition 5.5 from [26], which appears in this thesis as Definition 20 in Section 2.4.3, is consistent with the relaxed, but not the strict definition of proper+ .
+
+2.4.2
+
+Evaluation-Based Reasoning
+
+Both proper and proper+ were designed for logically limited reasoning that uses certain evaluation procedures as the reasoning mechanism. The evaluation procedures are based on the assumption that quantification can be understood substitutionally with respect to the countably infinite set of constants of the underlying language. In this section, we outline the benefits and shortcomings of the most prominent evaluation procedures. For the remainder of this section, let c and c range over constants,  range over atoms, l range over literals, and d range over clauses. Let ¯ l denote the complement of literal l. Let x denote the result of
+c
+
+replacing every free occurrence of x in  by constant c. Let H () denote the set of constants appearing
++ in the set of formulas  and let Hn () denote H ()  S , where S is a set of n extra constants not
+
+occurring in .
+
+Procedure V
+
+The evaluation procedure V for proper, introduced in [20], takes as input a proper knowledge base and an L-sentence (a boolean query) and outputs one of three numerical values {0, 1 2 , 1}, which correspond to "false", "unknown", and "true". 21
+
+2.4. UNCERTAINTY IN THE INITIAL KB Definition 13. Let K be a proper KB.    1   V [K, ] = 0    1
+
+CHAPTER 2. BACKGROUND
+
+if there exists (e  )  K s.t. V [K, e] = 1, if there exists (e  ¬)  K s.t. V [K, e] = 1,
+
+otherwise;  1 if c is identical to c , V [K , c = c ] = 0 otherwise;
+2
+
+V [K, ¬] = 1 - V [K, ]; V [K,    ] = min{V [K, ], V [K,  ]}; V [K, x()] = mincH + (K{}) V [K, x c ].
+1
+
+V is proved to be sound, but not necessarily complete, for all L-queries. The incompleteness of V can be illustrated as follows: let K be {x(x = c1  P (x))}, and let the query be  = P (c2 )  ¬P (c2 ). Then V [K, ] =
+1 2
+
+("unknown"), although K |=E  due to  being a tautology.
+
+In order to achieve completeness, Levesque introduced the normal form N F [20], later refined in [25]. For N F -queries, V is complete. The following definition relies on the notion of standard interpretations, which are FOL interpretations where equality is interpreted as identity and the set of constants is isomorphic with the domain of discourse. This semantics for finite theories is captured by the axioms E . Definition 14. A set  of sentences is logically separable iff for every consistent set of ground literals L, if L   has no standard interpretation, then L  {} has no standard interpretation from some   . N F is the least set such that · N F contains all ground literals and all ewffs; · N F is closed under negation; · if   N F such that  is logically separable and finite, then   N F;
+
+· if   N F such that  is logically separable and, for some ,  = {x c | c  C}, then x()  N F . As both [20] and [25] put it, the queries in N F are designed to contain no logical puzzles. In particular, N F includes all non-tautologous ground clauses and their complements, as well as all conjunctions of ground clauses that are closed under resolution. Levesque [20] presents some results that help with deciding whether a formula is in N F . For example, a conjunction of sentences that make up a proper knowledge base is in N F . A sentence all of whose literals are conflict-free is also in N F . Additionally, in [17], Levesque mentions that every negation-free sentence is in N F . In [25], it is shown that N F is strictly less expressive than FOL and that the possibility of obtaining compact N F representations for arbitrary propositional formulas is very unlikely. In exchange for
+ Two literals are conflict-free iff either they have the same polarity or they use different predicates or they use different constants at some argument position.
+
+22
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+these limitations, V is rather efficient: [27] proves that the combined complexity of V is NP-hard for conjunctive queries, but, at the same time, it can be implemented using database techniques with the efficiency comparable to that of database systems. An extension of proper proposed in [9] allows unknown individuals into the knowledge base and the queries. The authors observe that proper knowledge bases have a built-in inifinitary version of the domain closure assumption. To remove this restriction, they extend the language L with a countably infinite set of constants called labeled null values, which are never mentioned by the axioms E and thus are not unique names. These null values can be used to express the properties of some elements of the domain which are known to exist but whose names are unknown. Inherent in the definition of null values is the ability to express certain kinds of disjunctive information. Those include disjunctions of ground literals that have the same name and polarity and disjunctions of ground literals which have the same arguments (see Examples 3­5 in [9]). The authors prove that V can be extended to handle unknown individuals both in the KB and the queries, while remaining sound and complete for N F , and also that it remains efficient if the number of null values is logarithmic in the size of the KB and the width of the query. The properties of progression of proper KBs with unknown individuals have not been studied. proper itself is not closed under classical progression even for the simplest BATs because classical progression inevitably contains disjunctive information, as illustrated in [24]. In response to this, [24] and [29] replace classical progression with weak progression, which is defined as the strongest proper KB entailed by the classical progression. They establish that, with the additional constraint of contextcompleteness (that is, the KB contains complete information about the context conditions of the SSA in a given situation), weak progression (1) is also context-complete, (2) coincides with classical progression, (3) is efficiently computable, and (4) query answering with respect to it is tractable for N F queries. These results also extend to context-free BATs. The restrictions associated with weak progression for proper severely limit the ability to express uncertainty and are thus of little relevance to the problem of conformant planning. Procedure X The evaluation procedure X for proper+ , introduced in [17], is an extension of V which is still sound and decidable but not complete even for N F queries due to the added expressiveness of proper+ versus proper. In contrast to V , X returns either 1 or 0, corresponding, respectively, to "known to be true" and "not known to be true". Thus, to simulate the expressiveness of V , it is necessary to invoke X twice, to evaluate both the query and its negation, as summarized in the following table. Table 2.1: Querying whether  holds wrt K X [K, ] 0 1 0 1 X [K, ¬] 0 0 1 1 Meaning unknown yes no K is inconsistent
+
+23
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+CHAPTER 2. BACKGROUND
+
+Definition 15. Let S be a set of ground clauses. Define U P (S ) to be the closure of S under unit propagation : the least set which contains S and, if {l}  d and ¯ l are in U P (S ), then so is d. Let K be a proper+ KB. X [K, ] returns 1 if one of the following holds, and 0 otherwise: 1.  is a unit clause such that   U P (gnd(K)); 2.  is (c = c ) such that c is identical to c ; 3.  is ¬(c = c ) such that c is not identical to c ; 4.  is ¬¬ such that X [K,  ] = 1;
++ 5.  is (   ), such that there is a (e  d)  K and   Hk (K  {,  }) for which X [K, e] = 1
+
+and, for every literal l  d, X [K  {l},  ] = 1 or X [K  {l},  ] = 1, where k is the number of free variables in d; 6.  is ¬(   ) such that X [K, ¬ ] = 1 and X [K, ¬ ] = 1;
++ 7.  is x and there is a (e  d)  K and   Hk (K  { }) such that X [K, e] = 1 and, for every + x literal l  d, there is a constant c  Hk +1 (K  { }) such that X [K  {l }, c ] = 1, where k is the
+
+number of free variables in d;
++ x ] = 1 for all c  H1 . 8.  is ¬x such that X [K, ¬c
+
+X agrees with V with respect to proper knowledge bases. Its incompleteness with respect to proper+ stems most prominently from its reliance on unit propagation and the way disjunctive and existential queries are handled: case analysis is performed shallowly, on a single clause from the knowledge base. Logic of limited belief A generalization of the evaluation-based query answering wrt proper+ knowledge bases is proposed in [28] and [24] in the form of a logic of limited belief called the subjective logic SL. Query answering in SL uses a procedure similar to X except it parametrizes the depth of case analysis. This development brings with it coherent semantics and tractability under certain reasonable conditions. SL is a first-order logic whose atomic formulas are belief atoms of the form Bk , where Bk is a belief operator, k  0 is the depth of belief, and  is a well-formed formula of the language L. SL formulas are equalities over terms of L, belief atoms as described above, as well as formulas obtained from belief atoms using standard logical connectives and existential quantification. Consequently, every non-equality predicate must be within the scope of a belief operator, and the belief operators cannot be nested. The semantics of SL is defined in terms of setups -- sets of non-empty ground clauses, which are meant to represent explicit beliefs. The negation and disjunction have the usual meanings, and equality and quantification are understood with respect to the equality axioms E . A belief atom Bk  is satisfied by a setup s (i.e.,  is a belief at a level k with respect to a setup s, denoted as s |  Bk ) if one of the following is true: 24
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+·  is a clause, k = 0, and the unit resolution on the explicit beliefs s contains a subclause of ; · the subformulas of  that are satisfied by s are sufficient to conclude that  itself is satisfied; · there is a clause in s that, when used for case analysis, results in the belief Bk-1  in all cases. The result that is of the most interest to the present work is that of the decidability of SL-based reasoning. The evaluation procedure W , introduced in [24] as a sight variant of X and defined below, exploits the fact that it is often sufficient to consider only a finite subset of the set of constants, because the unused constants are created equal and any one of them can serve to represent the behaviour of the rest. In the following definition, gnd(K)|D denotes the subset of gnd(K) which mentions no constants other than those in D.
++ Definition 16. Let K be proper+ , k  0,   L. Let j be the width of K. Let D be Hj (K  {}).
+
+W [K, k, ] returns 1 if one of the following holds, and 0 otherwise: 1. k = 0,  is a clause, and there exists   U P (gnd(K)|D) such that   ; 2.  is (c = c ) and c is identical to c ; 3.  is ¬(c = c ) such that c is not identical to c ; 4.  is ¬¬ such that W [K, k,  ] = 1; 5.  is (   ) but not a clause, such that W [K, k,  ] = 1 or W [K, k,  ] = 1; 6.  is ¬(   ) such that W [K, k, ¬ ] = 1 and W [K, k, ¬ ] = 1;
+x ] = 1 for some c  D; 7.  is x such that W [K, k, c x ] = 1 for all c  D; 8.  is ¬x such that W [K, k, ¬c
+
+9. k > 0,  is a clause, a disjunction, or an existential, and there is a clause d  gnd(K)|D such that for every literal l  d, W [K  {l}, k - 1, ] = 1. W improves upon X by introducing a semantically sound notion of the level of belief k , which sets the depth of case analysis. It is proved in [24] that, for a proper+ KB K and   L, the setup gnd(K) satisfies Bk  iff W [K, k, ] = 1, and this kind of reasoning is decidable. To address query answering in SL, [24] defines answers to queries similarly to Definition 4. Here, Lj represents the subset of L where formulas have at most j variables. Definition 17 ([24]). Let K  Lj be proper+ ,   Lj , and k  0. Define Ans(K, , k ) as { | gnd(K) |  Bk }. The set Ans(K, , k ) may well be infinite, but [24] proves that there is a finite representation for it. Let Ans(K, , k )|D to denote the restriction of Ans(K, , k ) to D. The notation D D is the union of H () and m extra constants. 25
++ Hm () states that
+
+2.4. UNCERTAINTY IN THE INITIAL KB Theorem 3 ([24]). Let D
+
+CHAPTER 2. BACKGROUND
+
++ Hm (K  {}) for some m  j . Ans(K, , k )|D is a finite representation
+
+for Ans(K, , k ) in the following sense. Let  be any substitution. Let  be a bijection that is the identity on H (K  {}) and maps (xi ) into D for i = 1, . . . , j . Then   Ans(K, , k ) iff   Ans(K, , k )|D. Using this result, [24] develops the procedure E which computes a set of answers to a query. E takes four arguments: the knowledge base K, the query , the belief level k , and a set of constants D. Using database-like methods division and projection, E returns a relation over D, which is a semantically correct answer to  wrt K at belief level k if D is properly selected, as stated in the following result. Theorem 4 ([24]). Let K  Lj be proper+ ,   Lj , and k  0. Let D m  j (k + 2). Then E (K, , k, D) = Ans(K, , k )|D. Here, since m  j (k + 2) > j , Ans(K, , k )|D is a finite representation of Ans(K, , k ) according to Theorem 3. In the subsequent complexity analysis, [24] establishes that E scales exponentially with the number of variables j and the depth of case analysis k . Thus, E provides decidable query answering for proper+ knowledge bases and arbitrary queries in a variable-limited first-order logic.
++ Hm (K  {}) for some
+
+2.4.3
+
+Progression of proper+ KB
+
+The properties of progression of proper+ knowledge bases have been extensively studied in [26]. In particular, it has been proved that if the context conditions of the successor state axioms are essentially quantifier-free, then proper+ is closed under local-effect progression and such progression is efficiently computable. Theories that meet these constraints are called well-formed in [10] and are formally defined as follows. Definition 18. A BAT D is well-formed if all of the following hold: 1. D is local-effect. 2. For every SSA F (¯ x, do(a, s))  F (¯ x, a, s) in Dss and every action function A(¯ x), F (¯ x, A(¯ x), s) can be simplified using Duna to a quantifier-free formula. 3. DS0 is proper+ . Above, the second constraint can be understood in terms of transformed SSAs: every transformed SSA that can arise in D must be quantifier-free. SSAs (and sets thereof) that have this property are referred to in [26] as essentially quantifier-free. In relation to the third constraint, note that DS0 mentions terms of sort situation, which in general are not definable in the underlying language L of proper+ since L forbids all functional symbols except for a countably infinite set of constants. While DS0 is uniform in S0 is thus prevented from mentioning the function symbol do, this issue becomes more severe for Dss [], discussed in detail below, since it does mention do. In either case, there is no obstacle for expressing the respective theories as proper+ for the purposes of progression. According to Theorem 1, computing progression involves reasoning about situations only in a very limited sense, so the situation terms can be safely suppressed from DS0 for the 26
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+forgetting stage of the computation and reinstated afterwards; the notion of situation-suppressed terms and formulas is formally defined in [37] and notably used in [41] for a similar purpose. The following results underpin the main findings of [26] and provide the necessary background for the discussion that follows. We omit full proofs in favour of short comments. Associated complexity results are also omitted. Definition 19. A ground atom p is irrelevant to a sentence  if forget(, p)  . Lemma 1 ([26], Proposition 5.3). Let p be a ground atom and let 1 , 2 , 3 be sentences such that p is irrelevant to them. Then forget((1  p)  (p  2 )  3 , p)  (1  2 )  3 . This is essentially a propositional result and can be proved as such. Using Definition 10 and the fact that forgetting distributes over disjunction, we can transform the left-hand side into the equivalent formula (¬1  3 )  (¬1  2  3 )  (2  3 ), which trivially transforms to the right-hand side with the help of propositional tautologies. Lemma 2 ([26], Proposition 5.4). Let  = (e  d) be a -clause and P (¯ c) a ground atom. Suppose ¯ ¯ that for every atom P (t) appearing in d, e  (t = c ¯) is unsatisfiable. Then P (¯ c) is irrelevant to . This result is rather intuitive in the light of Definitions 8 and 9. If the predicate symbol P does ¯) affects neither the not appear in d, the claim holds trivially. Otherwise, since the interpretation of P (t truth value of  nor that of forget(, P (¯ c)), the two theories have the same set of models. Definition 20 ([26], Definition 5.5). Let K be a proper+ KB and P (¯ c) a ground atom. We say that K ¯) appearing in d, either t ¯ is c is in normal form wrt P (¯ c) if, for every (e  d)  K and for every P (t ¯ or ¯= c e  (t ¯) is unsatisfiable. In other words, compared to plain proper+ , the normal form is syntactically explicit with respect to the semantics of P and c ¯. Lemma 3 ([26], Proposition 5.6). Every proper+ theory can be converted into an equivalent one which is in normal form wrt a given ground atom. A straight-forward conversion procedure is given in [26]. It is inspired by the syntactical trans¯) in a formula by formation introduced for Theorem 2: replacing every occurrence of an atom P (t ¯  P (¯ ¯  P (t ¯)] preserves the semantics of the formula. Performed on the expression [¯ c = t c)]  [¯ c = t an arbitrary -clause with n occurrences of the predicate symbol P , the result of this transformation can be trivially rewritten as a conjunction of 2n -clauses which conform to the definition of the ¯)) can be equivalently expressed as the conjunction normal form. For example, a -clause (e  P (t ¯= c ¯= c ¯)). (e  t ¯  P (¯ c))  (e  t ¯  P (t ¯)) and 2 = (e2  d2  ¬P (t ¯)) be two Definition 21 ([26], Definition 5.7). Let 1 = (e1  d1  P (t ¯ -clauses, where t is a vector of constants or a vector of distinct variables. Without loss of generality ¯. We call the -clause we assume that 1 and 2 do not share variables other than those contained in t ¯). (e1  e2  d1  d2 ) the -resolvent of 1 and 2 wrt P (t 27
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+CHAPTER 2. BACKGROUND
+
+Theorem 5 ([26], Theorem 5.8). Let K be a proper+ KB and p a ground atom. The result of forgetting p in K is definable as a proper+ KB. By Lemma 3, K can be converted into normal form wrt p, a theory N F (K, p). By the definition of ¯) is the normal form, for each -clause (e  d)  N F (K, p) that does not contain p in d, e  (¯ c=t unsatisfiable, rendering p irrelevant to it as per Lemma 2. For any two -clauses 1 , 2  N F (K, p) which mention p with opposite polarities, by Definition 21, we can compute a -resolvent. By Lemma 1, the set of all -resolvents of N F (K, p) together with the set of irrelevant -clauses is the result of forgetting p from K. Since the original theory is proper+ and each -resolvent is a proper+ formula, the result is also a proper+ theory. Lemma 4 ([26], Proposition 5.11). If Dss is essentially quantifier-free, then Dss [] is definable as a proper+ KB. Recall that the characteristic set (s) of a progression with respect to a ground action is the set containing all atoms F (¯ c, s) such that the constant tuple c ¯ is in the argument set F , for each fluent symbol F . Dss [] is the instantiation of the successor-state axioms with respect to the characteristic set (do(, S0 )). That is, Dss [] is a set of formulas of the form F (¯ c, S )  F (¯ c, , S0 ), or, equivalently, (¬F (¯ c, S )  (¯ c, , S0 ))  (¬(¯ c, , S0 )  F (¯ c, S )). Here, F (¯ c, S ) is a ground atom and (¯ c, , S0 ) is the right-hand side of the SSA. Recall that the SSAs of a well-formed BAT are local-effect and can be simplified using Duna to
+± quantifier-free formulas. That is, for every (n + 1)-ary fluent symbol F , each F in (c1 , . . . , cn , , S0 )
+
+(2.12)
+
+is a disjunction of formulas of the form z1 · · · zk ( = A(c1 , . . . , cn , z1 , . . . , zk )  cc (c1 , . . . , cn , z1 , . . . , zk , S0 )), which, upon substitution of a ground action  = A (b1 , . . . , bn+k ) yield either a contradiction (when A and A are different functional symbols) or quantifier-free ground formulas (c1 = b1 )  · · ·  (cn = bn )  cc (c1 , . . . , cn , bn+1 , . . . , bn+k , S0 ). These can be further simplified using the equality axioms to either a contradiction or boolean combinations of ground atoms.
++ - Let + , - be the sets of such transformed disjuncts of F and F (respectively) which don't yield
+
+a contradiction due to Duna  E when a ground action is substituted. Then F (¯ c, , S0 ) becomes (¯ c, S0 )  F (¯ c, S0 )  ¬
++ -
+
+(¯ c, S0 ),
+
+(2.13)
+
+which is also a boolean combination of ground atoms and, consequently, so is Equation (2.12). Thus,
+ see
+
+Definition 6
+
+28
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+Dss [] can be expressed as a finite set of ground clauses, which becomes a subset of proper+ when the situation arguments are suppressed as described above. However, following a remark in [41], note that a naive suppression of all situation terms from Dss [] leads to a collision of atoms F (¯ c, S ) and F (¯ c, S0 ), for each fluent symbol F . The solution to this is discussed in relation to the next result. Theorem 6 ([26], Theorem 5.12). If D is a well-formed BAT, then progression of DS0 with respect to any ground action is definable as a proper+ KB. This follows immediately from Theorem 1, Definition 18, Theorem 5, and Lemma 4. Note that the ground fluent atoms F (¯ c, S ) are irrelevant to forgetting the set (S0 ) from DS0 Dss [] due to the situation term S : the foundational axioms  of situation calculus mandate that S0 and do(, S0 ) are never mapped to the same object. Thus, when suppressing the situation term from Dss [], a new propositional symbol must be introduced for each fluent symbol F to replace F (¯ c, S ). In the result of forgetting, F (¯ c, S ) should be reinstated, along with the suppressed situation terms. The Grounding Trick New results pertaining to progression of well-formed action theories and query answering in SL were obtained in [10]. In the paper, the authors develop a high-level reasoning mechanism based on situation calculus using the ideas of limited reasoning and finite representations, as outlined in the previous sections. They describe an alternative way to compute the progression of a well-formed BAT, one which is based on the ideas of finite representations and which is claimed by the authors, based on empirical evaluation, to be more efficient than that of [26]. The idea underlying the approach is the so-called "grounding trick", in which the initial proper+ KB is converted into a finite propositional representation -- a set of ground clauses. Similarly to [26], the authors exploit the merits of well-formed BATs, but on a propositional level. They introduce a propositional variant of progression and demonstrate that the result of converting it back to proper+ is equivalent (up to E ) to progression of well-formed BAT as per [26]. As before, the width of a proper+ KB, denoted j , is taken to be the maximum number of distinct variables in a -clause of the KB. The following definitions and results assume that there is a set U of reserved constants {u1 , . . . , uj } that do not appear in the initial KB and will never appear as arguments in a ground action. All constants from C which are not in U are referred to as normal constants. In this context, the notation H () from Section 2.4.2 denotes the set of all normal constants appearing in . Likewise, H ()+ n denotes the set H () extended with n normal constants which do not appear in . Let gnd(K)|D denote the set {d | (e  d)  K,   D, |=E e}. Definition 22 (Def.9, [10]). Let K be a proper+ KB with width j . Let N be a set of normal constants containing those appearing in K, i.e. H (K)  N . Define prop(K, N ) to be gnd(K)|(N  U ). Note that whereas gnd(K) is, in general, countably infinite, the set gnd(K)|(N  U ) is strictly finite. Moreover, it is a set of ground clauses, or CNF. Compared to proper+ , CNF is significantly easier to work with, which is the major benefit of this approach. 29
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+CHAPTER 2. BACKGROUND
+
+The essence of the trick is that the U -constants used for grounding can be taken as representatives for the countably infinite set of normal constants that do not participate in the grounding. Consider a variant of Theorem 3: Lemma 5. Let K be a proper+ KB with width j . Let N = const(K) and let U be a set of new constants {u1 , . . . , uj } disjoint from N . Then gnd(K)|(N  U ) is a finite representation for K in the following sense. Let (e  d) be an arbitrary -clause from K and let  be an arbitrary substitution compatible with d. Let  be a bijection from C to C such that it is an identity on N and maps every member of  into (N  U ). Then d  gnd(K) iff d  gnd(K)|(N  U ). Proof. First, observe that , due to being a bijection, maintains unique names for constants and does not affect equality. Thus, E and E  are logically equivalent; in fact, they are identical. By the fact that  is an identity on all normal constants, for a formula  which contains only normal constants and for an arbitrary substitution , we trivially have  =  , () =  . (2.14)
+
+Second, let  and  be two first-order sentences. Let M be an arbitrary interpretation such that M |= E and let M be exactly like M except that (c )M = (c)M and (c)M = (c )M . Notice that only the names of the constants are interchanged according to , but their mapping to the domain is retained. Consequently, we have M |=  whenever M |=  , and, since the set of models of  and the set of models of  are isomorphic, if  is satisfied in all models, then  is satisfied in all models, and vice versa: |=E  iff |=E  . (2.15)
+ 
+
+Assume that, for some (e  d)  K and some substitution , d belongs to gnd(K). By the definition of gnd, we must have |=E e. By equations (2.14, 2.15), |=E e iff |=E e . Also,   (N  U ) by the definition of . With all set inclusion conditions satisfied, we have d  gnd(K)|(N  U ). For the next definition, recall that we use  to range over substitutions of variables by constants and casually treat substitutions as constant tuples. Thus, given a -clause (e  d) where d is a disjunction of literals, d denotes a ground clause obtained from d by replacing all variables with constants from . Definition 23 (Def.10, [10]). Let K be a proper+ KB with width j and let Kp be prop(K, N ) for some N , H (K)  N . Let  be the ewff
+j
+
+xi = c 
+i=1 cH (Kp ) i=k
+
+xi = xk .
+
+Define FO(Kp ) to be the set of -clauses {  (  d(u1 /x1 , . . . , uj /xj )) | d  Kp }. 30
+
+CHAPTER 2. BACKGROUND
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+The set FO(Kp ) is obviously a proper+ knowledge base, with each -clause obtained in a straightforward way from a ground clause. Observe that all -clauses of FO(Kp ) share the same guarding ewff . The object assignments under which  is satisfied are peculiar: they never map distinct variables to the same domain element, and they never map a variable to a domain element which is already mapped to by some constant. Theorem 7 (Th.6, [10]). With K, N as before, we have FO(prop(K, N )) E K. This result asserts the semantic reversibility of finite grounding. In other words, no information is lost when a proper+ KB is grounded as long as a sufficient number of U -constants is used. Clearly, FO(prop(K, N )) does not have to be syntactically identical to K; in fact, it tends to be much more verbose. The following definition and theorem formalize the idea of using U -constants as representatives for normal constants; egnd stands for extended grounding. Definition 24 (Def.11, [10]). Let B be a finite set of normal constants not occurring in K, let Kp be prop(K, N ) with H (K)  N , and let c range over normal constants not in N . Define egnd(K, B ) inductively as follows. 1. egnd(Kp , ) = Kp 2. egnd(Kp , {c}) = Kp  {d(uk /c) | d  Kp , 1  k  j } 3. egnd(Kp , {c}  B ) = egnd(egnd(Kp , {c}), B ) Note that the new clauses are obtained from old clauses by substituting each constant from B in the place of each of the "representatives". Theorem 8 (Th.7, [10]). With K, N , B as before, we have egnd(prop(K, N ), B ) E prop(K, N  B ). Simply put, extending a grounding of a KB using additional normal constants B is equivalent to grounding that KB using a set of normal constants which contains B . Next, we define progression of a grounded KB (denoted pprog, meaning propositional progression ). Definition 25 (Def.12, [10]). Let D be a well-formed BAT, let Kp be prop(DS0 , N ) with H (DS0 )  N , let  = A(¯ c) be a ground action, and let B be the set of constants appearing in c ¯ but not in Kp . Define pprog(Kp , ) as forget(egnd(Kp , B )  Dss [], (S0 ))(S0 /S ). This definition strongly resembles the result regarding first-order progression from Theorem 1. Like the progression of well-formed BATs from [26], it preserves the underlying syntactic form (proper+ in [26], CNF here) and is efficiently computable. Specifically, egnd(Kp , B ) is CNF by definition; Dss [] is CNF by Lemma 4; and (S0 ) is a set of ground atoms by definition. According to Definition 10, the result of forgetting a proposition p from a 31
+
+2.4. UNCERTAINTY IN THE INITIAL KB
+
+CHAPTER 2. BACKGROUND
+
+CNF is a disjunction of two CNFs. It is noted in [10] that this operation can be performed in a straightforward way by computing all resolvents with respect to p and then removing all clauses containing p. Indeed, let  be set of ground clauses. It can be rewritten as a conjunction pos  neg  irr of pairwise disjoint sets of clauses which, respectively, contain literal p, contain literal ¬p, and contain neither p nor ¬p. Then pos = (p  C1 )  · · ·  (p  Cn ) = p  (C1  · · ·  Cn ) = p  pos , where pos is the set of clauses of pos with p removed. Likewise, neg = ¬p  neg . Then  = (p  pos )  (¬p  neg )  irr , and, by Definition 10, forget(, p) = (p/f alse)  (p/true) = irr  (pos  neg ). The disjunction of two sets of clauses pos and neg is the set of all clauses  = C1  C2 such that C1  pos and C2  neg . This is exactly the set of resolvents of  with respect to p. Lemma 6 (Lemma 8, [10]). Let p be a ground atom. Let N be a set of normal constants containing those that appear in p or a proper+ KB K. Then forget(K, p) E FO(forget(prop(K, N ), p)). This result establishes the connection between forgetting an atom from a proper+ KB and its finite propositional representation. Note the close resemblance between forgetting via propositional resolution (above) and forgetting via -resolution in the discussion following Theorem 5. Theorem 9 (Th.9, [10]). FO(pprog(prop(K, N ), )) E prog(K, ) This follows immediately from Theorem 1, Theorem 7, Theorem 8, and the last lemma. Thus, the progression of a well-formed BAT wrt a ground action can be computed by the means of straight-forward manipulations of CNF formulas. To implement a simple progression-based conformant planner, we also require an ability to query the knowledge base. Querying a ground KB In Definition 4, we defined certain answers to a query (¯ x) wrt a knowledge base to be the set of constant tuples c ¯ such that (¯ c) is entailed by the KB. Let us refine that definition in the context of proper+ theories. Definition 26. A certain answer to a query  with respect to a proper+ knowledge base K is the set of constant tuples { | K |=E }. For a boolean query, an empty tuple is an affirmative certain answer, read as true. Henceforth, we will be using the term answer to refer to the certain answer from Definition 26. Lemma 7. Given a proper+ KB K and a query , the set { | gnd(K) |=E }, denoted as Ans(K, ), is the certain answer to  with respect to K. 32
+
+CHAPTER 2. BACKGROUND
+
+2.5. DISCUSSION
+
+Proof. By Definition 26, { | K |=E } is the answer to  wrt K. Recall that a proper+ KB K and the corresponding grounding gnd(K) are, respectively, a finite and an infinite representation of the same knowledge, up to E [20, 17]; that is, K E gnd(K). Hence, K |=E  iff gnd(K) |=E . Similarly to the notation used in Definition 17, we use Ans(K, )|D denote the set { |   D, gnd(K) |=E }, which is a restriction of Ans(K, ) to the set of constants D. Likewise, mirroring Theorem 3, we show that such a restriction can be a finite representation for the answer. Lemma 8. Let K be a proper+ KB with width j and let  be a query with k free variables. Let N = const(K  ) and let U be a set of new constants {u1 , . . . , un } disjoint from N with n = max[j, k ]. Then Ans(K, )|(N  U ) is a finite representation for Ans(K, ) in the following sense. Let  be any substitution compatible with  and let  be a bijection from C to C such that it is an identity on N and maps every member of  into (N  U ). Then   Ans(K, ) iff   Ans(K, )|(N  U ). Proof. Let  and  be sentences such that  |=E  and let M be a model for  such that M |= E . Recall the construction of M from M from the proof of Lemma 5. Then M |=E  and M |=E   . Likewise, if  |=E  then there must be a model M of  which is not a model for  , and the corresponding M is a model for  but not for   . Thus,  |=E  iff  |=E   . (2.16)
+
+By equation (2.16), gnd(K) |=E  iff gnd(K) |=E () . By equation (2.15), |=E e iff |=E (e) . Observe that the set { | |=E e} is identical to { | |=E (e),   (N  U )}. Thus the set gnd(K) = {d | (e  d)  K, |=E e} can be equivalently expressed as {d | (e  d)  K, |=E e,   (N  U )}, which is exactly the set gnd(K)|(N  U ), whose logical consequences are a subset of those of gnd(K). Therefore, gnd(K) |=E  iff gnd(K) |=E  .
+
+2.5
+
+Discussion
+
+In this chapter, we formulated and proved a set of results, namely Lemmas 5, 7, and 8. Lemmas 5 is an explicit re-formulation of a hidden result from [10]. Lemma 7 is a minor yet original contribution. Lemma 8 is a new result inspired by a similar development from [24]. These results form the basis for the algorithm developed in the next chapter in the following sense. Note a peculiarity in the proof of Lemma 8: the finite representation Ans(K, )|(N  U ) for query  can be obtained by deciding which tuples , generated over the finite set (N  U ), satisfy the entailment gnd(K)|(N  U ) |=E . That is, the finite representation for the answer to a query can be obtained by repeatedly testing whether a finite CNF entails a ground query. If the query is additionally constrained to a quantifier-free formula, this testing reduces to simple propositional entailment and can be performed by an off-the-shelf SAT solver. This, together with the ability to express uncertain knowledge using proper+ and the ability to efficiently compute progression using the grounding trick, provides sufficient machinery for a sound and complete conformant planner described in the next chapter. 33
+
+Chapter 3
+
+A Conformant Planner
+In this chapter, we develop a sound and complete conformant planning algorithm and describe the design of a simple progression-based conformant planner. We limit our attention to well-formed basic action theories and quantifier-free queries.
+
+3.1
+
+Basic considerations
+
+In the formulation of Geffner et al. [13], planning is a model-based autonomous behaviour, where the model is a variation of the basic state model -- a generic STRIPS-like description of a state space. The introduction of PDDL and subsequent advances in directing the search in the PDDL state space owe to the wide acceptance of this approach by the planning community. Unfortunately, this classical planning approach restricts the ability of even the most elaborate algorithms to work with interesting domains, one of the limiting factors being its inherent domain closure assumption. On the other hand, dealing with an uncertain number of unnamed objects is a task which is encountered and solved by humans on a daily basis and which should not be overlooked simply because of its incompatibility with classical planning. By using a first-order language to describe world states, we gain an ability to express structured knowledge about the application domain, including properties of and relationships between objects, which escapes from the classical planning setting. Furthermore, in the presence of quantification, domain objects do not need to be explicitly named or constrained to a finite set. By engineering a specific fragment of situation calculus, we can efficiently compute progression of an incomplete initial theory. This paves the way for designing new planning algorithms which are capable of handling open domains and which operate on a precise specification of what a plan is. To provide said specification, we formulate the planning problem as a logical entailment. In doing so, we are not forced to use resolution or other deductive techniques to compute plans. Instead, we are free to design custom planning algorithms that search the tree of situations for a solution, possibly using heuristics to cut useless branches. The semantics of planning defined via an entailment allows us to prove soundness 35
+
+3.1. BASIC CONSIDERATIONS and completeness of such algorithms.
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.1.1
+
+The search space
+
+Recall that a basic action theory D contains the initial state of the world in its subset DS0 , and the world dynamics in the form of action precondition axioms Dap and the successor state axioms Dss . The goal conditions are formalized in the form of a first-order formula, which should be situation-dependent -- otherwise, its truth value cannot be affected by any number of actions. In Definition 2, we implicitly defined a planning problem as a pair D, Goal(s) , where D is a basic action theory and Goal(s) is a first-order formula that is uniform in the situation term s and contains no free variables other than s. In the most general terms, solving a planning problem means deciding the entailment D |= s (S0 s)  Goal(s), (3.1)
+
+that is, binding the situational variable to an object that corresponds to a sequence of actions that satisfies the goal condition. We define a solution to a planning problem to be a finite sequence of ground actions (a plan ) 1 , . . . , n for which D entails Goal(do([1 , . . . , n ], S0 )). We refer to the set of all plans for a given planning problem as the search space. Consider the search space for an arbitrary planning problem. The search space contains plans of all lengths, of which there are as many as there are natural numbers. On its own, every plan is finite, but no planning algorithm can exhaustively search through an infinite search space. Therefore, every practical planner must impose an upper bound on the length of a plan. We can formally reflect that by introducing into the right-hand side of equation (3.1) the function length(s) which maps every situation term do([1 , . . . , n ], S0 ) to the number n of ground actions it involves. The following entailment is the decision problem for a practical planner: D |= s (S0 s  Goal(s)  length(s)  N ), for some N  0. (3.2)
+
+In this new context, the search space is smaller, but still infinite: there is an infinite supply of constants, and thus of ground actions. To see the problem clearly, let us equivalently express the righthand side of equation (3.2) by replacing quantification over situations with quantification over actions using the foundational axioms of situation calculus: Goal(S0 )  1 Goal(do([1 ], S0 ))  . . .  1 . . . N Goal(do([1 , . . . , N ], S0 )). (3.3)
+
+Since equation (3.3) is a disjunction, it is satisfied iff at least one of the individual disjuncts is satisfied. To avoid long formulas, we will use for illustration the subformula 1 Goal(do([1 ], S0 )) representing plans with length 1. Recall that the set A of action symbols in a BAT is finite. Additionally, recall that for every action name A  A there is a precondition axiom of the form (P oss(A(¯ x, s))  A (¯ x, s)), which serves to 36
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.1. BASIC CONSIDERATIONS
+
+indicate whether a particular action is legal to perform. This information, implicit in quantification over actions, must be explicitly embedded into the statement of the planning problem when reducing quantification over actions to that over object variables. For plans of length 1, the corresponding subformula can be equivalently rewritten as
+AA
+
+x ¯ [P oss(A(¯ x), S0 )  Goal(do(A(¯ x), S0 ))] ,
+
+(3.4)
+
+and similarly for arbitrary length plans. Thus, each subformula of Equation (3.3) responsible for a set of plans of some fixed length can be further broken down into sub-problems, each of which corresponds not only to plans of some fixed length k , but also to a particular sequence of action names. Due to the infinite object domain, the quantification over objects cannot be rid of by the means of a finite disjunction. In the underlying language of well-formed BATs, we have a bijection between the object domain and the countably infinite set of constants C . Using the constants, we can equivalently express equation (3.3) as an infinite disjunction. Albeit infinite, the result would be completely free of quantifiers. For instance, for plans of length k with 1  k  N , the corresponding subformula is P oss(A1 (¯ c1 ), S0 )  . . .  P oss(Ak (¯ ck ), do([A1 (¯ c1 ), . . . , Ak-1 (¯ ck-1 )], S0 ))
+A1 ,...,Ak A c ¯1 ,...,c ¯k C
+
+ Goal(do([A1 (¯ c1 ), . . . , Ak (¯ ck )], S0 )).
+
+(3.5)
+
+An optimization is readily available. For any constant tuple c ¯, P oss(A(¯ c, s)) holds if and only if A (¯ c, s) does. For each occurrence of the predicate P oss in a formula such as (3.4), the set of all such tuples can be obtained by posing A (¯ x, s) as a query with respect to the BAT. For example, for the case of single-action plans, the set of ground action arguments that make P oss(A(¯ x), S0 ) true is {c ¯ | DS0  Duna |= A (¯ c, S0 )}. Observe that those disjuncts of Equation (3.5) that involve constant tuples c ¯1  {c ¯ | DS0  Duna |= A (¯ c, S0 )} are trivially false and can be dropped, while those that involve tuples from the answer set can be simplified by removing the trivially true occurrence of P oss. In the case of plans of length 1, equation (3.4) can be equivalently rewritten as
+AA DS0 Duna |=A (¯ c,S0 )
+
+Goal(do(A(¯ c), S0 )),
+
+(3.6)
+
+and similarly for plans of arbitrary length, with a caveat: for plan lengths k > 1, query answering involves solving a projection problem, which will be discussed below. Equations (3.5, 3.6) suggest the iterative deepening search strategy for the planner, outlined in Algorithm 1. Although this algorithm is not guaranteed to terminate, it is sound and complete for plans with length up to and including N .
+
+3.1.2
+
+Query answering using SAT and the projection problem
+
+To arrive at a decidable algorithm, we employ the idea of finite representations developed in Section 2.4.3. Using the "grounding trick", we can convert the proper+ KB K representing initial knowledge of a well-formed BAT into a finite set of ground clauses Kp and compute a finite representation of the 37
+
+3.1. BASIC CONSIDERATIONS
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+Algorithm 1: Iterative deepening search for a plan Data: a planning problem D, Goal(s) Data: plan length bound N  0 Result: a solution to the planning problem or the empty set foreach k  (0, . . . , N ) do foreach (A1 , . . . , Ak )  Ak do foreach ¯1  {c ¯ | D |= A1 (¯ c, S0 )} do ... c foreach c ¯k  {c ¯ | D |= Ak (¯ c, do([A1 (¯ c1 ), . . . , Ak-1 (¯ ck-1 ))], S0 ))} do if D |= Goal(do([A1 (¯ c1 ), . . . , Ak (¯ ck )], S0 ) then return [A1 (¯ c1 ), . . . , Ak (¯ ck )] return 
+
+answers to quantifier-free queries with respect to it. Finite answer sets can be used to turn infinite disjunctions such as equation (3.6) into finite ones, resulting in a finite search space for the planner. Algorithm 2: QA(K, (¯ x)) Data: a proper+ KB K Data: a quantifier-free query (¯ x) Result: the set Ans of constant tuples N = const(K)  const() U = {u1 , . . . , umax[j,k] } Kp = gnd(K)|(N  U ) Ans =  foreach   (N  U ) do if Kp  ¬ is UNSAT then Ans = Ans   return Ans
+
+The output of Algorithm 2 is a set of constant tuples which may include any of the reserved U constants. Such tuples cannot be used directly as answers to the query: they need to be interpreted according to the context. Specifically, an answer tuple (t1 , . . . , ui , . . . , tk ) represents an infinite set of tuples {(t1 , . . . , c, . . . , tk ) | c  C \ (const(K)  const())}, according to Lemma 8. Algorithm 3, a slight version of Algorithm 2, computes such context-dependent sets of tuples; specifically, it replaces U constants in the answers with fresh normal constants, which can later be used to extend the knowledge base. Note that Algorithm 3 takes an additional input, a set of normal constants. This is done for convenience in defining Algorithm 4 later on. Note that Algorithms 2 and 3 can only be applied when the query and the knowledge base are uniform in the same situation term. Whenever this condition is violated, the output of either algorithm is undefined. Thus, to answer a query (¯ x, s2 ) wrt a KB K(s1 ) such that s1 , s2 are ground situation terms and s1 < s2 , we need to progress K(s1 ) through the action sequence that separates s1 from s2 . This can be done using either of the two approaches to progression discussed in Section 2.4.3. In our implementation, we focus on propositional progression from Definition 25 to minimize overhead, since 38
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.1. BASIC CONSIDERATIONS
+
+Algorithm 3: QAC (K, (¯ x), C ) Data: a proper+ KB K Data: a quantifier-free query (¯ x) Data: a set of normal constants C Result: the set Ans of context-dependent normal constant tuples N = const(K)  const()  C U = {u1 , . . . , umax[j,k] } Kp = gnd(K)|(N  U ) Ans =  foreach   (N  U ) do if Kp  ¬ is UNSAT then if  contains U -constants then replace each U -constant in  with a new normal constant Ans = Ans   return Ans
+
+the knowledge base needs to be grounded for query answering anyway. In doing so, we can altogether dispense with the proper+ representation of the knowledge and maintain only the grounded version of the knowledge base.
+
+3.1.3
+
+Planning algorithm
+
+We summarize the preceding developments in the following essential result. Algorithm 4: Planning algorithm Data: a planning problem D, Goal(s) Data: plan length bound N  0 Result: a solution to the planning problem or the empty set foreach k  (0, . . . , N ) do foreach (A1 , . . . , Ak )  Ak do foreach ¯1  QAC (D, A1 (¯ x, S0 ), ) do ... c foreach c ¯k  QAC (D, Ak (¯ x, do([A1 (¯ c1 ), . . . , Ak-1 (¯ ck-1 ))]), c ¯1  . . .  c ¯k-1 ) do if D |= Goal(do([A1 (¯ c1 ), . . . , Ak (¯ ck )], S0 ) then return [A1 (¯ c1 ), . . . , Ak (¯ ck )] return 
+
+Theorem 10. Algorithm 4 terminates and implements a sound and complete conformant planner with bounded plan length. For proof, refer to Sections 3.1.1 and 3.1.2. 39
+
+3.2. DESIGN
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.2
+
+Design
+
+Algorithm 4 was implemented in ECLiPSe Prolog [39] and, for the experimental evaluation below, uses the state-of-the-art SAT solver Glucose [1].
+
+3.2.1
+
+Planning domain and instance specification
+
+To represent logical formulas in our implementation, we use a quantifier-free subset L of the underlying language L of proper+ described in Section 2.4.1 with its syntax adjusted as follows. In the expressions, we use Prolog operators {neg, v, ^, ->, :} which respectively correspond to logical symbols {¬, , , , =} with their usual meanings. Variable symbols are represented by 0-ary Prolog terms of the form xN , where N is a positive integer. Similarly, constant symbols are represented by Prolog terms of the form cN or uN , depending on whether it is a normal constant or a U -constant. Prolog term equality is used to test for variable or constant name equality. Fluents and static predicates are represented by Prolog terms of arbitrary arity whose arguments are variables or constants as described above. Fluents do not have an explicit situational argument; a predicate is treated as a fluent whenever it is declared as such. To represent tautology and contradiction, we use Prolog terms tRUE and fALSE. For convenience, we use Prolog lists of Prolog terms to represent ground clauses. Sets of such lists can be further stored in Prolog lists; those are assumed to represent conjunctions of clauses, i.e. CNF. At the beginning of the domain specification, we require that all fluent names are declared in a Prolog list using the Prolog predicate fluents/1: fluents([fluent name1 ,...,fluent namen ]). where each fluent namei is a 0-ary Prolog term. Action precondition axioms are defined using the Prolog predicate ap/2: ap(action name(Args), expression(Args)). where action name(Args) is a Prolog term whose name is the unique action name and whose arguments Args are Prolog variables; expression(Args) is an L -formula whose variables are Args. Successor state axioms are defined in their transformed form (see Definition 7) wrt each action name using the Prolog predicate ssa/4: ssa(fluent name( ,...), action name(Args),Gamma+ ,Gamma- ). where - fluent name( ,...) is a Prolog term whose name is one of the fluent names, whose arity corresponds to the fluent's arity, and whose arguments are anonymous Prolog variables;
+ The
+
+first letter is in lower case due to Prolog syntax.
+
+40
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.2. DESIGN
+
+- action name(Args) is a Prolog term whose name is one of the action names and whose arguments are Prolog variables; - Gamma+ and Gamma- are lists representing disjunctions  + and  - from Definition 6. Each member of either disjunction is the result of eliminating the action names using Duna from the corresponding subformula of the original successor state axiom. Specifically, each such member is a Prolog list of length 2 of the form [[Args 1],expression(Args 2)], where all members of Args 1 and Args 2 are Prolog variables from the arguments Args of the action name, Args 1 are the action arguments which are assigned to the fluent's arguments (the argument list must follow the fluent's argument arity and order), and expression(Args 2) is an L -formula representing the context condition. Initial state of a problem instance is described using the Prolog predicate fclause/1 (meaning clause) whose argument must be an L -formula of the form ewff -> clause, where ewff never mentions predicates of L but mentions equality (:), and clause is a disjunction of L -literals whose arguments are variables as described above. All variables are assumed to be universally quantified. The variable names in every single -clause must form a continuously numbered sequence of names starting from x1. Goal state is described using the Prolog predicate goal/1 whose argument is an L -sentence.
+
+3.2.2
+
+Search logic
+
+The main rule of the program is solve(Plan, Max), where Plan is the return variable and Max is the upper bound on the length of the plan. The rule implements a basic iterative deepening depth-first search in the space of states represented by Prolog terms of the form state(KB, Const), where KB is a set of ground clauses represented by Prolog lists and Const is the list of all constants that appear in KB. solve(Plan, Max) :- loadUnsat, max length(Plan, Max), reachable(State, Plan), goal state(State). The rule for loadUnsat loads the Glucose SAT solver binding as an external predicate unsat/1. max length(Plan, Max) unifies Plan with an uninitialized list whose length starts at zero and is incremented on each backtracking call up to and including the value of Max. reachable(State, Plan) is a recursive rule that returns a state State obtained by generating an executable sequence of ground actions that fills the list Plan and computing the progression of the initial state knowledge with respect to it. goal state(State) succeeds iff State entails the formula describing the goal conditions. Backtracking from a failing goal to reachable iterates over all plans of current size, guaranteeing an exhaustive search. The rule for reachable generates a state as follows. For a zero-length plan, it delegates to the rule 41
+
+3.2. DESIGN initial state/1:
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+initial state(state(PropKB, Const)) :getKB(FOL KB), propKB(FOL KB, PropKB, Const). Here, getKB/1 merely gathers all initial state -clauses in a list. propKB/3 parses the list, extracts from it a list C of all normal constant symbols and a list V of all variable symbols, infers the width j of the KB from V, generates a list U of exactly j continuously numbered U -constants, and extracts all normal constants from the goal formula, appending them to C. Finally, it invokes the rule prop/3 on each -clause to generate a finite CNF representation gnd(FOL KB)|(C  U) of the KB as per Lemma 5, which is stored in the return variable PropKB.
+
+For non-empty plans, reachable recursively builds up on the grounded initial state using the rule legal move/3: legal move(state(KB2, Const2), [A|History], state(KB1, Const1)) :poss(A, state(KB1, Const1)), not useless(A, History, KB1), progress(A, state(KB1, Const1), state(KB2, Const2)). Here, poss/2 browses through action precondition axioms declared using the predicate ap/2 described above, unifies the variable A with the axiom's action argument thus selecting an action name, instantiates its arguments with constants from Const1 and invokes the predicate entails/2 to establish using the SAT solver whether KB1 logically entails the instantiated precondition formula for the action. Backtracking ensures an exhaustive search over all precondition axioms and thus action names, as well as all substitutions of constants, including U -constants, as action arguments. When poss selects an action with one or more U -constants as action arguments and confirms that the action is possible to execute, it introduces new normal constant names (one for each distinct U -constant) and substitutes them in place of the U -constants in the action term. The grounding of the KB is consequently extended with respect to the new constants when the progression is computed.
+
+The rule useless/3 defines domain-specific declarative heuristics. Taking the current knowledge base and the history of actions as inputs allows for meaningful reasoning about the usefulness of the newly selected ground action, i.e. deciding whether the execution of the action will bring the agent closer to the goal. If a selected action is deemed possible and useful, legal move computes the progression of 42
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.3. EXPERIMENTS
+
+state(KB1, Const1) with respect to the action using the rule progress/3 according to Definition 25: progress(GAction, state(PropKB, Const1), state(ProgressedKB, Const2)) :align(state(PropKB, Const1), GAction, state(ExtPropKB, Const2)), charSet(GAction, Omega), dssOmega(Omega, GAction, DssSet), union(ExtPropKB, DssSet, KB newinfo), forgetMultiple(KB newinfo, Omega, KB forget), unrename(KB forget, KB restored), cleanup(KB restored, KB raw clean), fixGrounding(KB raw clean, Const2, ProgressedKB). Here, align/3 checks whether the ground action introduces new constants and, if so, extends the grounding of PropKB onto those constants according to Definition 24. It then invokes the rule charSet/2 to compute the characteristic set Omega of the ground action according to Definition 7. Next, the rule dssOmega/3 is used to compute Dss [] -- the instantiation of all transformed SSAs declared using ssa/4 with respect to each ground atom in the characteristic set. Each thus instantiated formula is simplified using the rule simplify/2 and converted into a list-based CNF using the rule clausalForm/2. Next, this new knowledge is merged with the extended grounded KB to yield KB newinfo, and the outdated knowledge represented by Omega is forgotten from it using simple propositional resolution implemented in the rule forgetMultiple/3 according to the discussion on page 32. Recall from the discussion following Theorem 6 that suppressing the situational argument from fluents while forgetting old knowledge from a raw progression leads to a conflict between the atoms representing the same fluent at different situations. To circumvent this, dssOmega wraps all conflicting atoms in Dss [] in a Prolog term wrap/1; the rule unrename/2 in progress simply removes the wrapping since the forgetting resolves the conflict. The optimizing rule cleanup/2 discards contradictory clauses from the resulting KB, as well as redundant literals from the non-contradictory clauses. The final and crucial step of the progression computation is the rule fixGrounding/3. Observe that the output of the previous steps, KB raw clean, is not equivalent to the grounding of a first-order progression of PropKB: its grounding is incomplete because it was based on a KB of a possibly smaller width. The rule fixGrounding implements a regrounding procedure according to Theorem 9, ensuring that the result is indeed a propositional representation of the first-order progression.
+
+3.3
+
+Experiments
+
+We tested the planner on three different domains which have previously appeared in conformant planning literature. The domains were selected in order to illustrate different aspects of the abilities of our planner.
+ Both
+
+simplify/2 and clausalForm/2 were borrowed from the prime implicate compiler for the planner wspdf
+
+43
+
+3.3. EXPERIMENTS
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+The domain "Cube" is essentially propositional and relates the performance of our algorithm to classical conformant planning. The domain "Adder" illustrates the absence of the domain closure assumption in our approach; additionally, it poses the challenge of a very large search space. The domain "Blocks World" is the most balanced of the three in the sense that it incorporates a large search space, a need for unnamed objects, and multiple fluents that result in a fast-growing progression. All experiments in this thesis were performed on a dual-core Intel Core i3-380M CPU at 2.53GHz with 4GB RAM. The run times were obtained by averaging the CPU times over three runs; the standard deviation was insignificant.
+
+3.3.1
+
+Cube
+
+The Cube domain appeared in the conformant track of IPC2006 and was used in the experimental evaluation of the planner T0 in [33]. We use a slightly modified version to accommodate the differences in the planning formalisms. The objective of the agent is to successfully navigate inside a discrete 3dimensional space. The geometry of the cube is described using the predicates xabove(x, y ), yabove(x, y ), zabove(x, y ), which describe the spatial relationships between the positions for each of the axes. Since the position constants act as natural numbers with respect to which the axes are defined, a correct world description must specify the same order of the positions on all axes. For example, the following is a correct partial description of the geometry of a cube with a side of length 3. xabove(c2 , c1 ), xabove(c3 , c2 ), yabove(c2 , c1 ), yabove(c3 , c2 ), zabove(c2 , c1 ), zabove(c3 , c2 ) Since our formalism does not implement CWA, the boundaries of the cube may be defined by sentences like (¬xabove(c1, x)), meaning that there is no position below c1, or they may be left unknown. Note that it is impossible within our formalism to describe a truly unbounded cube: this would require sentences like xy (xabove(x, y )), which invariably require existential quantification. We discuss this issue in the conclusion of this chapter. The position of the agent is described by three fluents xpos(x, s), ypos(x, s), zpos(x, s), where the object argument in each case is a position. The uncertainty about initial position of the agent can be described as follows: xpos(c1 , S0 )  xpos(c2 , S0 )  xpos(c3 , S0 ), ypos(c1 , S0 )  ypos(c2 , S0 ), zpos(c3 , S0 ) Here, the exact position of the agent is unknown, but it is known to be within a 3 × 2 × 1 cuboid near the origin. In the terminology of Section 2.1.2, this description corresponds to a belief state. To measure the problem's degree of incompleteness ("DoI" in the tables below), we use the number of possible worlds in 44
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.3. EXPERIMENTS
+
+the initial belief state for named positions only (i.e., not including the properties of the infinitely many unnamed positions). Provided that we axiomatically enforce that the agent cannot be at two distinct positions at once, the degree of incompleteness in the previous example is 3 × 2 × 1 = 6. The statement "an agent cannot be at more than one x-axis position at once" can be captured by the formula (x = y  ¬xpos(x)  ¬xpos(y )); alternatively, it can be enforced by the successor state and precondition axioms, as we do below. The agent is able to attempt to move one unit at a time along any axis using the actions xmove(x, y ), ymove(x, y ), zmove(x, y ). The precondition of each action requires the arguments to be adjacent positions on the respective axis, but does not take into account the position of the agent; thus, execution of the action may or may not have an effect. The dynamics of the world is axiomatized for the x-axis as follows, and similarly for y- and z-axes: P oss(xmove(x, y ), s)  xabove(x, y )  xabove(y, x), xpos(x, do(a, s))  z (a = xmove(z, x)  xpos(z, s))  xpos(x, s)  ¬z (a = xmove(x, z )). In comparison to the original global-effect PDDL description of Cube, the present version is forced to list all objects that may be affected by the execution of an action as the arguments of that action. As discussed in Section 2.3.1, this is mandated by our choice of the mechanism for progressing knowledge bases. Unfortunately, this dramatically increases the search space. While computing each step of a plan, the planner must consider not the mere six actions as in the original formulation, but at least 3n2 ground actions, where n is the known size of the cube. For example, there is a choice of 27 different ground actions for the first step of the instance cube3-1.pl (see below.) To alleviate this burden, we introduce a set of domain-specific declarative heuristics in the spirit of [12]. The heuristic rules are implemented by the Prolog predicate useless mentioned in Section 3.2.2. For Cube, the heuristics can be summarized as follows: - Do not perform the same action twice; - Do not revert the effects of an already performed action; - Do not move along an axis if already at correct position on it; - Explore each axis separately and in order. The experimental data below confirms the effectiveness of these heuristic rules. Their Prolog implementation can be found in Appendix 1. It is important to note that some of the rules rely on a specific goal formula structure. In other words, we define heuristics using both the useless predicate and the goal formula. This is a peculiarity of our implementation and applies to other domains as well. 45
+
+3.3. EXPERIMENTS
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+Table 3.1: Cube test runs. Run times were limited to 300 seconds of CPU time. Instance cube2-1.pl cube3-1.pl cube3-2.pl cube3-3.pl cube3-4.pl cube3-5.pl cube4-1.pl cube5-1.pl cube5-2.pl Cube size 2 3 3 3 3 3 4 5 5 DoI 8 4 3 18 8 27 64 5 125 Plan length 3 4 5 5 6 6 9 5 12 CPU time (s) blind heuristic 0.10 14.51 235.15 271.56 0.06 0.68 1.46 1.62 1.82 2.97 95.73 127.74 -
+
+Experimental data We ran the planner on several instances of Cube, which differ in the size of the cube and that of the initial belief state. The run times are summarized in Table 3.1. The instances differ the number of named positions (Cube size) and the degree of uncertainty in the initial situation (as described above). An inferred but more explicit metric is the length of the plan that satisfies the goal. In the table, we provide the length of the shortest plan. It is evident from the data that the brute-force search falls from the computational cliff almost immediately. The heuristic search is superior in comparison but in the long run still suffers from the exponential explosion of the search space.
+
+3.3.2
+
+Adder
+
+The Adder domain is a version of a domain of the same name which appeared in the conformant track of IPC2006 and, like Cube, was used in [33]. The objective is to generate a logical circuit which computes a goal boolean function. The domain objects represent bits which may take one of the two boolean values and some of which are marked as immutable. In the original formulation, due to DCA, instances are constrained to utilize a finite set of bits, which results in circuits that reuse the mutable bits over and over as intermediate nodes of the circuit. Due to the expressiveness of our formalism, our version of the domain allows to drop this unnatural requirement. The fluents of the domain are constant(x, s) and high(x, s). The former reflects the mutability of a bit, i.e., whether the bit is yet undriven (and thus can be used as the output of a logical gate) or driven (and thus can only act as an input). The fluent high(x, s) reflects the boolean value of a particular bit: high(c1 , s) means that the bit c1 is high, and ¬high(c2 , s) means that the bit c2 is low. The initial state, in general, is a possibly incomplete truth assignment on bits along with their incompletely known 46
+
+CHAPTER 3. A CONFORMANT PLANNER mutability properties: constant(c1 , S0 ), constant(c2 , S0 ), ¬constant(c4 , S0 ), high(c1 , S0 ), ¬high(c3 , S0 ), high(c4 , S0 ).
+
+3.3. EXPERIMENTS
+
+From a practical point of view, however, there is little room for uncertainly in the initial state of Adder. To describe the desired behaviour of a logical function, we introduce its k inputs as immutable bits (say, c1 , . . . , ck ) and its m outputs as mutable bits (say, ck+1 , . . . , ck+m ). We then use these objects in a goal sentence of the form [ high(ck+i )  fi (c1 , . . . , ck ) ] ,
+1im
+
+where each fi (c1 , . . . , ck ) is a boolean combination of atoms high(c) for c  {c1 , . . . , ck }. Specifying truth values for any of the input or output bits in the initial state would merely eliminate the respective bits from their respective roles, which defeats the purpose of introducing them. Thus, it is an inherent property of the Adder domain to have small initial states and very large goal formulas.
+
+Note that, in comparison to Cube, Adder allows us to harness the relative expressiveness of our formalism. Every non-trivial logic circuit requires intermediate bits to connect one gate's outputs to another's inputs, and since determining the minimally sufficient number of such bits is a part of solving the planning problem itself, it is impossible to anticipate and hard-code the intermediate bits into the initial state description. To circumvent this, as mentioned above, the authors of the original domain allow for the reuse of non-constant bits in the role of intermediate bits. In our formulation, it suffices to assert that there is an infinite supply of non-constant bits: (
+cconst(K)
+
+x = c  ¬constant(x)).
+
+Given this initial state axiom, we can now properly describe the immutability of bits using the fluent constant(x, s) and not worry about running out of intermediate bits before a large enough circuit can be built.
+
+The domain's actions and(x, y, z ), or(x, y, z ), xor(x, y, z ), not(x, z ) represent boolean operations with their usual meanings such that, for each, the last argument is the output bit, and the rest are input bits. Executing an action is to be understood as the addition of the corresponding logical gate to the circuit. Every action binds its output bit's truth value to the values of its input bits and marks the output bit as immutable, which cannot be reversed by subsequent actions. The complete axiomatization of the 47
+
+3.3. EXPERIMENTS domain is as follows.
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+P oss(and(x, y, z ), s)  ¬constant(z )  x = y  y = z  x = z, P oss(or(x, y, z ), s)  ¬constant(z )  x = y  y = z  x = z, P oss(xor(x, y, z ), s)  ¬constant(z )  x = y  y = z  x = z, P oss(not(x, z ), s)  ¬constant(z )  x = z,
+
+high(x, do(a, s))  z1 z2 (a = and(z1 , z2 , x)  high(z1 , s)  high(z2 , s)) z1 z2 (a = or(z1 , z2 , x)  (high(z1 , s)  high(z2 , s))) z1 z2 (a = xor(z1 , z2 , x) (high(z1 , s)  ¬high(z2 , s)  ¬high(z1 , s)  high(z2 , s))) z1 (a = not(z1 , x)  ¬high(z1 , s)) high(x, s) ¬(z1 z2 (a = and(z1 , z2 , x)  ¬(high(z1 , s)  high(z2 , s))) z1 z2 (a = or(z1 , z2 , x)  ¬high(z1 , s)  ¬high(z2 , s)) z1 z2 (a = xor(z1 , z2 , x) (high(z1 , s)  high(z2 , s)  ¬high(z1 , s)  ¬high(z2 , s))) z1 (a = not(z1 , x)  high(z1 , s))), constant(x, do(a, s))  z1 z2 (a = and(z1 , z2 , x))  z1 z2 (a = or(z1 , z2 , x)) z1 z2 (a = xor(z1 , z2 , x))  z1 (a = not(z1 , x))  constant(x, s). Experimental data It is a consequence of the Adder domain's small initial states and very large goal formulas that, in test runs on Adder instances, a greater portion of the available computational power (compared to Cube) is spent on deciding propositional entailments, as opposed to exploring the search space. Moreover, compared to Cube, the search space in Adder is immense owing to the number and arity of the action symbols together with very liberal preconditions. For example, the instance adder2.pl starts with 5 named bits; thus, the first action of the plan is selected out of 684 ground actions, 130 of which are possible, and, as the plan grows and new intermediate bits are introduced, this number grows further for each subsequent step of the plan. Even disregarding the introduction of new bits, the synthesis of a 5-gate circuit in this instance involves a search among 37 billion different paths. It would be possible to cut down on the search tree by a large factor by reformulating the domain in terms of a single action nand(x, y, z ) or a single action nor(x, y, z ). However, this domain was intentionally designed to require a very large search. We left it as is to allow for a direct comparison to the original Adder. The comparison makes it obvious that in cases such as this, our naive implementation is inadequate. 48
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.3. EXPERIMENTS
+
+Table 3.2: Adder test runs. Run times were limited to 1000 seconds of CPU time. Instance Number of Bits In + Out = Tot. 2+1=3 2+2=4 4+1=5 Plan length blind 0.05 3.33 CPU time (s) heuristic 0.04 2.51 797.09
+
+adder0.pl adder1.pl adder2.pl
+
+1 2 3
+
+This is due to the fact that the heuristic rules are rather trivial. We leave implementing smarter heuristics to future work. Table 3.2 presents the experimental data on three instances of Adder. A brief description of each follows. adder0.pl implements a 1-bit adder which outputs the least significant digit of the sum. The minimal circuit that computes this consists of a single XOR gate. This instance does not require intermediate bits, although they are still considered in the search. adder1.pl implements a complete "Half-adder", i.e. a 1-bit adder that computes both the sum and the carry of the two inputs; it thus has two outputs. The minimal circuit consists of two gates and also does not require intermediate bits. adder2.pl partially implements a 2-bit adder. It takes two 2-bit numbers and outputs the second bit of the sum. The minimal circuit consists of three gates which are connected using intermediate bits. Although the computation is very slow, this instance finally showcases the expressiveness of our formalism: the first plan that is found is and(c1, c3, c7), xor(c7, c2, c8), xor(c8, c4, c6), where the bits c7 and c8 are new names, absent from both the initial KB and the goal formula. As with Cube, we introduced declarative heuristic rules to speed up the search, but it did not make as significant a difference. The heuristic rules amount to two points: first, do not add a gate if a gate of the same kind has already been created for the same inputs, and, second, introduce new intermediate bits only as outputs, and never as inputs, of new gates.
+
+3.3.3
+
+Blocks World
+
+We use a rendition of the classic Blocks World domain based on the one which appeared in [26] and was used in Example 2.3.1 above. It is a conformant, local-effect version of Reiter's axiomatization from [12]. As usual, the world consists of an arrangement of blocks sitting on a table. The blocks can be moved around with the objective of achieving a desired arrangement. There are no static predicates. The fluents are clear(x, s), on(x, y, s), and ontable(x, s); refer to Example 2.2.1 for a detailed explanation. The actions are move(x, y, z ), movetotable(x, y ), and movef romtable(x, z ). As in Example 2.3.1, to localize the effects, the actions mention all objects that they affect. In all actions, the first argument is the block being moved. In move(x, y, z ), the second argument is the block underneath the one being moved, and the last one is the destination block. In movetotable(x, y ), the second argument is, likewise, the block just underneath the one being moved, and the third argument is absent since the destination 49
+
+3.3. EXPERIMENTS
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+of the motion is the table. In movef romtable(x, z ), the second argument is the destination, and the intermediate argument is absent since the motion starts from the table. As before, with a local-effect axiomatization comes the penalty of a very large search space. This is exacerbated by the fact that, in order to make the domain compatible with conformant planning, we made the preconditions more liberal by moving some of the predicate conditions to the context conditions of the successor state axioms. Hence, many more actions are possible, but they have no effect unless their context conditions are satisfied. P oss(move(x, y, z ), s)  x = y  y = z  x = z  clear(x, s)  ¬ontable(x, s), P oss(movetotable(x, y ), s)  x = y  clear(x, s)  ¬ontable(x, s), P oss(movef romtable(x, z ), s)  x = z  clear(x, s)  ontable(x, s).
+
+clear(x, do(a, s))  z1 z2 (a = move(z1 , x, z2 )  on(z1 , x, s)  clear(z2 , s))  z1 (a = movetotable(z1 , x)  on(z1 , x, s))  clear(x, s)  ¬z1 z2 (a = move(z1 , z2 , x)  on(z1 , z2 , s)  clear(x, s))  ¬z1 (a = movef romtable(z1 , x)  clear(x, s)),
+
+on(x, y, do(a, s))  z1 (a = move(x, z1 , y )  on(x, z1 , s)  clear(y, s))  (a = movef romtable(x, y )  clear(y, s))  on(x, y, s)  ¬z1 (a = move(x, y, z1 )  on(x, y, s)  clear(z1 , s))  ¬z1 (a = movetotable(x, y )  on(x, y, s)),
+
+ontable(x, do(a, s))  (a = movetotable(x, y )  on(x, y, s))  ontable(x, s)  ¬(a = movef romtable(x, y )  clear(y, s)). The rather unnatural decision to move some of the preconditions to context effects is motivated by the fact that otherwise it would be impossible to solve a planning problem with disjunctive knowledge about the position of a cube, e.g. like in the instance that appears in [12], where the block a is known to be either on block b or on block e. In a straightforward local-effect axiomatization, we would not be able to move block a at all, since neither the precondition for move(a, b, e) nor that for move(a, e, b) would be satisfied, as both require an unambiguous knowledge about on(a, b, s) or on(a, e, s), respectively. In a global effect axiomatization, this problem does not arise. Surprisingly, in one aspect, the language of our axiomatization turned out to be less expressive then the one used by Finzi et al. [12]. Whereas the authors of [12] freely use both existential and universal 50
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+3.4. DISCUSSION
+
+quantifiers in the initial state, which is made possible by the closed domain, we are limited to only universal quantifiers. Consequently, we cannot properly express the connection between the meanings of clear(x, s) and on(x, y, s) (and, similarly, between ontable(x, s) and on(x, y, s)). In particular, we are able to express one half of the exclusive disjunction as a -clause (¬clear(x, s)  ¬on(y, x, s)), but the other half requires existential quantification: (on(y, x, s)  clear(x, s)). Therefore, despite the trick with context conditions, we are still unable to correctly express the instance considered in [12]. Experimental data The experimental data appears in Table 3.3. A brief description of the instance follows. bw0.pl is a stack of two blocks; the top block needs to be moved to the table. With no uncertainty in the initial state, the problem is easily solved by the planner. bw1.pl is the same but the blocks need to be swapped; the problem is easily solved. bw2.pl states that all (unnamed) blocks are clear and not on top of anything but the table. The goal is to have a block which is not on table. bw3.pl is the same but an additional block must be on top of the first one. Both are easily solved. bw4.pl contains disjunctive information: block c3 is either on block c1 or on block c2. The missing connection between on(y, x, s) and clear(x, s) is expressed by the axiom (on(c3 , x, s)  clear(x, s)). Note that this does not properly replace the meaning mentioned above; in fact, this axiom asserts that c3 is on top of every block which is not clear. Thus, we cannot introduce any unclear blocks into the instance without violating the basic rules of Blocks World. The goal to have c3 on c1 is successfully solved by a single step plan. bw5.pl is the same as bw4.pl except it requires an additional step to to put c3 on the table. The algorithm fails to find a plan due to a stack overflow. All attempts to solve problems that require more than two steps of progression were fruitless. The reason behind this was found to be the very fast growth of the progression. It was also observed that the progressed knowledge bases were of low quality; i.e. very redundant. This is in agreement with our naive implementation of forgetting using propositional resolution. A mere removal of contradictory and tautological clauses yielded a 15-fold improvement in memory usage, producing the results in Table 3.3. We did not implement a heuristics for Blocks World for the above reason.
+
+3.4
+
+Discussion
+
+Theorem 10 summarizes the theoretical findings of this thesis. The implementation and its experimental evaluation demonstrate practical use of those findings. One of the issues that makes our results difficult to compare to those of other approaches is the fact that our implementation is an unoptimized proof of concept. With this caveat, we were able to successfully demonstrate that our approach works well for simple closed-domain instances such as Cube, and does not incur significant costs on open-domain instances such as Adder and Blocks World unless the precondition axioms are made to be extremely liberal. We conjecture that the problem with very 51
+
+3.4. DISCUSSION
+
+CHAPTER 3. A CONFORMANT PLANNER
+
+Table 3.3: Blocks World test runs. Memory overflow was the limiting factor. Instance bw0.pl bw1.pl bw2.pl bw3.pl bw4.pl bw5.pl Number of Blocks 2 2 0 0 3 3 Plan length 1 2 1 2 1 2 CPU time (s) 0.03 2.29 0.02 0.62 10.83 -
+
+large search spaces can be subdued by a slight modification to the rule legal move/3 in conjunction with powerful declarative heuristics, similar to those we used in Cube and Finzi et al. used for Blocks World in [12]. The inefficient use of memory by progression stems from the selected forgetting mechanism. As remarked above, forgetting via propositional resolution results in low-quality, redundant knowledge, which becomes a serious obstacle when the domain contains many fluents with many arguments, as Blocks World does. To overcome this issue, a better forgetting mechanism is needed. Alternatively, knowledge base recompilation into a more efficient representation, e.g. prime implicates, on every step of progression would improve memory usage at the cost of CPU time. An illustration of the lack of expressive power of our approach is the inherent inability of proper+ knowledge bases to express the existence of unnamed objects except by using universal quantification. That is, we can assert that "all objects which are not c1 are on table", but we cannot assert that "there is at least one object on table which is not c1 ". This substantially limits our ability to describe relationships between unnamed objects and their properties, e.g. the relationship between clear and on. In practice, this limitation can be in part avoided by simply giving names to unnamed objects which are desired to possess unique properties. However, as we demonstrated with Blocks World above, there are essential rules in some domains that simply cannot be expressed. This issue calls for extending proper+ as a part of future work. Another seeming limitation of our approach is the lack of quantifiers in queries. This is not quite so. Observe that we do allow a hint of existential quantification in goal formulas. Recall that, in instance goals, it is possible to use normal constants that do not appear in the initial KB. For example, consider a Blocks World KB {(clear(x, S0 )), (x = c1  ontable(x, S0 )} and a goal on(c2 , c1 , s). Since there is no information in the KB about c2 specifically, the goal formula is essentially the same as x(x, c1 , s). In such cases, our planner effectively solves the problem of existence of an unnamed object with the required properties and assigns to it the name suggested by the goal formula. We conjecture that the ability for unbounded quantification in queries is inherent in our current formalism and can be introduced into the prototype with little effort.
+
+52
+
+Chapter 4
+
+Conclusion
+4.1 Contributions
+
+In this thesis, we reconsidered the problem of planning with incomplete knowledge in the context of situation calculus semantics and initial states formulated in an expressive fragment of first-order logic. We used the notion of finite representations for query answers and proper+ knowledge bases to arrive at a decidable planning algorithm. We employed a recently discovered approach to local-effect progression of proper+ knowledge bases and an off-the-shelf SAT solver to implement a prototype planner. Specifically, in Chapter 2, we gave an overview of classical planning, including its formal statement, limitations, and a brief account of the existing approaches to it. Next, we gave an overview of the existing conformant extensions of classical planning, their relative successes and limitations, including the ubiquitous limited expressiveness and difficulties with finding good computational heuristics. We remarked on the utility of modern SAT solvers for classical and extended classical planning. Then, we presented a brief history of reasoning about action and outlined the trend for increasing expressiveness and striving for clear semantics. Later in Chapter 2, we introduced the language of situation calculus and the notion of basic action theories, including the underlying motivation, syntax, semantics, and the associated essential reasoning problems. We described two efficient approaches to the projection problem--regression and progression-- and motivated our choice for using the latter. Then, we thoroughly described the semantics of planning in the context of situation calculus and remarked on the fact that it generalizes the approaches based on STRIPS. We then described the basic considerations for solving thus defined planning problems and pointed out the omnipresence of the projection problem. Continuing with situation calculus, we gave an account of an existing planning mechanism implementing regression; we pointed out that it sacrifices most of the expressiveness, and observed yet another example of a beneficial use of a SAT solver for planning. Next, we formally defined progression of general first-order action theories and for action theories with local effects specifically. Delving into the latter, we described how progression can be computed and gave examples to demonstrate major steps of such computation. 53
+
+4.2. FUTURE WORK
+
+CHAPTER 4. CONCLUSION
+
+While addressing the problem of computational feasibility, we overviewed the fragment of first-order logic corresponding to the proper+ normal form and presented the associated recent results which motivate our choice of proper+ as the underlying language for our planning algorithm. Specifically, proper+ features reasonable expressivity while providing significant computational benefits for local-effect progression and query answering. We traced the development of several evaluation procedures for proper+ knowledge bases, introducing the underlying theoretical results, and concluded with a discussion of one of the most recent advances in the area, the logic of limited belief. We continued with a detailed exposition of an existing method for computing the progression in well-formed basic action theories and provided proof outlines for the most important underlying results. Finally, we presented recent findings regarding the progression of well-formed BATs using finite propositional representations of proper+ knowledge bases and connected these developments with previous results. In Lemma 5, we reformulated and proved a hidden result from [10] and used it in conjunction with a minor original result (Lemma 7) and an original yet inspired by existing work Lemma 8 to compile a set of techniques which pave the way for developing a sound and complete algorithm for conformant planning. In Chapter 3, we developed, from general principles, a methodology for finding a solution to a planning problem defined as a logical entailment of a goal formula from a basic action theory. By sequentially transforming the goal formula with the help of the foundational axioms of situation calculus, we were able to break the entailment problem into a set of smaller problems. Then, by using our results about finite representations of query answers, we showed that it is possible to bypass a search for a plan in an infinite search space while still being able to find all correct plans. We used these results to formulate an algorithm that implements a sound and complete conformant planner. We then described the design of our simple prototype planner based on the proposed algorithm and provided an experimental evaluation of its performance. Unsurprisingly, the prototype did not scale up well, but it nevertheless confirmed our findings. We discovered a significant deficiency in the expressiveness of the proper+ normal form which renders our planner unable to work with a complete definition of Blocks World.
+
+4.2
+
+Future Work
+
+The prototype successfully demonstrated the validity of the theoretical findings. However, as evidenced by the experimental evaluation, the prototype requires major optimization in order to be practical. Also, we discovered certain limitations of the available expressiveness, the resolution of which would be highly beneficial. For future work, we propose to implement: - Efficient representation of knowledge with recompilation on each step of progression. Good candidates would possibly be prime implicates or minimal CNF from [43]. Since the present implementation features polynomial growth of progression, this would make a considerable practical difference, allowing the planner to find longer plans. 54
+
+CHAPTER 4. CONCLUSION
+
+4.2. FUTURE WORK
+
+- An improved integration of declarative heuristics with the mechanism for action grounding. As discussed in relation to the Adder domain, a naive traversal of the search space results in spectacular failure on certain domains. A thoughtful implementation of heuristics such as the one found in [12] would facilitate the search immeasurably. - An extension of queries to allow some form of existential and universal quantification. This would noticeably increase the power of goal formulas and precondition axioms. - An extension to the expressiveness of proper+ knowledge bases, possibly with the help of Skolem constants as was done in [9] for proper. Such a development would require a thorough study of the associated properties of progression.
+
+55
+
+Appendix 1
+
+Domains and Instances
+1.1
+1.1.1
+
+Cube
+Domain
+
+fluents([xpos, ypos, zpos]). ap(xmove(X,Y), xabove(X,Y) v xabove(Y,X)). ap(ymove(X,Y), xabove(X,Y) v xabove(Y,X)). ap(zmove(X,Y), xabove(X,Y) v xabove(Y,X)). ssa(xpos(_), xmove(C1,C2), [[[C2], xpos(C1) ]], [[[C1], xpos(C1) ]]). ssa(xpos(_), ymove(C1,C2), [], []). ssa(xpos(_), zmove(C1,C2), [], []). ssa(ypos(_), ymove(C1,C2), [[[C2], ypos(C1) ]], [[[C1], ypos(C1) ]]). ssa(ypos(_), xmove(C1,C2), 57
+
+1.1. CUBE [], []). ssa(ypos(_), zmove(C1,C2), [], []). ssa(zpos(_), zmove(C1,C2), [[[C2], zpos(C1) ]], [[[C1], zpos(C1) ]]). ssa(zpos(_), xmove(C1,C2), [], []). ssa(zpos(_), ymove(C1,C2), [], []). useless(A, History, _) :- member(A,History).
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+useless(xmove(X,Y), History, _) :- member(xmove(Y,X),History). useless(ymove(X,Y), History, _) :- member(ymove(Y,X),History). useless(zmove(X,Y), History, _) :- member(zmove(Y,X),History). useless(xmove(A,B), History, state(KB, _, _)) :- goal(X ^ _ ^ _), entails(KB,X). useless(ymove(A,B), History, state(KB, _, _)) :- goal(_ ^ Y ^ _), entails(KB,Y). useless(zmove(A,B), History, state(KB, _, _)) :- goal(_ ^ _ ^ Z), entails(KB,Z). useless(ymove(_,_), _, state(KB, _, _)) :- goal(X ^ _ ^ _), not entails(KB,X). useless(zmove(_,_), _, state(KB, _, _)) :- goal(X ^ _ ^ _), not entails(KB,X). useless(zmove(_,_), _, state(KB, _, _)) :- goal(_ ^ Y ^ _), not entails(KB,Y).
+
+1.1.2
+
+Instances
+
+cube2-1.pl % geometry fclause(x1:c2 ^ x2:c1 -> xabove(x1,x2)). fclause(x1:c2 ^ x2:c1 -> yabove(x1,x2)). fclause(x1:c2 ^ x2:c1 -> zabove(x1,x2)). 58
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+1.1. CUBE
+
+% initial position fclause(x1:c1 ^ x2:c2 -> xpos(x1) v xpos(x2)). fclause(x1:c1 ^ x2:c2 -> ypos(x1) v ypos(x2)). fclause(x1:c1 ^ x2:c2 -> zpos(x1) v zpos(x2)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. cube3-1.pl % geometry fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c2 -> xpos(x1) v xpos(x2)). fclause(x1:c2 ^ x2:c3 -> ypos(x1) v ypos(x2)). fclause(x1:c2 -> zpos(x1)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. cube3-2.pl % geometry fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> xpos(x1) v xpos(x2) v xpos(x3)). fclause(x1:c2 -> ypos(x1)). fclause(x1:c3 -> zpos(x1)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. 59
+
+1.1. CUBE cube3-3.pl % geometry
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> xpos(x1) v xpos(x2) v xpos(x3)). fclause(x1:c1 ^ x2:c2 -> ypos(x1) v ypos(x2)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> zpos(x1) v zpos(x2) v zpos(x3)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. cube3-4.pl % geometry fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c3 -> xpos(x1) v xpos(x2)). fclause(x1:c1 ^ x2:c3 -> ypos(x1) v ypos(x2)). fclause(x1:c2 ^ x2:c3 -> zpos(x1) v zpos(x2)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. cube3-5.pl % geometry fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> xpos(x1) v xpos(x2) v xpos(x3)). 60
+
+APPENDIX 1. DOMAINS AND INSTANCES fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> ypos(x1) v ypos(x2) v ypos(x3)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> zpos(x1) v zpos(x2) v zpos(x3)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail.
+
+1.1. CUBE
+
+cube4-1.pl % geometry fclause((x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2) ). fclause((x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2) ). fclause((x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2) ). % initial position fclause(x1:c1 ^ x2:c2 ^ x3:c3 ^ x4:c4 -> xpos(x1) v xpos(x2) v xpos(x3) v xpos(x4)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 ^ x4:c4 -> ypos(x1) v ypos(x2) v ypos(x3) v ypos(x4)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 ^ x4:c4 -> zpos(x1) v zpos(x2) v zpos(x3) v zpos(x4)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail.
+
+cube5-1.pl % geometry fclause((x1:c5 ^ x2:c4)v(x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> xabove(x1,x2)). fclause((x1:c5 ^ x2:c4)v(x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> yabove(x1,x2)). fclause((x1:c5 ^ x2:c4)v(x1:c4 ^ x2:c3)v(x1:c3 ^ x2:c2)v(x1:c2 ^ x2:c1) -> zabove(x1,x2)). % initial position fclause(x1:c1 -> xpos(x1)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 ^ x4:c4 ^ x5:c5 -> ypos(x1) v ypos(x2) v ypos(x3) v ypos(x4) v ypos(x5)). fclause(x1:c2 -> zpos(x1)). % goal condition goal(xpos(c1) ^ ypos(c1) ^ zpos(c1)). negatedListGoal(_) :- fail. 61
+
+1.2. ADDER
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+1.2
+1.2.1
+% Adder
+
+Adder
+Domain
+
+fluents([high, constant]). % Action precondition axioms ap( and_(X,Y,Z), neg constant(Z) ^ neg X:Y ^ neg X:Z ^ neg Y:Z ). ap( or_(X,Y,Z), neg constant(Z) ^ neg X:Y ^ neg X:Z ^ neg Y:Z ). ap( xor_(X,Y,Z), neg constant(Z) ^ neg X:Y ^ neg X:Z ^ neg Y:Z ). ap( not_(X,Z), neg constant(Z) ^ neg X:Z ). % Transformed successor state axioms ssa( high(_), and_(X,Y,Z) , [[[Z], high(X) ^ high(Y) ]], [[[Z], neg high(X) v neg high(Y) ]]). ssa( high(_), or_(X,Y,Z) , [[[Z], high(X) v high(Y) ]], [[[Z], neg high(X) ^ neg high(Y) ]]). ssa( high(_), xor_(X,Y,Z) , [[[Z], high(X) ^ neg high(Y) v neg high(X) ^ high(Y) ]], [[[Z], high(X) ^ high(Y) v neg high(X) ^ neg high(Y) ]]). ssa( high(_), not_(X,Z) , [[[Z], neg high(X) ]], [[[Z], high(X) ]]). ssa( constant(_), and_(X,Y,Z), [[[Z], tRUE]], []). ssa( constant(_), or_(X,Y,Z), [[[Z], tRUE]], []). ssa( constant(_), xor_(X,Y,Z), 62
+
+APPENDIX 1. DOMAINS AND INSTANCES [[[Z], tRUE]], []). ssa( constant(_), not_(X,Z), [[[Z], tRUE]], []). % Do not introduce redundant gates useless(and_(X,Y,_), History, _) :- member(and_(X,Y,_), History). useless(and_(X,Y,_), History, _) :- member(and_(Y,X,_), History). useless(or_(X,Y,_), History, _) :- member(or_(X,Y,_), History). useless(or_(X,Y,_), History, _) :- member(or_(Y,X,_), History). useless(xor_(X,Y,_), History, _) :- member(xor_(X,Y,_), History). useless(xor_(X,Y,_), History, _) :- member(xor_(Y,X,_), History). useless(not_(X,_), History, _) :- member(not_(X,_), History). % Do not introduce new (unconnected) inputs useless(and_(X,_,_), History, state(_, Const, _)) :- not member(X, Const). useless(and_(_,X,_), History, state(_, Const, _)) :- not member(X, Const). useless(or_(X,_,_), History, state(_, Const, _)) :- not member(X, Const). useless(or_(_,X,_), History, state(_, Const, _)) :- not member(X, Const). useless(xor_(X,_,_), History, state(_, Const, _)) :- not member(X, Const). useless(xor_(_,X,_), History, state(_, Const, _)) :- not member(X, Const). useless(not_(X,_), History, state(_, Const, _)) :- not member(X, Const).
+
+1.2. ADDER
+
+1.2.2
+
+Instances
+
+adder0.pl % % % c2 + c4 c7 c6 c1 c3 c5 <- constant <- constant <- neg constant
+
+% ------------
+
+% 1-bit adder outputting the least significant digit of the sum fclause(neg x1:c1 ^ neg x1:c3 -> neg constant(x1)). fclause(x1:c1 -> constant(x1)). fclause(x1:c3 -> constant(x1)). goal( (neg high(c5) v (neg high(c1) ^ high(c3)) v (high(c1) ^ neg high(c3))) 63
+
+1.2. ADDER
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+^ (high(c5) v (high(c1) v neg high(c3)) ^ (neg high(c1) v high(c3))) ). negatedListGoal([[high(c5), high(c1), high(c3)], [high(c5), neg high(c1), neg high(c3)], [neg high(c5), high(c1), neg high(c3)], [neg high(c5), neg high(c1), high(c3)]]). adder1.pl % 1-bit adder outputting the entire sum ("Half-adder") fclause(neg x1:c1 ^ neg x1:c3 -> neg constant(x1)). fclause(x1:c1 -> constant(x1)). fclause(x1:c3 -> constant(x1)).
+
+goal( (neg high(c5) v (neg high(c1) ^ high(c3)) v (high(c1) ^ neg high(c3))) ^ (high(c5) v (high(c1) v neg high(c3)) ^ (neg high(c1) v high(c3))) ^ (neg high(c6) v (high(c1) ^ high(c3))) ^ (neg (high(c1) ^ high(c3)) v high(c6))). negatedListGoal([[high(c1), high(c3), high(c5), high(c6)], [high(c1), neg high(c3), neg high(c5), high(c6)], [neg high(c1), high(c3), neg high(c5), high(c6)], [neg high(c1), neg high(c3), high(c5), neg high(c6)]]). adder2.pl % 2-bit adder, outputs second digit of the sum fclause(neg x1:c1 ^ neg x1:c2 ^ neg x1:c3 ^ neg x1:c4 -> neg constant(x1)). fclause(x1:c1 -> constant(x1)). fclause(x1:c2 -> constant(x1)). fclause(x1:c3 -> constant(x1)). fclause(x1:c4 -> constant(x1)). goal( (neg high(c6) v (neg high(c1) v neg high(c3)) ^ neg high(c2) ^ high(c4) v (neg high(c1) v neg high(c3)) ^ high(c2) ^ neg high(c4) v high(c1) ^ high(c3) ^ neg high(c2) ^ neg high(c4) v high(c1) ^ high(c3) ^ high(c2) ^ high(c4)) ^ (high(c6) v (((high(c1) ^ high(c3)) v high(c2) v neg high(c4)) ^ ((high(c1) ^ high(c3)) v neg high(c2) v high(c4)) ^ neg (high(c1) ^ high(c3) ^ neg high(c2) ^ neg high(c4)) ^ neg (high(c1) ^ high(c3) ^ high(c2) ^ high(c4))))). 64
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+1.3. BLOCKS WORLD
+
+negatedListGoal([[high(c6), [high(c6), [high(c6), [high(c6), [high(c6), [high(c6),
+
+high(c1), high(c1), high(c3), high(c3),
+
+high(c2), high(c2),
+
+high(c4)], high(c4)], neg high(c4)],
+
+neg high(c2), neg high(c4)], neg high(c2), neg high(c4)],
+
+neg high(c1), neg high(c3), high(c2), high(c2), neg high(c4)],
+
+neg high(c1), neg high(c3), neg high(c2), high(c4)], neg high(c2), high(c4)], high(c2), neg high(c4)], neg high(c2), high(c4)], high(c4)],
+
+[neg high(c6), high(c1), [neg high(c6), high(c1), [neg high(c6), high(c3), [neg high(c6), high(c3),
+
+[neg high(c6), neg high(c1), neg high(c3), high(c2),
+
+[neg high(c6), neg high(c1), neg high(c3), neg high(c2), neg high(c4)]]).
+
+1.3
+1.3.1
+
+Blocks World
+Domain
+
+fluents([clear, on, ontable]). ap( move(X,Y,Z), ap( movetotable(X,Y), neg X:Z ^ neg X:Y ^ neg Y:Z ^ clear(X) ^ neg ontable(X) ). neg X:Y ^ clear(X) ^ neg ontable(X) ).
+
+ap( movefromtable(X,Z), neg X:Z ^ clear(X) ^ ontable(X) ). ssa( clear(_), move(B1,B2,B3), [[[B2], clear(B3) ^ on(B1,B2)]], [[[B3], clear(B3) ^ on(B1,B2)]]). ssa( clear(_), movetotable(B1,B2), [[[B2], on(B1,B2)]], []). ssa( clear(_), movefromtable(B1,B2), [], [[[B2], clear(B2)]]). ssa( on(_,_), move(B1,B2,B3), [[[B1,B3], clear(B3) ^ on(B1,B2)]], [[[B1,B2], clear(B3) ^ on(B1,B2)]]). 65
+
+1.3. BLOCKS WORLD
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+ssa( on(_,_), movetotable(B1,B2), [], [[[B1,B2], on(B1,B2)]]). ssa( on(_,_), movefromtable(B1,B2), [[[B1,B2], clear(B2)]], []). ssa( ontable(_), move(B1,B2,B3), [], []). ssa( ontable(_), movetotable(B1,B2), [[[B1], on(B1,B2)]], []). ssa( ontable(_), movefromtable(B1,B2), [], [[[B1], clear(B2)]]).
+
+1.3.2
+bw0.pl
+
+Instances
+
+% c2 is on c1, need to move it to table fclause(x1:c1 -> ontable(x1)). fclause(x1:c2 -> neg ontable(x1)). fclause(x1:c1 -> neg clear(x1)). fclause(x1:c2 -> clear(x1)). fclause(x1:c1 ^ x2:c2 -> on(x2,x1)). fclause(x1:c1 ^ x2:c2 -> neg on(x1,x2)). goal(ontable(c2)). negatedListGoal(_) :- fail. useless(_,_,_) :- fail. bw1.pl % c2 is on c1, need to swap them 66
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+1.3. BLOCKS WORLD
+
+fclause(x1:c1 -> ontable(x1)). fclause(x1:c2 -> neg ontable(x1)). fclause(x1:c1 -> neg clear(x1)). fclause(x1:c2 -> clear(x1)). fclause(x1:c1 ^ x2:c2 -> on(x2,x1)). fclause(x1:c1 ^ x2:c2 -> neg on(x1,x2)). goal(on(c1,c2)). negatedListGoal(_) :- fail. useless(_,_,_) :- fail. bw2.pl % All blocks are on table, need to move one off it. fclause(tRUE -> ontable(x1)). fclause(tRUE -> clear(x1)). fclause(tRUE -> neg on(x1,x2)). goal(neg ontable(c1)). negatedListGoal(_) :- fail. useless(_,_,_) :- fail. bw3.pl % All blocks are on table, need to move one off it % and put another one on it. fclause(tRUE -> ontable(x1)). fclause(tRUE -> clear(x1)). fclause(tRUE -> neg on(x1,x2)). goal(neg ontable(c1) ^ on(c2,c1)). negatedListGoal(_) :- fail. useless(_,_,_) :- fail. bw4.pl % c3 is either on c1 or c2; need it to be on c1. fclause(x1:c1 v x1:c2 -> ontable(x1)). 67
+
+1.3. BLOCKS WORLD fclause(x1:c3 -> neg ontable(x1)).
+
+APPENDIX 1. DOMAINS AND INSTANCES
+
+fclause(x1:c1 ^ x2:c2 -> neg clear(x1) v neg clear(x2)). fclause(x1:c1 ^ x2:c2 -> clear(x1) v clear(x2)). fclause(x1:c3 -> clear(x1)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> on(x3,x1) v on(x3,x2)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> neg on(x3,x1) v neg on(x3,x2)). fclause(x1:c3 -> neg on(x2,x1)). fclause(neg x1:c3 ^ x2:c1 -> neg on(x1,x2)). fclause(neg x1:c3 ^ x2:c2 -> neg on(x1,x2)). fclause(tRUE -> neg on(x1,x2) v neg clear(x2)). fclause(x1:c3 -> on(x1,x2) v clear(x2)). goal(on(c3, c1)). negatedListGoal(_) :- fail. useless(_,_,_) :- fail.
+
+bw5.pl % c3 is either on c1 or c2; need it to put it on table. fclause(x1:c1 v x1:c2 -> ontable(x1)). fclause(x1:c3 -> neg ontable(x1)). fclause(x1:c1 ^ x2:c2 -> neg clear(x1) v neg clear(x2)). fclause(x1:c1 ^ x2:c2 -> clear(x1) v clear(x2)). fclause(x1:c3 -> clear(x1)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> on(x3,x1) v on(x3,x2)). fclause(x1:c1 ^ x2:c2 ^ x3:c3 -> neg on(x3,x1) v neg on(x3,x2)). fclause(x1:c3 -> neg on(x2,x1)). fclause(neg x1:c3 ^ x2:c1 -> neg on(x1,x2)). fclause(neg x1:c3 ^ x2:c2 -> neg on(x1,x2)). fclause(tRUE -> neg on(x1,x2) v neg clear(x2)). fclause(x1:c3 -> on(x1,x2) v clear(x2)). goal(ontable(c3)). 68
+
+APPENDIX 1. DOMAINS AND INSTANCES negatedListGoal(_) :- fail. useless(_,_,_) :- fail.
+
+1.3. BLOCKS WORLD
+
+69
+
+References
+[1] Gilles Audemard and Laurent Simon. Predicting learnt clauses quality in modern SAT solvers. In IJCAI, volume 9, pages 399­404, 2009. [2] Piergiorgio Bertoli, Alessandro Cimatti, and Marco Roveri. Heuristic search + symbolic model checking = efficient conformant planning. In IJCAI, volume 1, pages 467­472. Citeseer, 2001. [3] Avrim L Blum and Merrick L Furst. Fast planning through planning graph analysis. Artificial intelligence, 90(1):281­300, 1997. [4] Blai Bonet and Hector Geffner. Planning with incomplete information as heuristic search in belief space. In AIPS-2000, pages 52­61. AAAI Press, 2000. [5] Tom Bylander. The computational complexity of propositional strips planning. Artificial Intelligence, 69(1):165­204, 1994. [6] Claudio Castellini, Enrico Giunchiglia, and Armando Tacchella. SAT-based planning in complex domains: Concurrency, constraints and nondeterminism. Artificial Intelligence, 147(1):85­117, 2003. [7] Ashok K Chandra and Philip M Merlin. Optimal implementation of conjunctive queries in relational data bases. In Proceedings of the ninth annual ACM symposium on Theory of computing, pages 77­90. ACM, 1977. [8] Alessandro Cimatti, Marco Roveri, and Piergiorgio Bertoli. Conformant planning via symbolic model checking and heuristic search. Artificial Intelligence, 159(1):127­206, 2004. [9] Giuseppe De Giacomo, Yves Lesp´ erance, and Hector J Levesque. Efficient reasoning in proper knowledge bases with unknown individuals. In Proceedings of the Twenty-Second international joint conference on Artificial Intelligence, volume 2, pages 827­832. AAAI Press, 2011. [10] Yi Fan, Minghui Cai, Naiqi Li, and Yongmei Liu. A first-order interpreter for knowledge-based Golog with sensing based on exact progression and limited reasoning. In Twenty-Sixth AAAI Conference on Artificial Intelligence, 2012. [11] Richard E Fikes and Nils J Nilsson. STRIPS: A new approach to the application of theorem proving to problem solving. Artificial intelligence, 2(3):189­208, 1972. 71
+
+REFERENCES
+
+REFERENCES
+
+[12] Alberto Finzi, Fiora Pirri, and Raymond Reiter. Open world planning in the situation calculus. In AAAI/IAAI, pages 754­760, 2000. [13] Hector Geffner and Blai Bonet. A concise introduction to models and methods for automated planning. Synthesis Lectures on Artificial Intelligence and Machine Learning, 8(1):1­141, 2013. [14] Malte Helmert. The Fast Downward planning system. Journal of Artificial Intelligence Research, 26:191­246, 2006. [15] Nathanael Hyafil and Fahiem Bacchus. Conformant probabilistic planning via CSPs. In ICAPS, volume 98, pages 205­214, 2003. [16] Henry Kautz and Bart Selman. Pushing the envelope: Planning, propositional logic, and stochastic search. In Proceedings of the National Conference on Artificial Intelligence, pages 1194­1201, 1996. [17] Gerhard Lakemeyer and Hector J Levesque. Evaluation-based reasoning with disjunctive information in first-order knowledge bases. In Principles of Knowledge Representation and Reasoning, pages 73­81. Citeseer, 2002. [18] J´ er^ ome Lang, Paolo Liberatore, and Pierre Marquis. Propositional independence. Journal of Artificial Intelligence Research, 18:391­443, 2003. [19] Hector J Levesque. What is planning in the presence of sensing? In Proceedings of the National Conference on Artificial Intelligence, volume 2, pages 1139­1146, 1996. [20] Hector J Levesque. A completeness result for reasoning with incomplete first-order knowledge bases. In Principles of KRR, pages 14­23. Morgan Kaufmann Publishers, 1998. [21] Vladimir Lifschitz. On the semantics of STRIPS. In Reasoning about Actions and Plans: Proceedings of the 1986 Workshop, pages 1­9, 1987. [22] Fangzhen Lin and Ray Reiter. Forget it! In Working Notes of AAAI Fall Symposium on Relevance, pages 154­159, 1994. [23] Fangzhen Lin and Ray Reiter. How to progress a database. Artificial Intelligence, 92(1):131­167, 1997. [24] Yongmei Liu. Tractable reasoning in incomplete first-order knowledge bases. PhD thesis, Toronto, Canada, 2006. AAINR15760. [25] Yongmei Liu and Gerhard Lakemeyer. On the expressiveness of levesque's normal form. Journal of Artificial Intelligence Research, 31:259­272, 2008. [26] Yongmei Liu and Gerhard Lakemeyer. On first-order definability and computability of progression for local-effect actions and beyond. In IJCAI, pages 860­866, 2009. 72
+
+REFERENCES
+
+REFERENCES
+
+[27] Yongmei Liu and Hector J Levesque. A tractability result for reasoning with incomplete first-order knowledge bases. In IJCAI, pages 83­88, 2003. [28] Yongmei Liu and Hector J Levesque. Tractable reasoning in first-order knowledge bases with disjunctive information. In IJCAI, volume 20, page 639, 2005. [29] Yongmei Liu and Hector J Levesque. Tractable reasoning with incomplete first-order knowledge in dynamic systems with context-dependent actions. In IJCAI, volume 5, pages 522­527. Citeseer, 2005. [30] John McCarthy and Patrick J Hayes. Some philosophical problems from the standpoint of artificial intelligence. In B. Meltzer and D. Michie, editors, Machine Intelligence 4, pages 463­504. University Press, 1969. [31] Drew McDermott. The 1998 AI planning systems competition. AI magazine, 21(2):35, 2000. [32] Drew McDermott, Malik Ghallab, Adele Howe, Craig Knoblock, Ashwin Ram, Manuela Veloso, Daniel Weld, and David Wilkins. PDDL -- the planning domain definition language. Technical report, available at http://www.cs.yale.edu/dvm, 1998. [33] Hector Palacios and Hector Geffner. Compiling uncertainty away in conformant planning problems with bounded width. Journal of Artificial Intelligence Research, 35(2):623, 2009. [34] Edwin P D Pednault. Formulating multi-agent dynamic-world problems in the classical planning framework. In Michael P. Georgeff and Amy L. Lansky, editors, Reasoning About Actions and Plans: Proceedings of the 1986 Workshop, pages 47­82, San Mateo, CA, 1987. Morgan Kaufmann Publishers. [35] Ronald Peter Andrew Petrick. A Knowledge-level approach for effective acting, sensing, and planning. University of Toronto Doctoral dissertation, Toronto, Canada, 2006. [36] Ronald Peter Andrew Petrick and Fahiem Bacchus. A knowledge-based approach to planning with incomplete information and sensing. In AIPS, pages 212­222, 2002. [37] Fiora Pirri and Ray Reiter. Some contributions to the metatheory of the situation calculus. Journal of the ACM (JACM), 46(3):325­361, 1999. [38] Raymond Reiter. Knowledge in action: logical foundations for specifying and implementing dynamical systems, volume 16. MIT press Cambridge, 2001. [39] Joachim Schimpf and Kish Shen. Eclipse -- from LP to CLP. Theory and Practice of Logic Programming, Special Issue on Prolog Systems 1-2, 12:127­156, 2011. [40] David E Smith and Daniel S Weld. Conformant Graphplan. In AAAI/IAAI, pages 889­896, 1998. [41] Mikhail Soutchanski and Wael Yehia. Towards an expressive practical logical action theory. Turing100, 10:307­325, 2012. 73
+
+REFERENCES
+
+REFERENCES
+
+[42] Sergio Tessaris. Questions and answers: reasoning and querying in Description Logic. University of Manchester Doctoral dissertation, 2001. [43] Son Thanh To, Tran Cao Son, and Enrico Pontelli. On the use of prime implicates in conformant planning. In AAAI, 2010.
+
+74
+
+

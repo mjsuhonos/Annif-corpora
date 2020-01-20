@@ -1,0 +1,1045 @@
+GAME-BASED THREAT ASSESSMENT TOOL FOR IMPROVISED EXPLOSIVE DEVICE NEUTRALIZATION TRAINING
+
+By Christopher Chan Honours Bachelor of Science in the Program of Computer Science, Ryerson University 2013
+
+A thesis presented to Ryerson University in partial fulfillment of the requirements for the degree of Master of Science in the Program of Computer Science
+
+Toronto, Ontario, Canada 2015 © Christopher Chan 2015
+
+AUTHOR'S DECLARATION
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research. I understand that my thesis may be made electronically available to the public.
+
+i
+
+ABSTRACT
+
+GAME-BASED THREAT ASSESSMENT TOOL FOR IMPROVISED EXPLOSIVE DEVICE NEUTRALIZATION TRAINING Christopher Chan Master of Science, Computer Science, Ryerson University, 2015
+
+CBRNe is an acronym referring to chemical, biological, radiological, nuclear and explosives. When specialized response teams deal with CBRNe-related incidents, one of the guiding principles is to avoid contact with the threat until the nature of the threat can be determined. Our research demonstrates that we can safely create, inspect and manipulate a 3D model of a suspected CBRNe threat within a physics-based game engine where models are created from extremely accurate data gathered from Magnetic Resonance Imaging (MRI) sensors. Our system is able to provide first responders the ability to visually identify key IED components of interest and obtain relevant information directly from the simulation. The
+
+primary goal of our research is to demonstrate that the functionality we developed can be used to provide accurate information to its users for the purposes of training and potentially assist CBRNe planning efforts in the future.
+
+ii
+
+ACKNOWLEDGEMENTS I would like to thank my supervisor Dr. Alex Ferworn and Dr. Kosta Derpanis for their direction and support. Their passion for developing technologies that could save lives is what inspired me to pursue this thesis research topic. I would like to acknowledge the support I have received from the following groups and individuals. Without their help, my work would have not been possible: The USAR and CBRNE Response Team (UCRT) of the Ontario Provincial Police (OPP) for the use of their facilities and equipment--especially the assistance of Provincial Constable Matthew Young whose explanations and guidance helped me understand a very unfamiliar world. The Deltic Group Inc. for the use of their facilities and equipment, especially Mr. Frank Davenport who provided a wealth of knowledge borne from years of experience. Sunnybrook Hospital for the use of their medical imaging systems, especially Dr. Lee Chin who did not mind when I asked him to help me scan and process fake bombs in his hospital. The Network-Centric Applied Research Team (N-CART) for the advice, pressure and assistance provided to me by my peers and good friends. Finally, I would like to thank my family for being there every step of the way and a constant source of support.
+
+iii
+
+TABLE OF CONTENTS
+Chapter 1 Introduction ............................................................................................................................................... 1  1.1  1.2  1.3  INTRODUCTION........................................................................................................................................ 1  PROBLEM DEFINITION ........................................................................................................................... 3  OBJECTIVE ................................................................................................................................................ 5  Contributions ....................................................................................................................................... 7 
+
+1.3.1   1.4 
+
+THESIS ORGANIZATION ......................................................................................................................... 8 
+
+Chapter 2 Background .............................................................................................................................................. 10  2.1  2.2  2.3  CBRNE THREATS ................................................................................................................................... 13  IMPROVISED EXPLOSIVE DEVICES ................................................................................................... 15  CBRNE TACTICS ..................................................................................................................................... 20  Explosives Disposal Unit................................................................................................................... 21 
+
+2.3.1   2.4 
+
+IMAGING TECHNIQUES ........................................................................................................................ 24  X-Radiation ....................................................................................................................................... 25  Computed Tomography ..................................................................................................................... 26  Magnetic Resonance Imaging ........................................................................................................... 27 
+
+2.4.1   2.4.2   2.4.3   2.5 
+
+3D MODEL RECONSTRUCTION ........................................................................................................... 29  DICOM Data ..................................................................................................................................... 29  3D Model Reconstruction using DICOM Data ................................................................................. 30 
+
+2.5.1   2.5.2   2.6 
+
+GAME ENGINES AND PHYSICS ENGINES ......................................................................................... 30  Game Engines ­ Unity and Unreal.................................................................................................... 32  Physics Engine .................................................................................................................................. 32  Serious Game Simulation .................................................................................................................. 33  Measuring Performance in Games .................................................................................................... 36 
+
+2.6.1   2.6.2   2.6.3   2.6.4  
+
+Chapter 3 Technical Approach ................................................................................................................................ 38  3.1  3.2  3.3  3.4  INTRODUCTION...................................................................................................................................... 38  SIMULATED IMPROVISED EXPLOSIVE DEVICES ........................................................................... 40  DATA ACQUISITION .............................................................................................................................. 42  ........................................................................................................................................................................ 44  3D MODEL CREATION .......................................................................................................................... 46 
+
+iv
+
+3.5  3.6  3.7  3.8 
+
+3D MODEL CLEANUP AND MESH CREATION.................................................................................. 48  MESH SEGMENTATION ........................................................................................................................ 50  COMPONENT BOUNDING BOX AND SCORE ASSIGNMENT ......................................................... 52  SERIOUS GAMING FOR BOMB NEUTRALIZATION ......................................................................... 55 
+
+Chapter 4 Experimental Results .............................................................................................................................. 56  4.1  4.2  4.3  4.4  4.5  INTRODUCTION...................................................................................................................................... 56  INPUT DATA ............................................................................................................................................ 58  VIRTUAL MODEL FIDELITY TEST...................................................................................................... 66  POSE AND DIRECTION ACCURACY TEST ........................................................................................ 71  EFFECTIVENESS TEST .......................................................................................................................... 78 
+
+Chapter 5 Conclusion and Future Work ................................................................................................................. 81  5.1  5.2  5.3  Appendix SUMMARY OF RESULTS ....................................................................................................................... 81  LIMITATIONS .......................................................................................................................................... 82  FUTURE WORK ....................................................................................................................................... 84  85 
+
+Bibliography 87 
+
+v
+
+LIST OF TABLES
+
+Table 1 Table 2 Table 3 Table 4 Table 5 Table 6
+
+Comparison of exterior dimensions of IED containers......................... Comparison of dimensions of IED components.................................
+
+67 69
+
+Target accuracy results from the first shot at the cellular device.............. 74 Target accuracy results from the second shot at the cellular device.......... 74
+
+Target accuracy results from the first shot at the power source............... 75 Target accuracy results from the second shot at the power source............ 75
+
+vi
+
+LIST OF FIGURES Figure 1.1 The area of the first blast a few minutes after the explosion in the 2013 Boston marathon [2]................................................................. 1 Figure 1.2 Examples of IEDs that have been recovered in Iraq, ranging from modified conventional munitions to homemade IEDs [5]..................... Figure 2.1 The Oklahoma Alfred P. Murrah Federal Building two days after the bombing [18].......................................................................... Figure 2.2 Figure 2.3 Figure 2.4 CBRN Hazards [29]................................................................. A real-world IED [29] and a mock IED.......................................... Ammunition rigged for an IED discovered by Iraqi Police in Baghdad [16]..................................................................................... Figure 2.5 Simulated pipe bomb with a battery power source, cell phone trigger, commercial explosive main charge simulated by wooden sticks and a detonator. ............................................................................. 17 Figure 2.6 Figure 2.7 Five different types of operation of IEDs [40]................................... An example of a switch IED using a pressure mechanism and a standard method of connecting a mechanism to a charge [40]........................... 19 Figure 2.8 Figure 2.9 A 20mm Neutrex Waterjet Disrupter by Proparms [17]........................ The 2D x-ray image of a bomb obtained using a Scanna [30] x-ray machine................................................................................ Figure 2.10 A diagram depicting different applications that use different parts of the xray spectrum [47].................................................................... 25 23 22 18 15 11 13 14 4
+
+vii
+
+Figure 2.11 Figure 2.12 Figure 2.13 Figure 2.14
+
+A CT Scan, combination of image slices of a brain [49]....................... 3 Axial virtual slices of a cardboard container and mock IED components.
+
+26 27
+
+The two energy states of hydrogen [52].......................................... 28 A game created by BreakAway Ltd., and Interation Healthcare called Pulse! For medical training via simulation [57]................................. 30
+
+Figure 2.15 Figure 2.16
+
+A typical game engine architecture............................................... Process of building a computer model, and the interplay between experiment, simulation, and theory [54]..........................................
+
+31
+
+34
+
+Figure 3.1
+
+An overview of the system ­ Creation of a virtual IED from a real-world suspect IED........................................................................... 39
+
+Figure 3.2 Figure 3.3
+
+Revealed mock IED components in cardboard containers..................... 40 The plastic support platform as a placeholder for positioning the containers for experiments......................................................... 41 42 43
+
+Figure 3.4 Figure 3.5 Figure 3.6
+
+A diagram of an MRI Machine.................................................... T1 and T2 rate of recovery exponential processes [52]........................ 3D representation of the suitcase and support platform from DICOM data.....................................................................................
+
+44 44 45 46
+
+Figure 3.7 Figure 3.8 Figure 3.9 Figure 3.10
+
+3D representation of box 3 and 6 from DICOM data........................... 3D representation of box 2, 4 and 5 from DICOM data........................ A representation of the cross sectional in 3D Slicer............................ The 3D model produced by combining cross sections in 3D Slicer, along with artifacts..........................................................................
+
+47
+
+Figure 3.11
+
+Non-manifold geometries, in mesh topology, manifold objects are usually
+
+viii
+
+2-manifold, these geometries have edges that are connected by 0, 1 or 3 faces.................................................................................. Figure 3.12 The resulting mesh after the hole filling algorithm is applied - all non-manifold geometry are excluded............................................. 49 Figure 3.13 The mesh shown in Aperio after using a cutter to view objects that was occluded by the container........................................................... 50 Figure 3.14 Figure 3.15 Figure 4.1 A bounding box assigned to a critical component in the simulation......... A scene in the simulation after using the disrupter at components............ A support platform and a metal suitcase used as models for the first data set........................................................................................ 59 Figure 4.2 Figure 4.3 Figure 4.4 Sample DICOM images from the first data set.................................. Sample 3D compilation of the first data set...................................... Simulated IEDs #2 and #3 which contain materials such as wood, glass and liquid, used as models for the second data set.............................. 60 Figure 4.5 Figure 4.6 Figure 4.7 Sample DICOM images from the second data set.............................. Sample 3D compilation of the second data set................................. Simulated IEDs #4, #5 and #6 which contain materials such as wood, glass, liquid, plastic and metal, used as models for the third data set......... Figure 4.8 Figure 4.9 Figure 4.10 Figure 4.11 Sample DICOM images from the third data set................................. Sample 3D compilation of the third data set..................................... 62 63 63 61 61 59 60 52 53 48
+
+A DICOM image that shows noticeable artifacts................................ 64 Distance tool from the Unity asset store to measure game objects in the scene................................................................................... 66
+
+ix
+
+Figure 4.12 Figure 4.13 Figure 4.14
+
+Differences in dimensions of the exterior of IED containers.................. 68 Differences in dimensions of IED components................................. The information displayed on the screen as the disruptor in the simulation is fired................................................................................. 71 69
+
+Figure 4.15 Figure 4.16 Figure 4.17 Figure 4.18
+   
+
+3 different angles originating from the 3 orthogonal planes................... Distances away from the desired target location in centimeters..............
+
+72 76
+
+Pose and direction accuracy tests for model #3 and #6......................... 77 User study, second trial on the 5th virtual........................................ 78
+
+x
+
+APPENDIX
+
+A. Effectiveness Test Questionnaire...............................................................87
+
+xi
+
+ABBREVIATIONS 3D CBRNe EDU IED MRI RF USAR 3-Dimensional Chemical, Biological, Radiological, Nuclear and explosive Explosive Disposal Unit Improvised Explosive Device Magnetic Resonance Imaging Radio Frequency Urban Search and Rescue
+
+xii
+
+CHAPTER 1 INTRODUCTION
+1.1 Introduction
+Chemical, Biological, Radiological, Nuclear and Explosive (CBRNe) is a set of terms that refer to weaponized or non-weaponized materials that can cause great harm or pose significant threat to public safety. A CBRNe incident can be either accidental, such as the Chernobyl accident in 1986 [1], or intentional, such as the Boston marathon bombing in 2013 [2]. They can occur anywhere in the world and may result in large-scale emergency situations involving mass casualties. Terrorist incidents like the Boston marathon bombing have brought to light new threats like enhanced blast weapons such as "dirty bombs" that can have lasting negative effects and involve serious violence to people or property.
+
+Figure 1.1 - The area of the first blast a few minutes after the explosion in the 2013 Boston marathon [2].
+
+1
+
+In high-risk situations that involve a suspected CBRNe threat, it is important to ascertain the nature of the threat as quickly as possible. Specialized response teams--typically called "Explosive Disposal Units" (EDU) act to neutralize the threat associated with a CBRNe device either rendering it inoperable or destroying it safely. But before doing so, EDU specialists must ascertain the nature of the threat with specialized technologies including x-ray equipment [3] by screening and investigating the suspicious `package 1 '. This process is generally performed without direct physical interaction with the suspect bomb and is done as quickly as possible with personnel spending as little time as possible in the proximity of the package. The challenge then, is to ascertain the nature of the threat quickly with technologies that enable operators to make intelligent decisions about how to proceed. The current methodology, however, requires two crucial pieces of equipment; an x-ray device and a back-plate for capturing the projected image. This process generates a projected image that is two dimensional (2D) and is scaled proportionate to the distance of the target to the back-plate. Consequently, the problem is then intensified when operators must position the back-plate with acceptable distances, height and angles, and account for surrounding obtrusions such as dense objects (e.g. concrete barriers) that interfere with x-rays. In the case of a
+
+weaponized improvised explosive device (IED) meant to inflict harm to humans, the challenge in this process is to discern and estimate locations of particular IED components of interest for neutralization but based solely on a 2D image that is projected onto a plane that may be disproportionate to the actual package. When dealing with suspected CBRNe threats that turns out to be an actual IED device, EDU personnel are often unable to investigate without putting themselves at risk due to the
+1
+
+The term "package" refers to a potential IED hidden inside an enclosed container.
+
+2
+
+uncontrollable nature and the hazardous elements of an IED. Thus, it is important to obtain a clear understanding of the IED as quickly and as safely as possible in order to neutralize it. In this thesis, we develop a game-based approach to IED training that employs a methodology to spatially identify key IED components of interest and an interactive 3D simulation to reason about those key elements of an IED. We hope to aid EDU specialists with the task of identifying and neutralizing IEDs by providing them with additional training technologies that incorporates various aspects of explosive handling and investigation. Having an accurate 3D representation of the package exterior and interior (IED components), we hope to increase the tools available for safely analyzing real-world bombs by providing accurate and effective information to response personnel in a timely manner and enable them to make an informed decision based on the interpretation of that information quickly and accurately. With our approach, we claim that it is possible to create accurate 3D models of real-world bombs within enclosed containers (in game simulation) to support EDU operations. The ability to interact with the models will provide better bomb awareness and support the decision making process of IED neutralization at a CBRNe-related incident.
+
+1.2 Problem Definition
+The nature of a suspected IED is that it is composed of unknown elements that are possibly volatile and dangerous. The explosive components of an IED can be created using commonly available materials such as fertilizer and common chemicals [4]. Devices range in form, size and power from small and simple pipe bombs causing severe injuries to a few people to large and sophisticated devices capable of causing massive damage and loss of life. IEDs can be created
+
+3
+
+from an astonishing list of explosive components that are a mixture of chemicals [5], or formed from conventional munitions like mortar and artillery rounds, as detailed in [6].
+
+Figure 1.2 ­ Examples of IEDs that have been recovered in Iraq, ranging from modified conventional munitions to homemade IEDs [5].
+
+These IEDs can inflict harm in a number of ways; chemical-based IEDs can disperse toxic chemical agents that may spread unpredictably [5] or fragmentation IEDs can explode and spread shrapnel comprised of bits of metal, nails and ball bearings in any direction [2]. In the event that a suspected IED is confirmed to be a real IED, the main concerns of response teams are to evacuate the people in the area and determine the nature of the IED for safe and proper explosive handling. The ability for EDU specialists to identify and investigate IEDs using x-ray scanners are already implemented in practice [3], and they are equipped with various methods of image manipulation and enhancement tools [7] that can help them identify the components in an IED, using a 2D projected image. This approach however, even in the case of preparing simple x-ray scans, is a significantly tedious and problematic procedure that requires operators to setup x-ray scanners and back-plates at often limited acceptable ranges, heights, and angles that may increase the time an operator spends in the proximity of the IED thus endangering their own life. The main limitations of this x-ray scanning approach are; clear "line of fire" between the x-ray scanner and the package, exposure to radiation and/or 4
+
+contamination by radioisotopes, manually tuning the required energy charges (or penetration pulses) that are emitted from the scanner depending on visual estimates of the density of objects, requiring proper positioning of black-plate to capture projected x-ray beams and constantly replacing the film and the scanner's bulb when overused. In order for response teams to make intelligent decisions about how they should safely handle a particular explosive, they must address the key challenges of quickly scanning a suspected IED container and spatially identifying key components common in all IEDs; such as a main explosive charge, a method of detonation, a triggering device, a power source and shrapnel. In this thesis we argue that our work addresses this decision making process by providing a physics-based approach within a game engine so that EDU specialists can practice IED neutralization. This approach will also enable specialists with these tools to predict IED behavior based on 3D models of the IED within the game simulation. In doing so, we hope to support the accurate assessment of future IED threat situations.
+
+1.3 Objective
+Our objective was to discover an algorithm that can be used to create IED game simulations for the purposes of EDU training. We use mock IED and concealing containers as inputs into an approach that allow operators to spatially identify key components of interest, and manipulate those key components in a serious game for purposes of EDU training which can provide objective scoring concerning the neutralization task. In order to achieve our goal, we must provide a physically accurate representation of the IED that maintains all spatial relationships between all of its components and the container it is in and demonstrate reasoning based on information obtained from the 5
+
+game that mimics real-world characteristics and physics. The end result is an approach which allows operators to inject arbitrary IED models into a game engine and reason about them.
+
+6
+
+1.3.1 Contributions To the best of our knowledge, there currently exist no similar approach for EDU training simulations or in EDU practice that allows for the ability to visually inspect and separate 3D models of IEDs, and/or inject arbitrary mock IED models and components into a game engine and reason about the IED system as a whole. Therefore, our contributions are: Methodology for repurposing medical imaging for IED model creation: An augmented approach to producing relevant 3D models through the use of Digital Imaging and Communications in Medicine (DICOM) data captured using Magnetic Resonance Imaging (MRI) technology. In contrast to the high-fidelity point cloud framework described in our previous work [8], [9], this process utilizes open source projects, Slicer 3D [10], Blender [11] and Aperio [12] to convert DICOM data into separate mesh models as object files compatible with game engines such as Unity [13] and Unreal [14] for interactive 3D simulation. This system allows for the ability to inject arbitrary real models into a game engine and reason about them. Algorithm for the creation of injectable IED models. An algorithm for creating injectable mock models of IED components in order to make a virtual representation of the entire IED within a game engine. Essentially, we are able to reconstruct an assemblage of IED components from a solid IED mass and inject them into the game engine for further analysis. Demonstration of complex model interactions within a game: In our simulation, we model a common device used to neutralize an IED by forcefully and quickly removing its power supply. This is the 20mm Neutrex disrupter sold by Proparms [15]. In addition, we created a model platform, along with our mock IEDs and formed an assemblage of the 7
+
+mock IEDs' components. All the real-world models are physically accurate and the game engine supports physics-based interactions, The results of reasoning about the assemblage of components take the form of data such as the distance from the barrel of the Neutrex disrupter to the container and the angle to the target with respect to the normal plane of the disrupter (calculated from the user and target's 3D point location). The reasoning occurs by the player interacting with the artifacts inside the game simulation, is assessed using a scoring system and is validated against the real-world IEDs. Operator assessment through game-based scoring methodology: The game scoring algorithm which measures the effectiveness of the disrupter's target location with a projectile blast in the game serves to assess the skill and reasoning of game players. We take advantage of known EDU heuristics. For example, if the disrupter fails to hit the desired target the score will be low while hitting the target leads to a high score. Of course, hitting the main charge causes the game to end abruptly. Exact 3D point coordinates are taken from the user and the projectile to calculate their distances and angles.
+
+1.4 Thesis Organization
+This chapter serves as an introduction to the following chapters. Chapter 2 presents an overview of CBRNe threats and tactics, review of imaging technology and modeling techniques, review of game-based simulation and physics engines, and lastly, a review of scoring and measuring performance for game-based learning.
+
+8
+
+Chapter 3 discusses the mock IEDs that were created and used, and techniques used to collect our data. Then the system is presented and how it is used to create 3D models from DICOM data. Next, we discuss the scoring algorithm which allows users to receive feedback concerning their interactions with a virtual IED. In Chapter 4, experimental results pertaining to the degree of fidelity of the 3D virtual models with respect to real world models, as well as experimental results pertaining to the accuracy of the virtual distances and angles to real-world distances and angles, are presented. This is followed by an analysis and discussion. Finally, Chapter 5 presents a summary of this thesis, the results that were obtained, limitations, and discusses some ideas for future research.
+
+9
+
+CHAPTER 2 BACKGROUND
+Incidents involving CBRNe materials produce a chaotic and hazardous environment requiring immediate response to minimize pain and suffering, reduce casualties, and restore essential infrastructure [16]. Like all responses to threats to public safety, each incident is assessed and appropriate resources to deal with the threat are assigned. As first responders at the local, provincial, and federal levels become overwhelmed by the magnitude of an incident, military forces may be requested to provide additional support. The following are some highprofile historical CBRNe events. In the fall of 2001, letters containing anthrax spores were mailed to U.S. news media personnel and congressional officials [17]. These letters precipitated the first cases of infection related to an intentional release of anthrax in the United States. Outbreaks of the disease were concentrated in six epicenters where individuals came into contact with spores from contaminated letters. The epicenters were Florida; New York; New Jersey; Connecticut; Capitol Hill in Washington, District of Columbia (D.C.); and the Washington, D.C., regional area, which includes Maryland and Virginia. The Oklahoma City bombing was a domestic terrorist bomb attack on the Alfred P. Murrah Federal Building in downtown Oklahoma City on April 19, 1995 [18] and incurred an estimated $652 million worth of damage [19]. The bombing killed 168 people [20] and injured more than 680 others [21]. The blast destroyed or damaged 324 buildings within a 16-block radius, destroyed or burned 86 cars, and shattered glass in 258 nearby buildings.
+
+10
+
+Figure 2.1 - The Oklahoma Alfred P. Murrah Federal Building two days after the bombing [18].
+
+The explosive materials used to construct the bomb were gathered from a military surplus store and contain ammonium nitrate fertilizer, mixed with about 1,200 pounds of liquid nitromethane and 350 pounds of Tovex (a water-gel explosive composed of ammonium nitrate and methylammonium nitrate) packed into 55-U.S. gallon drums. Extensive rescue efforts were undertaken by local, state, federal, and worldwide agencies and eleven Urban Search and Rescue (USAR) Task Forces were activated by the U.S. Federal Emergency Management Agency (FEMA) to assist in rescue and recovery operations in the wake of the bombing. Other high-profile incidents have affected many other regions of the world, such as bombings in Abuja [22], London [23], Madrid [24], Moscow [25] and Mumbai [26], and chemical attacks on the Tokyo subway [27] and in Syria [28].
+
+11
+
+The threat of CBRNe events is evolving and the use of chemical and explosive materials by criminals and terrorist groups pose a significant threat in every country [29]. Deliberate or inadvertent CBRNe incidents can severely impact economic and political stability, endanger public safety, and increase the risk of further incidents (copy catting) leading to an increase in the number of victims. Several important CBRNe-related topics will be covered in order to provide the necessary background information to understand the entirety of the subject. Hence, this chapter will continue with a general introduction to CBRNe threats, a review of mine warfare and "booby traps" (aka. IEDs), and a brief overview of CBRNe tactics and technologies that support current CBRNe neutralization processes. Following sections will include a short review of 2D and 3D medical imaging technology including x-ray, computed tomography (CT) and magnetic resonance imaging, and popular techniques to convert DICOM computed tomography / magnetic resonance tomography into 3D models. Since the contributions of this work are based on a game-based simulation, this chapter will include a specific discussion of game engines such as Unity and Unreal engines and their physics engines. As one of the contribution of this work is the use of scoring to measure performance, this chapter also discusses how scoring is used in games to provide motivation for users and measure performance.
+
+12
+
+2.1
+
+CBRNe Threats
+CBRNe events refer to the uncontrolled release of chemicals, biological agents or
+
+radioactive contamination into the environment or explosions that cause widespread damage [29]. CBRNe events can be caused by accidents or by terrorist acts. The threat of an intentional CBRNe attack is something that is likely to inflict violence onto people and/or property which can severely endanger public safety and impact economic and political stability. Figure 2.2 illustrates some examples grouped into their respective categories.
+
+Figure 2.2 - CBRN Hazards [29].
+
+Examples of CBRNe incidents include chemical spills, chemical shortages, drugs and drug resistance, predictable biologic events like seasonal influenza, unexpected event like severe acute respiratory syndrome (SARS), concerns over nuclear plants, medical isotopes, etc ...
+
+13
+
+CBRNe-related research and applications are compelling and far-reaching, spanning topics from emergency management [30] and consequence management [16] to health and response services [31], [32] to public security [33]. In the context of emergency management [34], comprehensive policies exist for the entire emergency management life cycle designed to address CBRNe threats and risks. However, the focus of this thesis is on the support for the response to the threat posed by explosive devices, including risks, vulnerabilities and capabilities. We concentrate on improvised explosive devices (IEDs). As shown in Figure 2.3, IEDs are essentially "homemade" bombs intended to cause harm when they explode. They vary in shape, size, complexity, destructive capability and from. Unfortunately, they are limited only by the imagination of a bomber.
+
+Figure 2.3 - On the left; a real-world IED [29] and on the right, a mock IED. Both share a common set of components and consist of the following: A switch/trigger, a triggering mechanism, main charge (explosive material), a power source for the switch/trigger, and a container.
+
+The threat of IEDs are numerous, IEDs have emerged as one of the weapons of choice for terrorists and insurgents throughout the world history [34]. With varying degrees of
+
+effectiveness, groups or individuals have resorted to the use of IEDs to advance a particular 14
+
+cause to strike soft and otherwise vulnerable targets. They can be made at low cost, are relatively easy to construct and place, and can achieve both strategic and tactical results. Typical examples of their use throughout time include, the use of "sapping" during siege warfare during the Hundred Years War (1337 - 1453) [35], Guy Fawks and the failed gunpowder plot of 16052 [36], the use of booby traps by the Vietcong against US and South Vietnamese forces during the war in Vietnam (1964-75) [37] and the truck bomb prepared by Timothy McVeigh in the domestic terror bombing of the Murrah building in Oklahoma (1995) [38].
+
+2.2
+
+Improvised Explosive Devices
+Clearly, IEDs have a long history, and the Industrial Revolution created a surplus of
+
+preprocessed materials that enabled the development and diversity of IEDs [39]. Chemicals for explosives, and materials and products that can be modified to function as casings, shrapnel, triggering mechanisms and power sources have become readily available on a large scale.
+
+Figure 2.4 - Ammunition rigged for an IED discovered by Iraqi Police in Baghdad [16].
+
+2
+
+A stylized picture of Guy Fawks is often the adopted unofficial symbol for bomb technicians
+
+15
+
+In military engineering and mine warfare [40], [41], the term booby traps, mines and IEDs are often used synonymously. An IED is essentially an explosive device that is placed or fabricated in an improvised manner; incorporates destructive, lethal, noxious, pyrotechnic, or incendiary chemicals; and is designed to destroy incapacitate, harass or distract. There are many types of IEDs, ranging from command detonated pipe bombs, booby trapped military ordnance, to car bombs. It may incorporate military grade components, but are normally devised from nonmilitary grade components [34]. Regardless of design peculiarities, typically IEDs are composed of a main explosive charge, a method of detonation, a triggering device, a power source and may include shrapnel [39]. There have been many examples of explosive charges constructed from everything from gun power [4] to fertilizer [42]. Detonators (the part of the bomb that sets off the main explosive charge) can be as small as a ½ in. in diameter. Triggering mechanisms (the timer or communication mechanism for the bomb) can be readily improvised through the use of a clock or cell phone and depend on the intended use of the IED, available resources and the knowledge of the builder. The power source (supplying electricity to the other components) can be made from common batteries [43].
+
+16
+
+Power Source Cell Phone as Triggering Mechanism Main Charge
+
+Detonator
+
+Figure 2.5 - Simulated pipe bomb with a battery power source, cell phone trigger, commercial explosive main charge simulated by wooden sticks and a detonator.
+
+The term "improvised" also applies to the construction of the device by unauthorized or irregular forces. A mine produced for regular forces may be considered an IED if it is used by irregular forces, but an unmodified mine placed by regular forces is not considered an IED. Explosive devices designed to disperse chemical, biological or radiological material are generally not classified as IEDs [34].
+
+17
+
+Specifically, these explosive-type IEDs are normally operated externally by one of the following methods [40]; a) pull on a wire b) pressure c) pressure release or release of tension on a wire d) delayed action
+
+Figure 2.6 - Five different types of operation of IEDs [40].
+
+Internally, the mechanisms work along the same lines as mine igniters. The eight basic types of igniter are: a) Spring operated, shear pin control b) Spring operated, ball control c) Spring operated, control by pin or plate withdrawal d) Electric contact e) Chemical electric reaction f) Chemical reaction g) Friction h) Inertia
+
+18
+
+Spring operated devices are the most common [40]. They consist of a trigger device which, when set off, releases a striker; the striker fires a cap which initiates a fuse; the fuse is led to a concealed charge.
+
+Figure 2.7 - An example of a switch IED using a pressure mechanism (left) and a standard method of connecting a mechanism to a charge (right) [40].
+
+Delay-action mechanisms can be fired by a variety of methods including: a) Clockwork b) Chemical reaction c) Radio d) Tension on a stretched piece of metal
+
+19
+
+The principles governing the composition of IEDs are age-old and are unlikely to change. The methods of setting traps will vary with the ingenuity and skill of the operator, but it can be expected that IEDs will be designed according to their intended use.
+
+2.3
+
+CBRNe Tactics
+IEDs can be hidden anywhere: on animals, planted in roads or strapped to a person [34].
+
+They can be detonated via cell phones or trip wires, among other methods [44]. They can be deployed in a combat environment or in the middle of a busy city. The adaptability of IEDs to almost any situation makes it difficult to develop effective CBRNe tactics that work in all situations; however, there exist several common tactics to deal with IED threats. In [34], the National Academic Press states that the ideal approach to countering the IED threat is to target 3 basic components of the IED threat chain: organization (the trusted people of the group to perform tasks), resources (materials and equipment needed to develop an IED), and operations (logistics and communications). Destabilization of any of these components in the chain can inhibit the ability to field an effective IED campaign. However, limitations in understanding the IED threat chain or in technical capabilities of the tactical defense exist, they include: a) The relationships between the human command chain and the IED threat (eg. the political, social, cultural and economic environment) b) Data acquisition, data fusion, and analysis of such data (eg. Detection of activities of IED use and predict events before an IED detonation ­ gathering data from both human and technical sources)
+
+20
+
+c) Analytical techniques for assessing IED countermeasures (methods that quantitatively assess the effectiveness of IED countermeasures) d) Detection and disruption of the IED threat chain e) Resource availability Each limitation involves a number of challenges aimed at targeting each stage of the IED threat chain, which are preventative actions to help mitigate the effects of CBRNE events and are meant to prepare multiservice tactics, techniques and procedures for CBRNe management operations [34]. The scope of this thesis is on the following challenges:    Data acquisition Data fusion and analysis of such data Analytical techniques for detection and disruption of an IED
+
+2.3.1 Explosives Disposal Unit The public safety task of identifying and neutralizing IEDs falls to military and police services who act to neutralize the threat associated with an IED either rendering it inoperable or destroying it safely. EDUs train in various aspects of explosive handling and investigation and are involved in CBRNE operations to detect, identify, assess, render-safe, dismantle, transfer, and dispose of unexploded ordnance, improvised explosive devices and other CBRNE hazards. These operations also include decontaminating personnel and property exposed to CBRNE materials during response.
+
+21
+
+In CBRNe explosives and ordnance disposal operations, there are two primary methods to neutralize an armed IED: 1) Neutralizing critical components. This involves scanning the device and visually determining critical components for neutralization (disarming components with a waterjet cannon); this process can involve x-ray scanning [3] to determine an appropriate device target in order to fire a disrupting bolt of water from a device typically called a "disrupter" (high powered water cannon) [15].
+
+Figure 2.8 - A 20mm Neutrex Waterjet Disrupter by Proparms [17].
+
+2) Destroying the device in place. The other method is destroying the package with a prepared explosive charge using commercial explosives such as Composition C-4--a plastic explosive, placed at calculated locations around the bomb in order to simultaneously disrupt all components through the use of a controlled explosion. The use of C-4 explosives to deal with improvised explosives is considered a last resort in EDU operations and is beyond the scope of this thesis.
+
+22
+
+The method of scanning a bomb and disrupting components within, depend greatly on visually determining regions of an IED that may resemble one of the key elements (power source, triggering mechanism, detonator), for the purposes of bomb neutralization. The x-ray scanner direct pulses of electromagnetic radiation (x-ray) at the bomb which is projected onto a film inside a black-plate [3], similar to how light is projected through a pinhole onto a film in a camera. This process allows the sensing of physical IEDs with varying degrees of how much each component absorbs x-rays how well the x-rays penetrate those components and reach the film. Based on the 2D projected image, EDU personnel can estimate regions where actual components may be located, and aim a disrupter at the location of a component to neutralize the
+
+Figure 2.9: The 2D x-ray image of a bomb obtained using a Scanna [30] x-ray machine.
+
+23
+
+bomb. The use of x-rays to identify structures is similar to medical radiographs for identifying bone structures, in which bones - contain calcium that absorbs x-rays - reduce the amount of xray reaching the detector in the shadow of the bones, making it visible on the radiograph. Trapped gasses also show up clearly because of it absorbs less x-rays compared to bones. Detailed information relating to x-ray technology will be explained in section 2.4 Imaging Techniques. However, unlike medical imaging x-ray processes, EDU scanners emit high powered xray photons that carry enough energy to ionize atoms and disrupt molecular bonds, this type of ionizing radiation can therefore be harmful to living tissue, and each burst of x-ray photons at a high intensity damages the x-ray emitter bulb. When using the x-ray technology, the potential number, variety and complexity of IED designs can make it difficult for EDU personnel to safely investigate a bomb's characteristics and effectively neutralize its threat without endangering themselves.
+
+2.4
+
+Imaging Techniques
+Medical imaging is the process of creating visual representations of the interior of a body
+
+for clinical analysis [45]. The primary use of medical imaging is to reveal internal structures hidden by the skin and bones, as well as to diagnose and treat certain diseases. These technologies are also adapted for use in other fields such as Urban Search and Rescue (USAR), industrial engineering such as vehicle manufacturing, public security such as airport luggage scanning.
+
+24
+
+The technology and software available according to an EDU specialist [46] are x-ray scanners and x-ray viewers by Scanna [3], [7]. Scanna designs portable x-ray systems for rugged and lightweight deployment within the fields of defence, law enforcement and general security applications. Figure 2.9 is an x-ray image captured using Golden Engineering XR200 X-Ray from Scanna. 2.4.1 X-Radiation X-radiation, or x-rays, is a form of electromagnetic radiation, with wavelengths ranging from 0.01 to 10 nanometers, and energies in the range 100 eV to 100 keV (electronvolt) [47]. Xrays can be divided into two categories; soft x-rays, (photon energies below 5 keV) and hard xrays (photon energies above 5-10 keV) widely used to image the inside of objects, such as medical radiography and airport security [48]. Figure 2.10 depicts a chart of particular x-rays in the electromagnetic spectrum.
+
+Figure 2.10 - A diagram depicting different applications that use different parts of the x-ray spectrum [47].
+
+25
+
+2.4.2 Computed Tomography Computed tomography, also called x-ray computed tomography (x-ray CT), is simply a combination of many x-ray images taken from different angles to produce cross-sectional (tomographic) images, or virtual slices [47]. This allows the user to see inside an object without actually cutting through it. These slices contain information about the inside of an object, or rather, volume data, and require a lot more storage space than just surface data. Surface data on the other hand, is usually represented as polygonal meshes made up of vertices, edges and faces representing only the outer contours (essentially the surface) of an object.
+
+Figure 2.11 - A CT Scan, combination of image slices of a brain [49].
+
+In CT scans, the color of a pixel in each image slice represents the density of the material at that position, measured in Hounsfield units. In medical images, usually, bone structures would have the highest density (around 700-3000 Hounsfield units (HU) [49] and therefore its value would be highest or closest to white), whereas tissue would have a lower density at 100-300 HU,
+
+26
+
+followed by muscle and blood at 10-45 HU. Air would likely have the lowest density represented by a color closest to black. 2.4.3 Magnetic Resonance Imaging MRI is another medical imaging technique but without the exposure to ionizing radiation produced from x-ray imaging. MRI is one of many modern diagnostic imaging techniques that produces cross-sectional images (tomography) of an entity, similar to CT scanning [50].
+
+Figure 2.12 - 3 Axial virtual slices of a cardboard container and mock IED components.
+
+The process involves using energy from an oscillating magnetic field at the appropriate resonance frequency [51] which excites hydrogen atoms and causes them to emit a radio frequency (RF) signal which is measured by a receiving coil. In order to further understand how MRI machines capture data, basic principles of magnetic resonance imaging must be understood. In our research, we use a traditional clinical MRI machine which targets the hydrogen atom [52]. Note that targeting other active atoms is theoretically possible but the RF energy pulse must be adjusted accordingly. Hydrogen atoms are crucial for clinical MRI practice (and useful in our research) because it contains a single proton (atomic and mass number 1) [52]. It is advantageous for use because it is abundant in the many entities (such as the human body and many of our IED components), and because its solitary proton provides a relatively large magnetic moment. As an external magnetic field is applied, the magnetic moments of the hydrogen atom are orientated/aligned parallel to the applied external 27
+
+magnetic field (in the same direction) and cause hydrogen atoms to spread into low and high energy portions (see Figure 2.13).
+
+Figure 2.13 ­ The two energy states of hydrogen [52].
+
+The state at which the hydrogen atom is separated into high and low energies, is called excitation [52]. By measuring the time at which the low and high energy states recovers to its equilibrium state (a state which is not aligned and randomly orientated), the MRI machine can effectively measure a signal (density) of the culmination of excited hydrogen atoms within an entity. This external magnetic field is produced via resonance, a phenomenon that occurs when an object is exposed to a high energy external frequency that matches its own natural frequency [52]. This method of scanning has many advantages for EDU personnel over the current x-ray methodology as there is no risk of radiation exposure. In addition, actual scans take less than 30 seconds and an operator can change the imaging plane without moving the object being scanned. However, the technology cannot readily be used for EDU operations as no magnetic components
+
+28
+
+can exist within the IED being scanned and MRI machines are exceedingly expensive, relatively large and problematic as to how they could be employed operationally. For the moment, medical imaging is beyond the capabilities of most EDUs who have to make due with x-ray equipment. However, the technology can be used to create the virtual IEDs for a simulation.
+
+2.5
+
+3D Model Reconstruction
+There are numerous methods, algorithms and techniques for reconstructing multiple
+
+images into a three-dimensional model. Some methods require extra metadata such as depth data, and some methods triangulate a position of a 3D point from the intersection of two projection rays from two images. Many of these methods require special cameras, and/or pre and post processing of multiple sets of 2D images. But they all obtain some variation of information that pertain to some structure in relation to the pose and calibration of the camera. 2.5.1 DICOM Data Before we head into a discussion of 3D modelling with this data format, we will briefly discuss DICOM format. Digital Imaging and Communications in Medicine (DICOM) is a standard for handling, storing, printing, and transmitting information in medical imaging. It also includes a communication protocol designed to transmit patient data across networks. DICOM data is an ISO standard widely known for its workflow and data management. It is the standard format for capturing data obtained from CT and MRI scanners. However, a common limitation of this standard is common inconsistency with regards to data entry of optional fields in the protocol [53]. The MRI machine captures DICOM data on three hypothetical planes which transect the entity; they are called the axial, sagittal and coronal planes. 29
+
+2.5.2 3D Model Reconstruction using DICOM Data 3D reconstruction using DICOM data is different. Depending on the scanning method used, tomographic images are obtained through the measurement of varying radiodensities of matter. There are many applications that provide simple 3D reconstructions of DICOM data; 3D Slicer, 3D DICOM by Sante, ImajeJ (an open source software), Amira, Mimics, ITK-snap, Meshforge, Osirix, among many other volume rendering software. Volume rendering techniques for DICOM range from segmentation algorithms, such as watershed segmentation algorithm, to superimposition (placing an image on top of an already existing image) and analysis algorithms, such as the least-squares registration algorithm (to align similar landmarks of superimposed tomographic images) [54].
+
+2.6
+
+Game Engines and Physics Engines
+Game engines are a form of development platform used to create virtual environments for
+
+interactive video games. "Serious games" are simulations made to relate or depict important information that may represent real-world events and solve a problem not primarily for the purpose of entertainment. Among other applications, they can be used for education, such as urban planning [55], [56], training such as USARSim [57], and health services such as dental training [58].
+
+Figure 2.14 - A game created by BreakAway Ltd., and Interation Healthcare called Pulse! For medical training via simulation [57].
+
+30
+
+A game engine allows a developer to create simulations and add functionality using tools not available in alternative visualization schemes. The realism that can be depicted, using simulated physics and graphics, have made these platforms plausible research tools especially when an environment is particularly complex and the ability to recreate it prohibitively expensive by other means.
+
+A game engine allows the re-use of components, high-end graphics features, and most importantly, accurate simulated physics. The backend components provided to a programmer can differ between engines, however, common features typically include; physics (gravity, weight, etc...), rendering (mesh rendering, projectile rendering, etc...), audio (surround sound, special effects sounds, etc...), graphical user interface (overlay of various screens), and networking (protocols for multiplayer interaction over a network).
+
+This functionality is conveniently accessed through high-level application programming interface (API) calls (a set of routines, protocols, and tools for building software applications). Collections of prefabricated 3D models and prewritten code can be added to any "scene" (game
+
+Figure 2.15 - A typical game engine architecture.
+
+31
+
+environment) or "player" (game actor). This degree of modularity allows for re-use of resources and a reduction in development time. The architecture of a common game engine is shown in Figure 2.15.
+
+2.6.1 Game Engines ­ Unity and Unreal The Unity and Unreal game engine are cross-platform development systems [13], [14]. These engines are developed in C and C++ and offer a development environment compatible with various languages such as C#, JavaScript and many more. The engine is primarily designed for operating systems such as, Windows, Linux, Mac, iOS and Android. The game engine's graphics are dependent on the platform: Direct3D (Windows), OpenGL (Mac, Windows, Linux), and OpenGL ES (Android, iOS). The backend physics engine is an industry standard called Nvidia PhsyX [59]. A wide variety of 3D model file types are supported allowing the use of a range of modeling packages such as Blender [11] and Meshlab [60]. Many games have been developed using Unity [61].
+
+2.6.2 Physics Engine The component that provides simulated but realistic interactions within a game engine environment is its backend physics engine. The physics engine handles the mathematical functions related to physical interactions. Typically a physics simulation is broken down into two areas: collision detection and dynamics.
+
+Collision detection determines which objects contact each other through their behavior. Dynamics is concerned with the dynamic motion of objects that exist independently or are affected by constraints, like joints (two objects connected at some point). The detailed processes 32
+
+of these calculations are abstracted to high-level API calls. In a game engine, these function calls are non-transparent and are of no concern to a developer when creating an application. The developer simply provides object parameters (i.e. mass, geometric dimensions, etc.) to be used within the engine. The accuracy of the physics layer within simulators is essential in providing realistic models of the outside world.
+
+Reviews of available physics engines such as Open Dynamics Engine (ODE) and Newton have been conducted [62], but are outdated compared to the current industry standard engines such as Nvidia PhysX [59] and Havok [63]. Typically these engines are compared in a controlled simulation setting to determine accuracy in a variety of physics-related themes such as collision detection, hard (rigid) and soft body dynamics, particles, and load-bearing.
+
+2.6.3 Serious Game Simulation A simulation is generally designed to closely simulate aspects of the real-world [64]. It can run on a single computer or a network of computers and it uses abstract computational models to simulate behaviors of a real or fictitious environment. By having the ability to simulate a particular environment with accurate computational models of real-world settings, it can be used to gain additional awareness of a system [64]. Forensic analysis of projectile trajectory and projectile's penetration strength are examples of what can be estimated using computational models which incorporate real-world physics (physics engine) such as calculating an object's impact on another object based on its weight, density, velocity and trajectory. By applying computational physics, computer-based experiments using valid computational modelling of systems are used to perform inference of a certain type of behavior.
+
+33
+
+A serious game simulation is an education-purposed methodology requiring a player to solve a problem and being evaluated while doing so [55]. These simulations imitate real world processes to see how they behave under different conditions and also used to test new theories. After creating a theory of causal relationships, the theorist can codify the relationships in the form of a computer program [64]. A weather forecasting simulation is an example that employs computational mathematical models in an attempt to explore and gain new insights into new behaviors of a system [65]. Other computational simulation in practical contexts include simulation of the behavior of structures under stress and other conditions, robot simulators for testing the design of robots or urban simulations that simulate dynamic patterns of urban development. Essentially, if the simulation is properly designed to behave in the same way as a real-world process, there is a good chance that the proposed relationships are correct.
+
+Figure 2.16 - Process of building a computer model, and the interplay between experiment, simulation, and theory [54].
+
+However, computational models that model real-world behavior must be reliable. A crucial component of a serious game is the validity of the simulation model. A valid simulation model is one that is optimized with 3 processes during development; experiment, simulation and theory [66]. 34
+
+In order to create useful abstract computational models that can be used to produce realistic results, there are 3 necessary steps that need to be taken in order to ensure that the simulation models are functioning properly [66]:
+
+a) Model calibration (achieved by adjusting any available parameters in order to adjust how the model operates and simulates the process) b) Model verification (achieved by obtaining output data from the model and comparing them to what is expected from the input data) c) Model validation (achieved by comparing the results with what is expected based on historical data from the study area)
+
+With these steps, there can be three sources of error that can cause the model to produce weak correlations: input error, model error, and parameter error. In general, input error and parameter error can be adjusted easily by the user. Model error, however, is caused by the methodology used in the model and may not be as easy to fix.
+
+Simulation models are typically built using several different modeling theories that can produce conflicting results. Some models are more generalized while others are more detailed. If model error occurs as a result, in may be necessary to adjust the model methodology to make results more consistent. The culmination of these processes can create a credible and accurate model. A valid model is one that correctly demonstrates an ability to replicate actual real-world patterns and behaviors and can provide reasoning which can conceivably be applied to realworld applications.
+
+35
+
+2.6.4 Measuring Performance in Games A plethora of research has been conducted concerning determining and providing the most effective support for learning through gaming [64], [67­74]. Topics range from incorporating appropriate game theory, balancing instructional drill-based practices with entertaining game play, providing relevant feedback, goals, and interaction, to determining and designing the most optimal relevant game characteristics that foster desired target skills. The most common
+
+research challenges in designing an effective serious game lie in the reception of the game (student appeal and motivation) and focus of the developmental skill (eg. language-based learning or technical skill based learning). The best practices for effective game based-learning follow a number of key principles: a) Rewards (new insight, item or challenge awarded accordingly upon completion of a challenge) b) Feedback (interpretation of the feedback and how it contributes to their particular goals in the game) c) Challenges (game tasks and activities ­ solving a problem or practice their learning, usually to advance in goals of the game) d) Goals/Competition (motivate learners to complete the game activities to win) e) Rules/Constraints (limit the actions a gamer can and cannot take ­ simulates realism or real phenomenon) f) Choice (options and decisions a gamer has prior to and during game play) g) Fantasy (motivation through progression in a storyline) h) Fidelity (using graphics, audio, video, three-dimensional virtual worlds, and artificial intelligence to authentically represent reality, providing a more immersive context) 36
+
+i) Context (the setting, narrative, story, scenario, characters, back story and problem which adds to the authenticity of the realism presented in the game) j) Constructivism (eg. multiplayer games - advocate the use of multiple perspectives, relevant, authentic problems, and active learning) Instructional designers and video game designers are tasked with understanding how the game characteristics, competition and goals, rules, challenges, choices, and fantasy are intertwined and how each component is best optimized to influence motivation and facilitate learning. In the context of our research, the meaning of scoring is used to measure performance of the player. This score refers to an abstract quantity associated with a player and serves as a reward for successfully completing a challenge. Feedback is given to the player though positive reinforcement, represented by a visual indication that the challenge has been completed and the points have been awarded. The motivation behind scoring lies in the player's drive to win, and relates to the human psyche of achieving success and fulfillment [75]. When a player successfully completes a challenge, positive reinforcement is given to the player in the form of additional points, whereas when a player unsuccessfully completes a challenge, negative reinforcement is given to the player in the form of deduction of points.
+
+37
+
+CHAPTER 3 TECHNICAL APPROACH
+3.1 Introduction
+In this chapter, the implementation of the system created for this thesis is discussed. This system is an algorithm or process that starts from data acquisition, creation of a virtual bomb (from a real suspect explosive device) and proceeds to the creation of a novel purpose-built EDU simulation that provides a mechanism for obtaining objective scores concerning the neutralization task. The steps involved in the neutralization task according an EDU specialist [46] and the Federal Explosives Law and Regulations [76] are numerous and varied according to a large number of potential situations. One of these potential steps is to x-ray the IED (if possible) and determine where the power source, trigger or other non-explosive (but functionally critical) element of the device is. This determination makes it possible to facilitate a means to neutralize the device by taking aim at the non-explosive component with a device capable of firing a bolt of water--colloquially called a "disrupter"--to neutralize the IED. If the first "shot" from a disrupter is determined to be unsuccessful, the process will be repeated. One major challenge of the neutralization task is to have sufficient numbers of EDU personnel who are both trained and familiar with a wide range of potential IED threats. We argue that, in order to address this challenge, one major contribution of our research is to provide a system for the creation of accurate simulations, in game form, for EDU members to practice with, identify key components of and interact with virtual IEDs in order to neutralize their threat safely and in safety. Our simulation games provide accurate and familiar analogs to various
+
+38
+
+activities and objects from the real-world, like aiming and manipulating a disrupter and the IED itself, in the form of a game components for the purposes of training, analysis, and prediction.
+
+Figure 3.1 ­ An overview of the algorithm/system ­ Creation of a virtual IED from a real-world suspect IED.
+
+The next few sections describe the creation of the mock bomb models as they form the basis for the simulations. An overview of the system is shown in Figure 3.1. The system begins with gathering input, which for our purposes is cross-sectional DICOM data of real-world simulated IEDs collected from an MRI machine. The culmination of the cross sectional data are manipulated and merged to create a 3D model. The 3D model is modified to ensure that a maximum of 2 planes intersect each other (this is called removing non-manifolds, which will be further discussed in section 3.5). The 3D model can then be converted into a mesh (surface model consisting of polygonal meshes made up of vertices, edges and faces) and further manually segmented to separate key IED components of interest. The assemblage of the components is injected into the simulation, where bounding boxes and their respective scoring criteria are assigned to each component for gameplay.
+
+39
+
+3.2
+
+Simulated Improvised Explosive Devices
+The main source of our data collection is from 6 inert IEDs constructed for the purposes
+
+of this thesis (shown in Figure 3.2) and later destroyed, and a plastic support platform (shown in Figure 3.3). Since the nature of these explosives are improvised and the data collection method uses MRI technology, we concentrated on designing not-atypical IEDs consisting of various types of materials (metal, plastic, glass and wood) to make sure we had a broad coverage of different materials. 1 2 3
+
+4
+
+5
+
+6
+
+Figure 3.2 ­ Revealed mock IED components in cardboard containers. 1. Metal/plastic suitcase with a cell phone - 2-6. Cardboard container with IED components with varying types of material (eg. metal, plastic, glass, or wood).
+
+40
+
+The inert IEDs were constructed using 9V batteries as power sources, old cell phones as a trigger, small wooden pieces, plastic/glass containers and/or metal pipes as main charges with the assembly wrapped in electrical tape. These components were chosen from commonly available material with varying densities which are characteristic of IEDs according to CBRNe team members [77]. Similar to x-ray technologies, components can be differentiated by their densities--the darker the component is, the denser the material. In our algorithm, the components are segmented based on signal intensity. These IEDs were placed within small banker boxes. The focus for validation (determining fidelity) will be to compare the dimensions of the models in the simulation to the dimensions of the models in the real-world, along with determining the angles and pose of the model and the disrupter barrel upon firing.
+
+Figure 3.3 ­ The plastic support platform as a placeholder for positioning the containers for experiments.
+
+41
+
+3.3
+
+Data Acquisition
+Our research used the clinical MRI machine developed by Siemens, we captured data on
+
+3 planes, with a field of view of 28.0, slice thickness and spacing of 5.0 and 2.0. The most important parameters when using the MRI is the type of sequence used and the time of repetition. The type of sequence, can be either T1 recovery or T2 decay. Briefly, T1 recovery measures the rate at which hydrogen atoms lose their energy to the surrounding environment, often called relaxation [52]. T2 decay measures the rate at which hydrogen atoms exchanges energy (interaction with magnetic fields) with neighboring atoms. Both T1 and T2 rate of recovery/decay is an exponential process, which means for T1, the higher the signal intensity, the longer the time it takes for hydrogen atoms to recover, for T2, the lower the signal intensity, the longer the time it takes for hydrogen atoms to decay.
+
+Figure 3.4 ­ A diagram of an MRI Machine.
+
+42
+
+The images were captured at resolutions of 512x512 pixels and range from 200-300 slices depending on the number of objects placed on the patient table. As described in a medical journal [78], adjusting these parameters affect 3 primary factors when performing a scan; signalto-noise ratio, resolution and scan time. The signal-to-noise ratio measures the quality of the image, essentially, the lower the noise, the better the result. When using the MRI scanner, the less time spent scanning, the lower the resolution and the higher the SNR.
+
+Figure 3.5 ­ T1 and T2 rate of recovery exponential processes [52].
+
+According to an MRI technologist [79], with these parameters, the resulting visual representation of the objects from the DICOM data can effectively capture the soft materials (cardboard, liquid and plastic) and hard materials (metal and wood). See Figure 3.6, Figure 3.7 and Figure 3.8 for a 3D representation of the mock IEDs from the DICOM data.
+
+43
+
+Figure 3.6 ­ 3D representation of the suitcase and support platform from DICOM data.
+
+Figure 3.7 ­ 3D representation of box 3 and 6 from DICOM data.
+
+44
+
+Figure 3.8 ­ 3D representation of box 2, 4 and 5 from DICOM data.
+
+45
+
+3.4
+
+3D Model Creation
+To create a 3D model from the DICOM data, we used a 3rd party open-source software
+
+called "3D Slicer". 3D Slicer is used for the analysis (including registration and interactive segmentation) and visualization (including volume rendering) of medical images [10]. The software allows the user to visually select signal intensities to create and select label maps using threshold ranging. Essentially, the user selects a range of signal intensities, (or densities) that should be included in the 3D model. For our purposes, it is important to retain the exterior of the container in the 3D model. Since the exterior of the container is less dense than interior objects,
+
+Figure 3.9 ­ A representation of the cross sectional in 3D Slicer
+
+46
+
+it is difficult for the program to discern which parts of the image are relevant to the user (relatively low densities mean airspace), therefore the threshold feature in the editor allows the user to choose what entities should be merged into a model. However, the models created in 3D Slicer often include artifacts which are introduced by a variety of factors that may be related to a number of anomalies concerning the scanning like inadvertent motion, the presence of metallic components or foreign bodies being introduced [80]. Artifacts, as shown in Figure 3.10, can be identified as zippers, strips, fringes or overflow marks which can be caused by Finite sampling, k-space encoding, and Fourier transformation may cause aliasing and Gibbs artifacts (series of lines that appear abrupt and intense at a certain location) [80].
+
+Figure 3.10 ­ The 3D model produced by combining cross sections in 3D Slicer, along with artifacts.
+
+47
+
+3.5
+
+3D Model Cleanup and Mesh Creation
+To cleanup artifacts and extraneous entities such as the support surface, we use Blender
+
+[11] to visually select and delete artifacts surrounding the mesh. Blender is an open source 3D graphics and animation software that includes a visualization framework containing a C++ class library and numerous algorithms for scalar, vector, tensor and volumetric methods; it contains built-in advanced modeling techniques for implicit modeling, polygon reduction, mesh smoothing/cleaning, cutting and contouring. In our process, Blender is useful for visualizing the top, side and front view of the scene (often orthographic views) and this allows for visualizing protruding artifacts (zippers, strips, fringes or overflow marks) that surround the containers. We then use a hole filling algorithm [81] to generate a new surface mesh that follows the same shape as the input, but with more regular topology. The output of this algorithm is blocky re-meshes that are not too small or irregular--useful for separating into components in Aperio [12], a 3D mesh occlusion viewer capable of segmenting meshes into parts. The most important part of this process is to remove non-manifolds. Non-manifold geometry is essentially geometry that cannot exist in the real world [82]. Such geometries are described as 3 or more planes intersecting on an edge, a constraint that must be included when models are printed using 3D printers (printing of a described object cannot occur if it contains non-manifold geometry).
+
+Figure 3.11 ­ Non-manifold geometries, in mesh topology, manifold objects are usually 2manifold, these geometries have edges that are connected by 0, 1 or 3 faces.
+
+48
+
+This process removes small disconnected pieces and fills holes in the mesh and the resulting mesh appears much like Figure 3.12.
+
+Figure 3.12 ­ The resulting mesh after the hole filling algorithm is applied - all non-manifold geometry are excluded.
+
+We export the mesh as an object file which is compatible for import into the free software Aperio [12], which is a novel interaction model for managing 3D scene occlusion and for visualizing and understanding spatial relationships among parts of a multi-part mesh-based system.
+
+49
+
+3.6
+
+Mesh Segmentation
+Aperio [12], allows for the use of segmentation tools similar to real-world mechanical
+
+tools; these tools allow a user to view relationships between structures that are often layered and occlude one another (a crucial element in the EDU process for examining suspect IEDs). The program manipulates the mesh with 4 tools; a cutter, ring, rod and knife tool. The ring and rod tools are used for translation and rotation of meshes; the ring tool allows meshes to slide along its circular path similar to how beads move on a wire. The rod tool allows meshes to slide along its linear path. These meshes can also be spread apart along the ring or rod to create exploded views of mesh parts; they can also be spun around the rod`s axis or fanned apart. The ring and rod tools are presented as an alternative interaction technique for creating exploded views of mesh data along a constrained path, (rather than freely exploding meshes in every possible direction like traditional radial explosions). These segmented parts can also be reversed (restored) by simply moving the slider (along with the connected meshes) back to their initial rest positions.
+
+Figure 3.13 ­ The mesh shown in Aperio after using a cutter to view objects that was occluded by the container.
+
+50
+
+At this point in the process, EDU specialists [46], [77] identify which parts of the mesh visually represent critical IED components and separate them using these tools. The output is an object and material file compatible for importing into a game engine.
+
+51
+
+3.7
+
+Component Bounding Box and Score Assignment
+After importing the assemblage of components into the game engine, Unity [13], we
+
+associate bounding boxes to these components and assign unique scoring criteria to each box. These regions indicate the components which are the main charge, trigger mechanism, power source, etc... and its score is assigned by an EDU bomb specialist [46].
+
+Figure 3.14 ­ A bounding box assigned to a critical component in the simulation.
+
+The algorithm for the bounding box has three components - a damage receiver script, a bullet penetration script and a crosshair script. The damage receiver script, attached to the bounding boxes, function as a trigger that indicates the damage applied to the component and value of the damage received from the projectile fired from the player's weapon--in our case, the disrupter. This allows the script to calculate the current status of the bomb; neutralized, not neutralized yet, or has exploded (signifies the game ending). A users score increases whenever they have effectively shot a projectile (simulates shooting an EDU disrupter) onto a correct component (simulates hitting a critical component, eg. 52
+
+power source, trigger etc...). The score decreases whenever the user misses a correct component, but also misses a lethal component (which will end the game). The bullet penetration script outputs projectile information to the user per shot fired. If the bomb is not triggered to explode and the component has been effectively hit, the program will output the distance the user's weapon is to the target and 3 directional angles which are calculated from the 3 orthogonal planes (XY, YZ, and ZX plane) at the point of the barrel upon firing. This information is obtained from reasoning within the simulation and can be useful for EDU disrupter positioning processes. The crosshair script allows the user to see whether the crosshair is in the range of a component, correct or lethal. It is meant as an aid for the user to recognize which parts of the IED are associated with a bounding box (key component of interest). The crosshairs are realitybased in that they allow aiming with the game in a similar way as aiming would occur in reality.
+
+Figure 3.15 - A scene in the simulation after using the disrupter at components.
+
+Aiming the disrupter in the game provides additional information about the contents of the IED package which would not be readily available at a real incident. It is reasoned that this 53
+
+additional functionality can be used to assist in the training process, and as players of the game get better at aiming at IED components, less information would be revealed by the crosshair tool. However, this is a matter of speculation and the use of supplemental crosshair data is beyond the scope of this thesis.
+
+54
+
+3.8
+
+Serious Gaming for Bomb Neutralization
+Inside the game, the player has a choice of picking up different models of disrupters. The
+
+objective of the game is to aim and shoot a projectile to neutralize the IED. As briefly described in the previous section, as the projectile hits the object and its bounding box, an effectiveness score appears indicating whether it has successfully hit a key component or not. The player must look for visual cues shown within the bomb model. As the player hovers the crosshair near key components with the disrupter, the crosshair changes color, and as the projectile hits the bounding box, the distance and the angle to the target with respect to the normal plane of the disrupter are shown. To measure the effectiveness of the disrupter's target location with a projectile blast in the game, we take advantage of known heuristics. For example, if the disrupter fails to hit the desired target the score will be low while hitting the target leads to a high score. Of course, hitting the main charge, causes the game to end abruptly. The simulation provides feedback to a player through scoring points as to the effectiveness of their targeting. We suggest that this interactive part of the simulation can be used to safely train response personnel by providing visual cues and feedback for important and specific regions of interest of simulated IEDs. The focus of the evaluation which will be discussed in chapter 4 is to compare dimensions of the 3D model inside the simulation to the real-world and determine the degree of fidelity. In addition, we test how measurement and placement within a game can be used to inform the measurement and placement of disrupters aimed at real inert IED targets.
+
+55
+
+CHAPTER 4 EXPERIMENTAL RESULTS
+4.1 Introduction
+
+The basis for considering this research to be successful is the proof that our methodology can provide accurate 3D models of IEDs within a game simulation that, in turn, supports the ability of response teams to make intelligent decisions concerning how they should safely handle real explosive devices based on accurate interactions with simulated surrogates. Therefore, it is necessary (but not sufficient) to demonstrate that our algorithmic approach can provide accurate virtual IEDs that are representative of real-world IEDs. To do this, we focus our validation efforts on testing the degree of `fidelity' of the virtual model with respect to the realworld model, essentially, how accurately the virtual IED can represent the real-world IED. According to an EDU specialist [77], an `accurate' and acceptable virtual IED model must have similarly proportionate dimensions (length, width and height) with no more than 1 cm difference in magnitude, to ensure that the blast radius of the projectile from the disruptor is relatively accurate when fired at the estimated target location. Given that IEDs can be accurately represented using our approach, it remains necessary to demonstrate that our game can support viable reasoning derived from interactions with the models inside the simulation and feedback from an effective game scoring algorithm that measures the effectiveness of a disruptor's target location based on a projectile blast that serves to assess the skill and reasoning of game players. This process calculates the projectile pose and direction from 3D point coordinates taken from the instant the projectile is fired from the weapon and is displayed as output on the user's screen. To validate the accuracy of this reasoning, we
+
+56
+
+compare the projectile's pose and direction in simulation to a real-world targeting system that is designed to visually indicate a projectile's start and end point. Finally, we must demonstrate that our game-based simulation allows users to achieve similar results to real-world interactions with IED components and disruptor targeting. To complete this evaluation, we perform a small proof-of-concept study that involves an EDU specialist and a Proparms technician who use the simulation and provide feedback via a questionnaire. In summary, we validate our system by performing the following tests; 1. Virtual Model Fidelity Test ­ determine the degree of exactness with which the objects in the simulation are reproduced. 2. Pose and Direction Accuracy Test ­ evaluate the accuracy of the projectile's pose and direction information obtained from the simulation. 3. Effectiveness Test - evaluate the system's effectiveness based on an EDU specialist and a Proparms technician interaction with the simulation and their feedback. The input data is briefly described in Section 4.2. And the rest of this chapter presents the results of the experiments performed in order to test the system. The sections are divided as follows; Section 4.3 presents the results from testing the fidelity of the virtual object's dimensions in comparison to the real-world object's dimensions. Section 4.4 presents the results from testing the accuracy of the virtual projectile's pose and direction by using a real-world targeting system designed to visually indicate a projectile's start and end point. Section 4.5 presents the results obtained from a brief proof-of-concept study based on the simulation. These tests are intended to assess the validity of our algorithm and the system resulting from it and provide weight of evidence that the system can be used to support real-world EDU decision57
+
+making processes based on the simulated objects that can be represented and interacted with. Because of the dangerous and unpredictable nature of CBRNe events, experiments are only performed at simulated, purpose-built, bomb disposal training grounds. We make the assumption that our claim for its use is valid for training and testing purposes in general based on the practices of CBRNe professionals in North America. We are not making the claim that this system can be used in all circumstances. Nor do we claim that our method of sensing can be easily applied. However, our analysis seeks to support the assertion that this algorithm and consequent systems can be plausibly applied to some real-world situations where single IEDs of appropriate construction are involved and await the arrival of the necessary portability and functionality of sensing technology.
+
+4.2
+
+Input Data
+The input data sets used for our system are three sets of DICOM images. DICOM file
+
+formats store a number of metadata (date, time, protocols, sequence type, image dimensions, bits allocated etc...), however, for the scope of our work, we are only concerned with the slice thickness, slice spacing, field of view, type of sequence, resolution and the total number of voxels (voxels represent the smallest distinguishable box-shaped part of a 3D space). These parameters are adjusted most frequently and affect the quality of the scans and time it takes to create a set of DICOM images according to an MRI technician [79]. Figure 4.1 to Figure 4.9 presents the models in each set of DICOM images and Table 1 presents the relevant metadata from the set of images.
+
+58
+
+First data set - A plastic support platform and a metal suitcase.
+
+Figure 4.1 ­ A support platform and a metal suitcase used as models for the first data set.
+
+Figure 4.2 ­ Sample DICOM images from the first data set.
+
+59
+
+Figure 4.3 ­ Sample 3D compilation of the first data set.
+
+Second data set ­ Simulated IEDs #2 and #3
+
+2
+
+3
+
+Figure 4.4 ­ Simulated IEDs #2 and #3 which contain materials such as wood, glass and liquid, used as models for the second data set.
+
+60
+
+Figure 4.5 - Sample DICOM images from the second data set.
+
+Figure 4.6 - Sample 3D compilation of the second data set.
+
+61
+
+Third data set ­ Simulated IEDs #4, #5 and #6.
+
+4
+
+5
+
+6
+
+Figure 4.7 - Simulated IEDs #4, #5 and #6 which contain materials such as wood, glass, liquid, plastic and metal, used as models for the third data set.
+
+62
+
+Figure 4.8 - Sample DICOM images from the third data set.
+
+Figure 4.9 - Sample 3D compilation of the third data set.
+
+63
+
+The dimensions of the images are 512x512 with 512x512x2 voxels. The first data set contains 212 DICOM images, the second data set contains 174 DICOM images and the third data set contains 252 DICOM images. Although the number of images captured can be predefined, this parameter was left automated by the MRI machine which estimates how much the objects cover the surface area of the MRI scanning table. These parameters were determined by a clinical medical physicist [83] as an acceptable setting for the range of materials used. It is important to note that this common MRI method focuses on using an external magnetic field to resonate at a frequency that matches the frequency of the hydrogen atom. Theoretically, the magnetic field can be adjusted to resonate at a frequency that matches other atoms (such as carbon). This is not typical in medical imaging because hydrogen comprises 1 atomic mass unit which is relatively advantageous for clinical research due to its relatively large magnetic moment. Knowing this, we can assume that magnetic fields at a frequency which may trigger (cause to explode) certain types of IEDs can be avoided using a different frequency. However, the testing of this assumption is outside of the scope of our research and focus. Closely observing the DICOM images, we notice that materials such as metal appear
+
+Figure 4.10 ­ A DICOM image that shows noticeable artifacts.
+
+64
+
+relatively closer to white than other materials such as wood, which appears relatively less close to white. This difference in color intensity represents the relative densities of materials in the image. It is important to note this fact because high density objects such as metal can easily create `artifacts' in the DICOM image (an MRI artifact refers to overflow marks or streaks that are not physically representative of the object). These artifacts are caused by the process by which MRI reconstructs the object onto an image. MRI uses finite sampling of the signal received with an inverse Fourier transform to map signals onto an image [84]. The signal received from a high density material after its hydrogen atoms become `excited' result in a high signal value, which in contrast to its boundaries, is a jump in signal strength. Since the sampling is finite, this jump discontinuity causes the discrepancies to appear in the image in the form of streaks and lines. Without the use of remedies such as additional smoothing filters or adjustments in the sampling frequency, it can be concluded that high density materials such as metal will cause minor discrepancies in the image, which can possibly affect the appearance of the virtual model.
+
+65
+
+4.3
+
+Virtual Model Fidelity Test
+
+The degree to which the virtual object's dimensions align to the real-world object's dimensions are provided in centimeters. We use a consistent scaling parameter to ensure that the virtual models injected into the simulation are consistent. Inside the simulation, we use a distance measuring tool [85] to measure game objects in the scene. This tool allows the user to define how much one pixel equals to one unit in the real-world. The pixel-per-unit was set to 9.5714 px = 1 cm, which means a pixel measurement of 100px would equal 10.4477cm. We measure the number of pixels from one corner of the virtual model to another corner. The results of our measurements are presented in Tables 1-9.
+
+Figure 4.11 ­ Distance tool from the Unity asset store to measure game objects in the scene.
+
+66
+
+Sim vs. Reality Height Model 1 Width Length
+
+Container Dimensions Model in Simulation 431.0929 px = 45.0397 cm 306.9662 px = 32.0712 cm 143.8428 px = 15.0284 cm Model in Reality 45 cm 32 cm 15 cm
+
+Difference 0.0397 cm 0.0712 cm 0.0284 cm
+
+Height Model 2 Width Length
+
+192.3535 px = 20.0967 cm 155.5352 px = 16.2500 cm 246.6741 px = 25.7720 cm
+
+20 cm 16 cm 25 cm
+
+0.0967 cm 0.2500 cm 0.7720 cm
+
+Height Model 3 Width Length
+
+246.6166 px = 25.7660 cm 197.4388 px = 20.6280 cm 141.9141 px = 14.8269 cm
+
+25 cm 20 cm 14 cm
+
+0.7660 cm 0.6280 cm 0.8269 cm
+
+Height Model 4 Width Length
+
+212.2668 px = 22.1772 cm 92.9928 px = 9.7157 cm 222.0689 px = 23.2013 cm
+
+22 cm 9 cm 23 cm
+
+0.1772 cm 0.7157 cm 0.2013 cm
+
+Height Model 5 Width Length
+
+224.5373 px = 23.4592 cm 143.4705 px = 14.9895 cm 176.6344 px = 18.4544 cm
+
+23 cm 14 cm 18 cm
+
+0.4592 cm 0.9895 cm 0.4544 cm
+
+Height Model 6 Width Length
+
+280.5846 px = 29.3149 cm 131.8154 px = 13.7718 cm 194.7349 px = 20.3455 cm
+
+29 cm 13 cm 20 cm
+
+0.3149 cm 0.7718 cm 0.3455 cm
+
+Table 1 ­ Comparison of exterior dimensions of IED containers.
+
+We notice that the dimensions of the models in simulation are consistently larger than the dimensions of the models in reality with an average difference of 0.4393 cm, which is an expected result considering that the MRI finite signal mapping to image tends to capture more artifacts (streaks and lines) that may be included in the final model after rendering. Thus, using the distance tool to measure the farthest pixel of each virtual model would most likely result in a larger measurement.
+
+67
+
+1.2000
+
+1.0000
+
+0.8000 Difference (cm) 0.6000 Acceptable Difference Upper Limit (cm)
+
+0.4000
+
+0.2000
+
+0.0000 1 3 5 7 9 11 13 15 17 Figure 4.12 ­ Differences in dimensions of the exterior of IED containers.
+
+The differences in magnitude are well within the EDU defined acceptable virtual IED model limit of no more than 1 cm. Although this result is within the range of an `accurate' virtual IED model by an EDU specialist, it is only sufficient to provide weight of evidence that high fidelity models can be achieved with these exact MRI scanning parameters, surrounding conditions and simulation scaling. However, this result does provide weight of evidence that virtual IEDs, despite being comprised of different materials, can still have similarly proportionate dimensions (length, width and height) with no more than 1 cm difference in magnitude. Which means that the method of MRI scanning is feasible to capture different compositions of IEDs without comprising its dimensional proportions due to discrepancies during finite sampling.
+
+68
+
+We perform another analysis on the dimensions of each IED components and observe whether differences exist when capturing data from occluded objects.
+Real-world Components' Dimensions (LxWxH) in cm 10.0 x 4.0 x 1.0 6.0 x 4.0 x 2.0 11.0 x 4.5 x 2.0 4.5 x 2.5 x 1.5 15.0 x 6.0 x 6.0 8.5 x 5.0 x 1.5 4.5 x 2.5 x 1.5 20.0 x 5.5 x 5.5 14.0 x 7.0 x 12.0 10.5 x 4.5 x 1.0 4.5 x 2.5 x 1.5 20.0 x 6.0 x 6.0 15.0 x 6.0 x 6.0 10.0 x 4.0 x 1.5 4.5 x 2.5 x 1.5 15.0 x 7.0 x 3.5 7.0 x 5.0 x 2.5 4.5 x 2.5 x 1.5 19.5 x 6.0 x 6.0 15.0 x 3.5 x 3.5 19.0 x 7.5 x 7.5
+
+Sim vs. Reality Model 1 Model 2
+
+Components Cellular Device Charger Cellular Device Power Source Explosive Cellular Device Power Source Explosive Cellular Device Power Source Explosive Cellular Device Power Source Explosive Cellular Device Power Source Explosive
+
+Type of Material Metal/Plastic Metal/Plastic Metal/Plastic Metal/Plastic Wood Metal/Plastic Metal/Plastic Wood Glass/Liquid Metal/Plastic Metal/Plastic Wood Plastic/Liquid Metal/Plastic Metal/Plastic Metal Metal/Plastic Metal/Plastic Wood Plastic/Wood Metal
+
+Virtual Components' Dimensions (LxWxH) in cm 10.6 x 4.2 x 1.8 6.5 x 4.6 x 2.7 11.5 x 5.3 x 2.6 5.0 x 3.3 x 1.7 15.9 x 6.3 x 6.0 8.7 x 5.9 x 1.5 4.5 x 2.9 x 1.6 20.2 x 5.8 x 5.7 14.8 x 7.8 x 12.2 11.0 x 5.3 x 1.2 4.5 x 2.6 x 1.6 20.9 x 6.5 x 6.9 15.3 x 6.5 x 6.2 10.1 x 5.0 x 1.7 4.8 x 2.6 x 1.8 16.0 x 7.2 x 3.8 7.5 x 5.2 x 3.5 5.1 x 3.3 x 2.0 20.3 x 6.0 x 6.3 15.8 x 4.2 x 4.2 20.0 x 8.4 x 8.3
+
+Average Difference (cm) 0.5326 0.5999 0.6547 0.4970 0.4013 0.3654 0.1752 0.2590 0.5678 0.4841 0.0518 0.7685 0.3539 0.4301 0.2203 0.4946 0.5529 0.6249 0.3967 0.7098 0.8893
+
+Model 3
+
+Model 4
+
+Model 5
+
+Model 6
+
+Table 2 ­ Comparison of dimensions of IED components.
+
+1.2000 1.0000 0.8000 0.6000 0.4000 0.2000 0.0000 1 3 5 7 9 11 13 15 17 19 21 Figure 4.13 - Differences in dimensions of IED components. Average Difference (cm) Acceptable Difference Upper Limit (cm)
+
+69
+
+The average difference in dimensions of IED components is 0.4383 cm, and this result shows no noticeable change in the reduction of the quality of the scan due to the components being hidden inside the container. It also is not a significant increase or decrease when compared to the difference in dimensions of the exterior, implying that occluded objects can be captured just as well as objects that are not occluded. It implies that MRI scans are still relatively `accurate' (within 1 cm difference in magnitude) even when scanning objects that are occluded and gives support to the assertion that MRI scanning can possibly be adapted to support EDU processes which rely heavily on identifying occluded objects. However, it is important to note that the system relies on human interaction to visually remove major artifacts such as streaks and overflow marks. It is possible that the uncanny nature of IEDs may cause the important protrusions or elements to be misinterpreted as an artifact, thus resulting in misrepresented real-world IED based on an erroneous assumption that the sensing method introduced artificial artifacts.
+
+70
+
+4.4
+
+Pose and Direction Accuracy Test
+This section presents the results of testing the accuracy of the virtual projectile's pose and
+
+direction by using a real-world targeting system specifically designed to visually indicate a projectile's start and end point. The targeting system consists of a laser pointer mounted on top of a level tripod. The tripod is height (up to 100 cm) and direction adjustable. Using a tripod setup like this best mimics the 20mm Proparms disruptor EDU specialists use in practice. Currently in EDU processes, specialists estimate the point along the exterior of the container of a critical component (eg. power source or cellular device) using reasoning from a 2D projected xray scan. Our claim is that the reasoning obtained from our simulation when interacting with the virtual model, supports the assertion that the simulation can provide sufficient information concerning the pose of the disruptor, and angle of the barrel to help aim a real-world disrupter at locations of critical components for IED neutralization.
+
+Figure 4.14 ­ The information displayed on the screen as the disruptor in the simulation is fired.
+
+71
+
+In the simulation, once the weapon is fired, 6 pieces of information pertinent to pose and direction are displayed on the screen; 1. The starting point of the projectile's path from the barrel of the simulated disruptor (given in 3D coordinates). 2. The ending point where the projectile has collided with the surface of a component of the virtual model (given in 3D coordinates). 3. The calculated distances of the disruptor barrel to the target point, which is proportionate to the scale of the virtual model, given in centimeters. 4. From the start point, the angle on the XY plane (calculated starting from the y axis). 5. From the start point, the angle on the YZ plane (calculated starting from the z axis). 6. From the start point, the angle on the ZX plane (calculated starting from the x axis).
+
+Figure 4.15 - 3 different angles originating from the 3 orthogonal planes.
+
+These angles are calculated using a simple tangent trigonometric function using the distances calculated of the projectile's start and end coordinates. The tangent function is the ratio between the length of the opposite side to the length of the adjacent side. The Unity physics engine contains a math library that takes care of special cases when the inverse tangent is not applicable, such as a division by 0. Unity will automatically output a value in the range -90 72
+
+degrees to 90 degrees. When we combine these 3 angles, it gives the user sufficient base-line information on the direction of a real-world disruptor given a starting height and the distance away from the container. Since the 20mm Proparms disruptor must be fired at relatively close ranges and with high muzzle velocity, we make the assumption that there is no need to measure the ballistic trajectory of a projectile under the effects of gravity and other forces such as friction. This piece of information is deemed negligible for the simulation which mimics the use of a Proparms disruptor firing at close ranges. We experiment by targeting two critical components inside the virtual model. In the simulation, we take advantage of known EDU heuristics. For example, if the disruptor fails to hit the power source or the cellular phone the score will be decreased whereas if the disruptor hits these targets the score will be increased. On the other hand, hitting the explosive components causes the game to end abruptly which implies that the user may have caused the IED to explode. Tables 3-6 shows the experimental results obtained from targeting the power source (smaller target) and the cellular phone (larger target). The accuracy is measured as the distance the laser pointer's beam is away from the desired target location in centimeters. For each critical component, tests were performed three times per shot and results were averaged to ensure that there are fewer discrepancies as a result of positioning the real-world targeting system. We performed two shots from different positions for each critical component. We consider the simulation floor as the XZ horizontal plane, distances are measured along XZ plane, and height values are determined on the y axis, normal to the XZ horizontal plane.
+
+73
+
+Target: Cellular Phone. 1st Shot
+Angles (in degrees) Target: Cellular Phone Model 1 Model 2 Model 3 Model 4 Model 5 Model 6 Start Vertical Height (from platform) Distances (cm) End Vertical Height (from platform) Distance from platform Distance away from the desired target 0.5 0.6 0.1 0.8 0.3 0.4
+
+XY plane
+
+YZ plane
+
+ZX plane
+
+-74.0846 -40.2905 -51.5581 -20.2414 5.4296 -58.8867
+
+86.9476 6.0994 -77.4490 -19.8323 55.9225 68.2876
+
+-81.9290 -47.2029 68.9531 61.9689 78.8003 7.4259
+
+51.5288 77.9437 84.2967 60.6005 64.2284 52.6212
+
+5.0679 39.6392 22.1908 31.8595 17.4143 32.3375
+
+81.8917 68.5549 60.9326 32.5074 67.2479 81.4242
+
+Table 3 ­ Target accuracy results from the first shot at the cellular device.
+
+Target: Cellular Phone. 2nd Shot
+Angles (in degrees) Target: Cellular Phone Model 1 Model 2 Model 3 Model 4 Model 5 Model 6 Start Vertical Height (from platform) Distances (cm) End Vertical Height (from platform) Distance from platform Distance away from the desired target 0.9 0.9 0.1 0.2 0.4 0.9
+
+XY plane
+
+YZ plane
+
+ZX plane
+
+68.0508 28.2187 82.7151 4.5687 82.1434 66.1720
+
+60.2876 78.6570 64.2578 11.3258 22.1348 82.7516
+
+41.4329 36.1214 74.0121 48.4636 55.4253 73.4762
+
+61.4152 62.0864 90.9854 81.2323 91.5332 53.8745
+
+46.8299 26.1837 32.1824 7.8752 48.1146 22.7775
+
+99.4002 21.9354 64.9224 94.9594 50.1828 56.0521
+
+Table 4 - Target accuracy results from the second shot at the cellular device.
+
+74
+
+Target: Power Source (9V Battery). 1st Shot
+Angles (in degrees) Target: Power Source Model 1 Model 2 Model 3 Model 4 Model 5 Model 6 Start Vertical Height (from platform) Distances (cm) End Vertical Height (from platform) Distance from platform Distance away from the desired target 0.7 0.6 0.6 0.3 0.4 0.7
+
+XY plane
+
+YZ plane
+
+ZX plane
+
+82.8870 55.1615 23.5804 25.6874 24.9594 48.7551
+
+62.1150 15.9143 24.0306 37.3105 88.4819 36.0744
+
+13.6738 88.3439 79.6249 2.9181 58.1214 13.8367
+
+80.8037 68.8541 90.2418 74.7200 56.8958 58.6604
+
+24.3851 35.5631 50.9111 11.8849 16.8163 17.8450
+
+24.1338 80.9580 84.8418 4.6633 67.0772 68.6546
+
+Table 5 - Target accuracy results from the first shot at the power source.
+
+Target: Power Source (9V Battery). 2nd Shot
+Angles (in degrees) Target: Power Source Model 1 Model 2 Model 3 Model 4 Model 5 Model 6 Start Vertical Height (from platform) Distances (cm) End Vertical Height (from platform) Distance from platform Distance away from the desired target 0.2 0.1 0.1 0.2 0.3 0.2
+
+XY plane
+
+YZ plane
+
+ZX plane
+
+31.4301 44.6227 53.6711 67.7910 11.6954 80.2745
+
+54.2790 39.4610 30.7245 16.0911 61.3090 81.9504
+
+3.3558 58.3041 57.4190 21.1541 77.8674 79.6559
+
+77.7972 90.8347 61.1498 76.9968 65.6564 75.3925
+
+33.5073 45.1836 42.6402 49.3547 38.2768 40.8077
+
+85.7521 94.8063 63.3494 29.8997 68.0298 90.0467
+
+Table 6 - Target accuracy results from the second shot at the power source.
+
+75
+
+1.2 1.0 0.8 0.6 0.4 0.2 0.0 1 3 5 7 9 11 13 15 17 19 21 23 Distance away from the desired target (cm) Maximum Acceptable Distance 1 cm
+
+Figure 4.16 ­ Distances away from the desired target location in centimeters.
+
+76
+
+Figure 4.17 ­ Pose and direction accuracy tests for model #3 and #6.
+
+77
+
+4.5
+
+Effectiveness Test3
+This test consisted of 2 trials in total which were completed by two participants, an EDU
+
+specialist [46] and a Proparms technician [77]. These users were selected because of their expertise with the Proparms disrupter and in-field experience related to EDU processes. It should be noted that it is rather difficult to find EDU specialists who are willing to participate in this type of process as they are usually in high-demand with more pressing issues4. The first trial was to familiarize users with the controls, objectives, scoring algorithm, choice of weapons and virtual IED models and their components. For the second trial, the users were tasked with neutralizing 6 different virtual IEDs. To ensure fairness, the users were only able to familiarize themselves with one other virtual IED separate from the virtual IEDs used for the second trial.
+
+Figure 4.18 ­ User study, second trial on the 5th virtual.
+
+3
+
+Testing was conducted under the terms of the 2006 Memorandum of Understanding between the Ontario Provincial Police (OPP) and Prof. Ferworn concerning join research projects in the realm of public safety. 4 Testing, by necessity, took place while most EDU resources around the Toronto area were dedicated to protecting the 2015 PanAm Games venues.
+
+78
+
+The users were to repeat the neutralization process until they had successfully neutralized all 6 virtual IED models. After the trials were completed, the users filled out a questionnaire and indicated their level of agreement or disagreement with each question. The survey focused on questions that evaluate the effectiveness of the system as a game based-learning system (see discussion in chapter 2 on measuring performance in games). Questions asked referred to whether the system provided sufficient or relevant rewards, feedback, challenges, goals, rules, choice, fantasy, fidelity, context and constructivism which are key principles in developing an effective game based-learning systems [64]. a) Rewards (new insight, item or challenge awarded accordingly upon completion of a
+
+challenge) b) Feedback (interpretation of the feedback and how it contributes to their particular goals in
+
+the game) c) Challenges (game tasks and activities ­ solving a problem or practice their learning,
+
+usually to advance in goals of the game) d) e) Goals/Competition (motivate learners to complete the game activities to win) Rules/Constraints (limit the actions a gamer can and cannot take ­ simulates realism or
+
+real phenomenon) f) g) Choice (options and decisions a gamer has prior to and during game play) Fantasy (motivation through progression in a storyline)
+
+79
+
+h)
+
+Fidelity (using graphics, audio, video, three-dimensional virtual worlds, and artificial
+
+intelligence to authentically represent reality, providing a more immersive context) i) Context (the setting, narrative, story, scenario, characters, back story and problem which
+
+adds to the authenticity of the realism presented in the game) j) Constructivism (eg. multiplayer games - advocate the use of multiple perspectives,
+
+relevant, authentic problems, and active learning) Questions that received a noticeable low rating were f-g; which are choice, fantasy, fidelity, context and constructivism. Admittedly, the virtual models lacked color, both users were limited to interacting with only 6 virtual IED models, and had little to no fantasy/context or multiplayer aspect. However, the ratings for questions a-d were high, which suggest the scoring algorithm was able to provide users with sufficient or relevant rewards, feedback, challenges, and goals in terms of training for IED neutralization processes. We argue that, while there were only 2 individuals participating, they were both expert users making our previous claim plausible.
+
+80
+
+CHAPTER 5 CONCLUSION AND FUTURE WORK
+5.1 Summary of Results
+In this thesis, we presented a novel approach that utilizes game-based reasoning in support of learning the neutralization task of improvised explosive devices. This approach allows users the ability to spatially identify crucial IED components pertinent to IED neutralization. Furthermore, it allows users to interact with those components in a 3D simulation and obtain information such as targeting distance and angles useful for positioning a neutralization device. Our main challenge was to address a difficult task within EDU processes when EDU specialists are faced with assessing a suspected explosive device enclosed within a container. Their task is to quickly ascertain the nature of the threat with technologies that can provide relevant information on how to proceed to neutralize the explosive if it is in fact an IED. Current methodologies employed by EDU specialists are to utilize x-ray scanners and estimate locations of critical components based on a 2D projected image, which may be disproportionate to the actual package. With our approach, we claim that it is possible to create accurate 3D models of real-world bombs within enclosed containers using an MRI machine and interact with these models in a 3D simulation. Armed with the capability to safely analyze real-world bombs, we have provided evidence that supports the assertion that our system can aid EDU operations. The ability to interact with the models will provide better bomb awareness and support the decision making process of IED neutralization at a CBRNe-related incident.
+
+81
+
+In summary, the system's algorithm is as follows; gather input DICOM data from scanning an enclosed IED, use various third party open source software for model creation, model cleanup and mesh creation, segment the mesh into components, inject the mesh into the simulation, associate component-specific bounding box and assign scores, and lastly, amalgamate all the pieces together into a serious gaming simulation for bomb neutralization training. In our analysis, we measure the dimensions of the virtual 3D models and compare it to the dimensions of their respective real-world IEDs. Our findings indicate that it is possible to obtain high fidelity 3D virtual models with our system. We also test the accuracy of the targeting information provided by the simulation in a real-world study using a level tripod equipped with a laser pointer to indicate start and end points of the simulation projectile. Our findings indicate the pose and direction of the projectile is accurate up to 1 cm off target. To measure the effectiveness of the system as a whole, in terms of its ability to provide an effective game-based learning system, we use a very limited user study and feedback from an EDU specialist and a Proparms technician.
+
+5.2
+
+Limitations
+The system can be considered a proof of concept to aid EDU operations but is not
+
+without its drawbacks and limitations. As discussed in Chapter 2, conventional MRI scanners are extremely large and near-impossible to relocate if needed. However, portable or mobile MRI scanners are becoming more commonplace and are currently available by Siemens Healthcare Global [86], a solution designed for mobile healthcare environments, but may be useful in EDU 82
+
+processes. MRI scanners provide many differences when compared to x-ray scanners in terms of the beneficial aspects they can provide for studying objects enclosed in a container. Such differences are that MRI scanners provide an ability to output tomographic images (useful for 3D model reconstruction and analysis), capture images in 3 planes, not expose users to radiation or contamination by radioisotopes and many more. However, its drawbacks are colourless images, misrepresentative artifacts caused by high density materials (metal), and as discussed briefly in Chapter 4, may possibly cause an IEDs that is particularly sensitive to magnetic fields targeting the hydrogen atom to be activated. Based on the theory of frequency resonance, it is possible for MRI scanners to target other atoms in order to circumvent the issue of the rare case of accidental IED activation. Despite these drawbacks, MRI scanners provide highly accurate surface models of interior and exterior materials and with a high degree of fidelity even when materials of different densities are scanned at the same time. X-ray scanners, on the other hand, provide little to no distinct object occlusion differentiation due to its projected 2D image (ie. difficult to discern whether an object is in front of or behind another). Within our approach, it is also possible for users to misidentify critical components or mistakenly remove important protrusions of the 3D model during the cleanup process as if it is an artifact caused by the MRI scanner. The approach employs and requires many human aspects, and therefore human errors can occur in any stage of deciding MRI scanning parameters, model creation using signal thresholds, model cleanup or associating bounding boxes and their score. However, the claim still remains that the system can provide a safe environment for IED interaction.
+
+83
+
+5.3
+
+Future Work
+Future work includes testing the reasoning obtained from the simulation on a real-world
+
+EDU disrupter, adjusting the parameters of the MRI scanning parameters to obtain a more precise and desirable image and associating colour texture to the virtual 3D models for easier identification. Based on initial feedback, we feel that future versions of our training simulation may be able to augment the training for responders to identify bomb neutralization targets-- supplementing the identification process that ordinarily is performed in the real world. The advantage in using our proposed methodology is that the simulated IEDs can be easily shared between EDUs throughout the world. Once scans are obtained and injected into the simulation, EDU reasoning about the virtual model as a precise physical representation of the real model is facilitated in a safe environment. For the moment, medical imaging is beyond the capabilities of most EDUs who have to make due with x-ray equipment. However, the technology can be used to create the virtual IEDs in a simulation for the advancement of IED neutralization training.
+
+84
+
+APPENDIX
+A. Effectiveness Test Questionnaire Background Information and Questions Questionnaire: Game-Based Reasoning of CBRNe Threats For Improvised Explosive Device Neutralization Training Institution: Ryerson University Department: Computer Science Name: Age: Gender:
+
+Experience (hours per week) Computer Usage: Video Games:
+
+Effectiveness Score of the Neutralization Training Simulation a) Rewards (new insight, item or challenge awarded accordingly upon completion of a
+
+challenge) Strongly Agree Strongly Disagree
+
+b)
+
+Feedback (interpretation of the feedback and how it contributes to their particular goals in
+
+the game) Strongly Agree Strongly Disagree
+
+c)
+
+Challenges (game tasks and activities ­ solving a problem or practice their learning,
+
+usually to advance in goals of the game) Strongly Agree 85 Strongly Disagree
+
+d)
+
+Goals/Competition (motivate learners to complete the game activities to win) Strongly Disagree
+
+Strongly Agree
+
+e)
+
+Rules/Constraints (limit the actions a gamer can and cannot take ­ simulates realism or
+
+real phenomenon) Strongly Agree Strongly Disagree
+
+f)
+
+Choice (options and decisions a gamer has prior to and during game play) Strongly Disagree
+
+Strongly Agree
+
+g)
+
+Fantasy (motivation through progression in a storyline) Strongly Disagree
+
+Strongly Agree
+
+h)
+
+Fidelity (using graphics, audio, video, three-dimensional virtual worlds, and artificial
+
+intelligence to authentically represent reality, providing a more immersive context) Strongly Agree Strongly Disagree
+
+i)
+
+Context (the setting, narrative, story, scenario, characters, back story and problem which
+
+adds to the authenticity of the realism presented in the game) Strongly Agree Strongly Disagree
+
+j)
+
+Constructivism (eg. multiplayer games - advocate the use of multiple perspectives,
+
+relevant, authentic problems, and active learning) Strongly Agree Strongly Disagree
+
+86
+
+BIBLIOGRAPHY
+[1] [2] [3] [4] [5] [6] [7] [8] [9] A. Petryna, Life exposed: biological citizens after Chernobyl. Princeton University Press, 2013. P. D. Biddinger, A. Baggish, L. Harrington, P. d Hemecourt, J. Hooley, J. Jones, R. Kue, C. Troyanos, and K. S. Dyer, "Be prepared--the Boston Marathon and mass-casualty events," New England journal of medicine, vol. 368, no. 21, pp. 1958­1960, 2013. Scanna. (2015, Jul 22). C-IED Archives X-ray Systems UK. [Online]. Available: http://www.scanna-msc.com/uk/shop/category/c-ied/ H. Schubert and A. Kuznetsov, Detection and disposal of improvised explosives, vol. 6. Springer Science & Business Media, 2006. EMedicine. (2015, Aug. 1). CBRNE - Chemical Decontamination: Overview, Purpose of Chemical Decontamination, Recognizing a Chemical Contamination [Online]. Available: http://emedicine.medscape.com/article/831175-overview Global Security. (2015, Jul. 18). Package-Type Improvised Explosive Devices (IEDs) [Online]. Available: http://www.globalsecurity.org/military/intro/ied-packaged.htm Scanna. (2015, Jul. 19). Scanview [Online]. Available: http://www.scannamsc.com/uk/shop/scanview/ A. Ferworn, S. Herman, C. Kong, A. Ufkes, and J. Tran, "Interacting with a virtual Destroyed Environment constructed from real disaster data," in Safety, Security, and Rescue Robotics (SSRR), 2014 IEEE International Symposium on, 2014, pp. 1­6. A. Ferworn, S. Herman, J. Tran, A. Ufkes, and R. Mcdonald, "Disaster scene reconstruction: Modeling and simulating urban building collapse rubble within a game engine," in Proceedings of the 2013 Summer Computer Simulation Conference, 2013, p. 18. A. Fedorov, R. Beichel, J. Kalpathy-Cramer, J. Finet, J.-C. Fillion-Robin, S. Pujol, C. Bauer, D. Jennings, F. Fennessy, M. Sonka, and others, "3D Slicer as an image computing platform for the Quantitative Imaging Network," Magnetic resonance imaging, vol. 30, no. 9, pp. 1323­1341, 2012. B. O. Community. (2015. Aug. 12). Blender - a 3D modelling and rendering package. [Online]. Available: http://www.blender.org D. Tran. (2015. Jul. 3). Aperio by eternallite, 3D Interactive Tool for Revealing Occlusions in Models [Online]. Available: http://eternallite.github.io/Aperio/ Unity Technologies. (2015, Jul. 18). Unity Game Engine-Official Site [Online]. Available: http://unity3d. com Epic Games. (2015, Jul. 18). Unreal Development Kit (UDK) [Online]. Available: https://www.unrealengine.com/products/udk/ Proparms Ltd. (2015, Aug. 20). EOD Tools, Waterjet Disrupters and Forced Entry Tools Safety Ensured [Online]. Available: http://www.proparms.com/site/product_10.html D. D. Library, "MULTISERVICE TACTICS, TECHNIQUES, AND PROCEDURES FOR CHEMICAL, BIOLOGICAL, RADIOLOGICAL, AND NUCLEAR CONSEQUENCE MANAGEMENT OPERATIONS Kernel Description." 2008. T. V. Inglesby, T. O'Toole, D. A. Henderson, J. G. Bartlett, M. S. Ascher, E. Eitzen, A. M. Friedlander, J. Gerberding, J. Hauer, J. Hughes, and others, "Anthrax as a biological weapon, 2002: updated recommendations for management," Jama, vol. 287, no. 17, pp. 2236­2252, 2002. 87
+
+[10]
+
+[11] [12] [13] [14] [15] [16] [17]
+
+[18] S. Mallonee, S. Shariat, G. Stennies, R. Waxweiler, D. Hogan, and F. Jordan, "Physical injuries and fatalities resulting from the Oklahoma City bombing," Jama, vol. 276, no. 5, pp. 382­387, 1996. [19] C. Hewitt, Understanding terrorism in America: from the Klan to al Qaeda. Psychology Press, 2003. [20] People.com. (2015, Jun. 3). The Final Sacrifice of a Gallant Nurse[Online]. Available: http://www.people.com/people/archive/article/0,,20105677,00.html [21] USAToday. (2015, May 20). Victims of the Oklahoma City bombing [Online]. Available: http://usatoday30.usatoday.com/news/nation/2001-06-11-mcveigh-victims.htm [22] C. Ero, "Bombing in Abuja: On Nigeria's Boko Haram," International Crisis Group, vol. 6, p. 2, 2011. [23] C. J. Aylwin, T. C. König, N. W. Brennan, P. J. Shirley, G. Davies, M. S. Walsh, and K. Brohi, "Reduction in critical mortality in urban mass casualty incidents: analysis of triage, surge, and resource use after the London bombings on July 7, 2005," The Lancet, vol. 368, no. 9554, pp. 2219­2225, 2007. [24] J. P. G. de Ceballos, F. Turégano-Fuentes, D. Pérez-Diaz, M. Sanz-Sanchez, C. MartinLlorente, and J. Guerrero-Sanz, "11 March 2004: The terrorist bomb explosions in Madrid, Spain­an analysis of the logistics, injuries sustained and clinical management of casualties treated at the closest hospital," Critical Care, vol. 9, no. 1, p. 104, 2004. [25] A. Osborn, "Moscow bombing: Who are the black widows," The Telegraph, 2010. [26] O. Oh, M. Agrawal, and H. R. Rao, "Information control and terrorism: Tracking the Mumbai terrorist attack through twitter," Information Systems Frontiers, vol. 13, no. 1, pp. 33­43, 2011. [27] T. Okumura, N. Takasu, S. Ishimatsu, S. Miyanoki, A. Mitsuhashi, K. Kumada, K. Tanaka, and S. Hinohara, "Report on 640 victims of the Tokyo subway sarin attack," Annals of emergency medicine, vol. 28, no. 2, pp. 129­135, 1996. [28] B. Madani, "New Report Links Syria to 1992 Bombing of Israeli Embassy in Argentina," Middle East Intelligence Bulletin, vol. 2, no. 3, 2000. [29] L. D. Prockop, "Weapons of mass destruction: overview of the CBRNEs (chemical, biological, radiological, nuclear, and explosives)," Journal of the neurological sciences, vol. 249, no. 1, pp. 50­54, 2006. [30] W. L. Waugh Jr, "Terrorism, homeland security and the national emergency management network," Public Organization Review, vol. 3, no. 4, pp. 373­385, 2003. [31] L. Lemyre, M. Clément, W. Corneil, L. Craig, P. Boutette, M. Tyshenko, N. Karyakina, R. Clarke, and D. Krewski, "A psychosocial risk assessment and management framework to enhance response to CBRN terrorism threats and attacks," Biosecurity and bioterrorism: biodefense strategy, practice, and science, vol. 3, no. 4, pp. 316­330, 2005. [32] D. Markenson, C. DiMaggio, and I. Redlener, "Preparing health professions students for terrorism, disaster, and public health emergencies: core competencies," Academic Medicine, vol. 80, no. 6, pp. 517­526, 2005. [33] A. J. Dory, "American civil security: The US public and homeland security," Washington Quarterly, vol. 27, no. 1, pp. 37­52, 2003. [34] N. S. Board and others, Countering the Threat of Improvised Explosive Devices:: Basic Research Opportunities, Abbreviated Version. National Academies Press, 2007. [35] B. S. Bachrach, "Medieval siege warfare: a reconnaissance," The Journal of Military History, vol. 58, no. 1, pp. 119­133, 1994. 88
+
+[36] W. H. Ainsworth, Guy Fawkes; or, The gunpowder treason, vol. 1. Nottingham Society, 1850. [37] H. G. Summers, On strategy: A critical analysis of the Vietnam War. Random House LLC, 1995. [38] L. Michel and D. Herbeck, American terrorist: Timothy McVeigh and the Oklahoma city bombing. Harper, 2001. [39] A. Farazmand, Handbook of crisis and emergency management. CRC Press, 2001. [40] T. R. R. of Canada, Field Engineering and Mine Warfare. Training Library, 1973. [41] T. R. R. of Canada, Military Engineering, Mine and Trap Clearance. Training Library, 1972. [42] S. Mallonee, S. Shariat, G. Stennies, R. Waxweiler, D. Hogan, and F. Jordan, "Physical injuries and fatalities resulting from the Oklahoma City bombing," Jama, vol. 276, no. 5, pp. 382­387, 1996. [43] Freudenrich, Ph.D., Craig. (2015. May 21). Anatomy of an IED [Online]. Available: http://science.howstuffworks.com/ied1.htm [44] NATO. (2015. Jul 12). Countering Improvised Explosive Devices (C-IEDs) [Online]. Available: http://www.nato.int/cps/en/natohq/topics_72809.htm [45] J. T. Bushberg and J. M. Boone, The essential physics of medical imaging. Lippincott Williams & Wilkins, 2011. [46] Const. Matthew Young. Explosive Disposal Unit USAR CBRNe, Ontario Provincial Police. Interview. Bolton, ON. Jul 15, 2015. [47] J. Hsieh, "Computed tomography: principles, design, artifacts, and recent advances," 2009. [48] Q. WANG, Z. CHEN, X. WU, X. WANG, L. ZHANG, and K. KANG, "Review of X-ray security inspection technology [J]," Computerized Tomography Theory and Applications, vol. 1, p. 008, 2004. [49] M. G. Kivelson and C. T. Russell, Introduction to space physics. Cambridge university press, 1995. [50] A. E. Merbach and É. Tóth, The chemistry of contrast agents in medical magnetic resonance imaging, vol. 46. Wiley Online Library, 2001. [51] R. R. Edelman and S. Warach, "Magnetic resonance imaging," New England Journal of Medicine, vol. 328, no. 10, pp. 708­716, 1993. [52] C. Westbrook and C. K. Roth, MRI in Practice. John Wiley & Sons, 2011. [53] M. Mustra, K. Delac, and M. Grgic, "Overview of the DICOM standard," in ELMAR, 2008. 50th International Symposium, 2008, vol. 1, pp. 39­44. [54] M. J. McAuliffe, F. M. Lalonde, D. McGarry, W. Gandler, K. Csaky, and B. L. Trus, "Medical image processing, analysis and visualization in clinical research," in ComputerBased Medical Systems, 2001. CBMS 2001. Proceedings. 14th IEEE Symposium on, 2001, pp. 381­386. [55] D. R. Michael and S. L. Chen, Serious games: Games that educate, train, and inform. Muska & Lipman/Premier-Trade, 2005. [56] A. Poplin, "Games and serious games in urban planning: study cases," in Computational Science and Its Applications-ICCSA 2011, Springer, 2011, pp. 1­14. [57] S. Carpin, M. Lewis, J. Wang, S. Balakirsky, and C. Scrapper, "USARSim: a robot simulator for research and education," in Robotics and Automation, 2007 IEEE International Conference on, 2007, pp. 1400­1405.
+
+89
+
+[58] J. A. Buchanan, "Use of simulation technology in dental education," Journal of Dental Education, vol. 65, no. 11, pp. 1225­1231, 2001. [59] "NVIDIA DRIVERS 9.14.0702." . [60] P. Cignoni, M. Corsini, and G. Ranzuglia, "Meshlab: an open-source 3d mesh processing system," Ercim news, vol. 73, pp. 45­46, 2008. [61] R. H. Creighton, Unity 3D Game Development by Example: A Seat-of-Your-Pants Manual for Building Fun, Groovy Little Games Quickly. Packt Publishing Ltd, 2010. [62] A. Boeing and T. Bräunl, "Evaluation of real-time physics simulation systems," in Proceedings of the 5th international conference on Computer graphics and interactive techniques in Australia and Southeast Asia, 2007, pp. 281­288. [63] A. Bond, "Havok FX: GPU-accelerated physics for PC games," in Proceedings of Game Developers Conference 2006, 2006. [64] B. Bergeron, "Developing serious games (game development series)," 2006. [65] O. G. Mouritsen, Computer studies of phase transitions and critical phenomena. Springer Berlin etc., 1984. [66] R. G. Sargent, "Verification and validation of simulation models," in Proceedings of the 37th conference on Winter simulation, 2005, pp. 130­143. [67] D. Charsky, "From edutainment to serious games: A change in the use of game characteristics," Games and culture, 2010. [68] I. Erev and A. E. Roth, "Predicting how people play games: Reinforcement learning in experimental games with unique, mixed strategy equilibria," American economic review, pp. 848­881, 1998. [69] Z. Alaswad and L. Nadolny, "Designing for Game-Based Learning: The Effective Integration of Technology to Support Learning," Journal of Educational Technology Systems, vol. 43, no. 4, pp. 389­402, 2015. [70] S. Roth, "Serious Gamification On the Redesign of a Popular Paradox," Games and Culture, p. 1555412015581478, 2015. [71] M. Romero, M. Usart, and M. Ott, "Can Serious Games Contribute to Developing and Sustaining 21st Century Skills?," Games and Culture, vol. 10, no. 2, pp. 148­177, 2015. [72] C. Pelletier and R. Kneebone, "Playful Simulations Rather Than Serious Games Medical Simulation as a Cultural Practice," Games and Culture, p. 1555412014568449, 2015. [73] E. Kerga, M. Rossi, M. Taisch, and S. Terzi, "A serious game for introducing set-based concurrent engineering in industrial practices," Concurrent Engineering, vol. 22, no. 4, pp. 333­346, 2014. [74] W. L. Johnson, "Serious use of a serious game for language learning," Frontiers in Artificial Intelligence and Applications, vol. 158, p. 67, 2007. [75] "Why Winning Matters: Part I | Psychology Today." . [76] F. E. Zimring, "Firearms and federal law: the Gun Control Act of 1968," The Journal of Legal Studies, pp. 133­198, 1975. [77] D. Group, "Defense and Security Speciality Equipement." . [78] S. C. Kale, X. J. Chen, and R. M. Henkelman, "Trading off SNR and resolution in MR images," NMR in Biomedicine, vol. 22, no. 5, pp. 488­494, 2009. [79] Heidi Chan. Master of Public Health. Senior Magnetic Resonance Technician, Princess Margaret Cancer Centre. Interview. Toronto, ON. Jul 20, 2015.
+
+90
+
+[80] E. M. Bellon, E. Haacke, P. Coleman, D. Sacco, D. Steiger, and R. Gangarosa, "MR artifacts: a review," American Journal of Roentgenology, vol. 147, no. 6, pp. 1271­1281, 1986. [81] T. Ju, F. Losasso, S. Schaefer, and J. Warren, "Dual contouring of hermite data," ACM Transactions on Graphics (TOG), vol. 21, no. 3, pp. 339­346, 2002. [82] AboutTech. (2015. Jul 1). Preparing a Model for 3D Printing. [Online]. Available: http://3d.about.com/od/Creating-3D-The-CG-Pipeline/ss/Preparing-A-Model-For-3dPrinting-Model-To-3d-Print-In-5-Steps.htm [83] Dr. Lee Chin. PhD. Medical Physicist, Sunnybrook Odette Cancer Centre. Interview. Toronto, ON. Jul 15, 2015. [84] K. T. Block, M. Uecker, and J. Frahm, "Suppression of MRI truncation artifacts using total variation constrained data extrapolation," International journal of biomedical imaging, vol. 2008, 2008. [85] W. McDermott. (2015, Apr. 2). Distance Tool. [Online]. Available: https://www.assetstore.unity3d.com/en/#!/content/307 [86] Siemens Healthcare Global. (2015. Aug 23). Mobile MRI Scanner. [Online]. Available: http://www.healthcare.siemens.com/magnetic-resonance-imaging/0-35-to-1-5t-mriscanner/mobile-mri-scanner
+
+91
+
+

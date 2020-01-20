@@ -1,0 +1,556 @@
+HIGH PRECISION CIRCULAR PLANE SYSTEM FOR ANGULAR MEASUREMENT
+by Zhaomin Yuan Bachelor of Engineering, RCC Institute Technology, 2013 A project report presented to Ryerson University in partial fulfillment of the requirements for the degree of Master of Engineering in the Program of Electrical and Computer Engineering
+
+Toronto, Ontario, Canada, 2018 © Zhaomin Yuan 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A PROJECT I hereby declare that I am the sole author of this project. This is a true copy of the project, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this project to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this project by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+ii
+
+High precision circular plane system for angular measurement Master of Engineering 2018 Zhaomin Yuan Electrical and Computer Engineering Ryerson University
+
+Abstract
+The purpose of this project is to increase the measurement accuracy of the rotation angle and measurement speed. There is one rotatable circular plane with many holes in it, the initial location of this circular plane is stored in a CCD camera and is regarded as a stationary circular plane. When the rotatable circular plane is rotated, the intensity of the light across the holes of two circular planes is changed. This intensity will represent the position of the rotatable circular plane, so the position of that plane can be measured by calculating the intensities of light access between the two planes. In this project, several methods are proposed to increase the accuracy of measurement. To prevent a non- concentricity problem between two circular planes, only one circular plane is used in this system. To reduce the difficulties in the fabrication process, holes will be used instead of using traditional slits. To increase the reading and calculation speed, an FPGA will be used in this system. For improving sampling accuracy, a Kalman filter is used. Overall, this system can reach an accuracy of 2.2176  10-5 degree with all angles. iii
+
+Contents
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+ii
+iii vi vii
+
+1 Introduction 1.1 1.2 1.3 1.4 1.5 Background and Motivation . . . . . . . . . . . . . . . . . . . . . . . . . . . Literature review . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Problem statement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Project report outline . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+1 1 2 4 5 5 7 7 7 8 9 10 10
+
+2 Concept of measure theory 2.1 Basic theory of system . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.1.1 2.1.2 2.1.3 2.1.4 2.2 The measurement theory of our system . . . . . . . . . . . . . . . . . Calculate the virtual fixed circular plane . . . . . . . . . . . . . . . . Changing slits to holes on circular plane will reduce producing error Increase measurement of range . . . . . . . . . . . . . . . . . . . . .
+
+Chapter summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+vi
+
+3 Increase precision by using Kalman filter 3.1 3.2 3.3 3.4 3.5 Why kalman filter? . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Kalman filter algorithm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Filter testing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Apply the Kalman filter in our system . . . . . . . . . . . . . . . . . . . . . Chapter summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+12 12 13 15 20 20 21 . . . . . . . . . . 21 24 24 26 26 27 28 29 30 31 33 34 35 41
+
+4 Using FPGA to increase measurement speed 4.1 4.2 4.3 Drawbacks of the sequential data transfer of CCD camera
+
+The reason for selecting an FPGA . . . . . . . . . . . . . . . . . . . . . . . Chapter summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+5 Simulation test result and experimental setup 5.1 5.2 5.3 5.4 5.5 5.6 5.7 5.8 Overlapped areas represent the position of a rotatable circular plane . . . . The way that small holes arranged will affect the precision of measurement . Impact of the pixel size to the measurement precision . . . . . . . . . . . . . The stability of the system increased by the Kalman filter . . . . . . . . . . The precision of measurement simulated in Matlab . . . . . . . . . . . . . . Experiment setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . The experimental precision calculation . . . . . . . . . . . . . . . . . . . . . Chapter summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+6 Conclusion References
+
+v
+
+List of Tables
+3.1 3.2 5.1 test kalman filter . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . test kalman filter . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Precision calculation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18 19 33
+
+vi
+
+List of Figures
+2.1 The overlapped areas of the holes will change when one of the circular plane is rotated; it will represent different angles of rotation. a. The two angles are exactly overlapped at a position. b. One of the circular planes with red holes is rotated at a small angle. c. One of the circular planes with red holes is rotated at a bigger angle with less overlapped area between two circular planes. 2.2 Initial position of rotatable circular plane is stored in CCD camera regarded as virtual plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.3 2.4 3.1 two circular grating overlapped with slits . . . . . . . . . . . . . . . . . . . . Circular plane with holes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . The estimated value are very close to the true value after kalman filter even the measurement values are very fluctuated. . . . . . . . . . . . . . . . . . . 4.1 4.2 5.1 pixel array . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . charge transfer in a CCD camera . . . . . . . . . . . . . . . . . . . . . . . . When one of the circular planes rotated, the total overlapped area of holes changed accordingly. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.2 5.3 Different radius result different linearity of measurement. . . . . . . . . . . . Picture with more number and with smaller sized pixels shows more details 27 28 29 18 22 23 9 10 11 8
+
+vii
+
+5.4
+
+Different size of pixel will result different precision of measurement.The smaller pixel size will result a better precision. . . . . . . . . . . . . . . . . . . . . . 29
+
+5.5
+
+1000 random noise samples (in the red color) will converge to true position value (in the blue color) after Kalman filtering. . . . . . . . . . . . . . . . . 30 31 32 33
+
+5.6 5.7 5.8
+
+Different rotation angles will result to different precision of measurement. . . Schematic diagram of system . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Experiment system structure designed by Solidworks . . . . . . . . . . . . .
+
+viii
+
+Chapter 1 Introduction
+1.1 Background and Motivation
+
+Accurate angle measurement is crucial to precision inspection technology, specifically the measurement of small angles that are highly important. This area is highly significant in areas of precision machining, aerospace, military and communications, etc. Small angle measurement has gone through a mechanical and electromagnetic to an optical development process. The initial research conducted on small angle measurements mainly focused on mechanical and electromagnetic angle measurement technology, such as multi-tooth indexing tables and circular magnetic grids. The greatest difficulties with these methods are associated with the fact that they are manual measurements, as the process of taking them is not easily automated, and thus the measurement accuracy is relatively low. Because optical anglemeasuring methods have non-contact, high accuracy, and high sensitivity characteristics. They have attracted much attention, especially in the development of a stable laser light source, which makes it possible for use in industry [1]. As a result, the optical angle measurement method has seen widespread application, and the development of diverse optical angle-measuring methods. Currently, optical angle measurement methods commonly include 1
+
+CHAPTER 1. INTRODUCTION the optical encoder method [2], diffraction, the laser interference method, the autocollimation method [3], the optical fiber method, acousto-optic modulators, the circular raster method, the optical reflection method, the parallel method [4] [5], and the ring laser interferometry method. These methods have their own characteristics and limitations. The last several decades have witnessed the rapid development of many new technologies. Better performance could be reached by using those improved technologies for developing new angle measurements. Laser drilling technology can provide drilling holes as small as 1 um in diameter. Smaller pixels are the key to produce higher resolution sensors on the same silicon area, an optical pixel sensor could offer a pixel size as tiny as 1 um [6]. In terms of FPGA chips, their top clock speed can exceed 500 MHz, while they are capable of processing signals faster than 7 G/s [7]. With the products continually developing towards into high-precision and high-quality, angler measurement technology also made more stringent requirements. Conventional angle measurement has problems of limited accuracy, narrow measured range, and low measured speed. An efficient system is necessary for small angle measurement to reach a higher accuracy, wider range and faster speed of measured response.
+
+1.2
+
+Literature review
+
+Optical angle methods are non-contacting, and have high accuracy and sensitivity, and thus have received considerable attention in recent years. Along with continuous innovation in precision positioning technology, several optical methods are commonly used. Each optical precision angle measurement has its own characteristics and limits. An angle of rotation can be measured by laser interferometry technology through measuring light reflected by the object and differences in the reference light optical path [8]. In a new optical interferometer system, The two mirrors of a Michelson interferometer are replaced by right-angle prisms. The rotation of the latter is shifted by the interference pattern, and thus measuring that shift provides the rotation after calibration. The experimental setup is insensitive to vibrations,
+
+2
+
+CHAPTER 1. INTRODUCTION provides good linearity between +5 and -5, and has a resolution of 10-4 degree [9]. A Laser Interferometric system include a laser interferometer for the measurement of constant angles, a frequency optically six-multiplied differential laser Interferometer for measuring small angles, and a CCD-microcomputer-based interferometric signal processing system has been proposed. This system can give a better accuracy than 8.33  10-5 degree in measuring arbitrary angles ranging from 0 to 360 degrees. Interferometry can be extremely accurate, as it is capable of measuring even a fraction of the wavelength of light. However, in extremely harsh environmental requirements, a number of external factors, such as the surrounding air and ambient vibration measurements have a great impact. An interferometric system contains a precision instrument structure, and thus necessitates excellent stability and a large volume; it is usually used only as a reference measurement and testing method. As a result, it is difficult to measure the precision angles in a workshop environment for field measurements [10]. The object and image plane in an autocollimator are in a co-planar position. Occurs when the rotation body, the object also will be moved to the image plane of the image points, then the angle of rotation of the object is calculated by measuring the amount of movement of the image point. The collimation method is easy to operate, but the measurement range is extremely small. The autocollimator methods also suffer from limited spatial resolution [11]. Application of a circular grating angle measurement is very broad, any angle in the entire circumference can be measured to achieve a high accuracy. The disadvantage is that the grating disk high accuracy requirements on the center, high accuracy grating fabrication processing difficulties [12]. In the parallel interference pattern method, two points on a parallel interference pattern that are reflected by an object are used. It could be detected that phase changes in the reflected parallel interference pattern are caused by rotations of the object. In the one parallel interference pattern method,the measurement range is very limited but the accuracy is high [4]. To get a wider range, based on the idea of measuring small rotation angles with a parallel interference pattern (PIP), and developed a method "Two parallel PIPs" to
+
+3
+
+CHAPTER 1. INTRODUCTION measure large rotation angles accurately. To measure the rotation angle of an object, two parallel PIPs with different periods are utilized. The measurement made with a small-period PIP provides a high accuracy, and the measurement made with a large-period PIP provides a wide range. Wide-range angles can be accurately measured through the combination of two measured values. The accuracy of the phase detection is determined by the periods of two PIP's. Rotation angles from approximately -0.5 to 0.5 degree can be measured with an accuracy of 5.55  10-5 [5]. When making high accuracy measurements, considerable errors can be caused by the ambiance of light. To overcome the interference of ambient light, a method based on two diodes that are shaded by a metal layer has been set up. This design uses a single light source that does not have any ambient light. Photocurrents generated by each diode is proportional to the angle position, and it can be read from a computer [13]. The main advantage of the method of small-angle optical reflection measurements is small, it can be made pocket goniometer, but the range of measurement is limited, so it is only applicable for small-angle measurements [14]. In summary, each method has its own advantages and disadvantages. The strength of interferometric methods for angle measurement is that they are generally more accurate; however,they are also extremely susceptible to external interference. The autocollimator methods are relatively easier to handle but suffer from limited spatial resolution. Circular grating angle measurement has very broad applications, and any angle in the entire circumference can be measured to provide high accuracy. The disadvantage of a circular grating is that the grating disk requires high concentricity, and a high accuracy grating fabrication processing is also difficult.
+
+1.3
+
+Problem statement
+
+All of those optical methods mentioned above are aiming to increase accuracy and wider range for small angle measurement. The highest accuracy among those optical angular mea-
+
+4
+
+CHAPTER 1. INTRODUCTION surement mentioned above reached accuracy of 5.55  10-5 degree with a range of -0.5 to 0.5 degree [10] and is also limited in measurement speed. With the development of Nanotechnology in industrial production, the requirements for small angle measurements have increased. Conventional optical angle measurement can not meet these stringent requirements. A higher precision measurement method with wide angle range and fast measurement speed needs be proposed for small angle measurement.
+
+1.4
+
+Contributions
+
+The main contribution for this research is summarized as follows: 1. A modified circular plane with many holes combining with CCD camera for angle measurement is introduced. Light intensity passed through overlapped areas of holes of two circular planes are captured by CCD camera and are circulated to measure angular position of the rotatable circular plane. 2. Only one actual circular plane for the rotation angular measurement is used to avoid error due to the non-concentricity of two circular planes. This will greatly increase the precision of the rotation angular measurement, simplify the system, and reduce the cost. 3. Using holes on the circular plane instead of using slits would reduce the difficulty of the fabrication process and further increase the precision of the measurement. 4. A Kalman filter is used to obtain true values for better accuracy. 5. A parallel execution FPGA is applied to enhance response speed of measurement. The final precision of this system will be 2.2176  10-5 degree. Any angle can be measured in this system.
+
+1.5
+
+Project report outline
+
+The remaining chapters are organized as follows: Chapter 2 provides the concept of improvement of this system. The total areas of overlapped holes in the two circular planes will change when the angles of the object change,
+
+5
+
+CHAPTER 1. INTRODUCTION and the virtual fixed circular plane will be introduced. Also, this chapter will explain why holes are better than slits in the circular plane, how to measure angle in the entire circumference. Chapter 3 will first explain the details of the Kalman filter algorithm, then test the Kalman filter with hypothesis data to create an intuitive understanding of the Kalman filter, and finally describe the advantages of applying the Kalman filter in our system. Chapter 4 presents an FPGA to increase response speed for the measurement. Chapter 5 includes the simulation and discussion of the system. The factors affecting accuracy and stability of the system will be discussed. Chapter 6 is the conclusion of the project report.
+
+6
+
+Chapter 2 Concept of measure theory
+In this chapter, we will first discuss the principal concept measurement of this new system. Then, we will discuss using the initial position of a circular plane as a virtual reference plane, the reason for changing the slits to holes on the circular plane, and how to measure the angle at the circumference in the system. moreover, the gap between small holes will be calculated. Lastly, the precision of this new system will be discussed.
+
+2.1
+2.1.1
+
+Basic theory of system
+The measurement theory of our system
+
+Two circular planes with many small holes are arranged concentrically in the system. One plane is fixed at a position, while the other one, which is connected to the measured object, can be rotated. Fig. 2.1 shows the main concept of the theory, and it only has 10 holes in a circular plane for simplification purposes. When one of the circular planes is rotated from a small angle to a large angle as shown in Fig. 2.1 (a) to (c), the area of its intersection of holes is also reduced; therefore, the intensity of light which passes through the holes is reduced. Next to the circular planes, a CCD camera is employed to capture the light intensity. By
+
+7
+
+CHAPTER 2. CONCEPT OF MEASURE THEORY
+
+Figure 2.1: The overlapped areas of the holes will change when one of the circular plane is rotated; it will represent different angles of rotation. a. The two angles are exactly overlapped at a position. b. One of the circular planes with red holes is rotated at a small angle. c. One of the circular planes with red holes is rotated at a bigger angle with less overlapped area between two circular planes. summing up the total light intensity that passes through the two circular planes at a certain moment(in this example, the overlapped areas of 10 holes are summed up ), the angular position of the rotational circular plane can be calculated. In reality, there are 10,000 small holes in a circular plane, and each hole has a 10 um diameter. A large number of holes will further average the error of small holes in the production process; in other words, this will increase the accuracy.
+
+2.1.2
+
+Calculate the virtual fixed circular plane
+
+As mentioned above, the system is ideally supposed to have two circular planes. 10000 tiny holes with 10 um diameter arranged concentrically are in a circular plane and the gap between each hole is also 10 um. In the producing process, it is very hard and expensive to make two circular planes exactly concentricity. Non-concentricity will largely affect the precision of calculation [15]. In this examination, only one real circular plane will be used instead of two. A single circular plane will greatly reduce the measurement error caused by the non-concentricity of two circular planes. To get the same result which two circular planes achieved, the initial location of the actual circular plane can be detected by the CCD camera. This initial location can be stored in the memory and call it" virtual "fixed circular plane respect to the actual circular plane shown in Fig. 2.2. Now we still have two planes: 8
+
+CHAPTER 2. CONCEPT OF MEASURE THEORY one is the actual circular plane connected with an object which can be rotated along with axis, the other one is the "virtual" fixed circular plane which stored in the memory as a reference for calculating the rotation angle of the actual circular plane.
+
+Figure 2.2: Initial position of rotatable circular plane is stored in CCD camera regarded as virtual plane .
+
+2.1.3
+
+Changing slits to holes on circular plane will reduce producing error
+
+Traditionally, a circular grating used for angle measurement consists of a large number of identical, equal-spaced and parallel elongated slits shown in Fig. 2.3 . When one of the gratings is rotated, the interference pattern will change. Measurement of the interference pattern will detect the angle rotation of one grating. But in manufacturing processing, it is very difficult to produce the exact same copy of every slit,and errors in copying the slits will have a tremendous effect on the high precision angle measurement system. Producing the exact same long small slits is much more difficult than producing the same copy of dots on a circular plane. In this system, a modified circular plane with many holes shown in Fig. 2.4 is adopted instead of using a slitted grating shown in Fig. 2.3 . This design will increase the accuracy, decrease the cost and is another step forward for our system. 9
+
+CHAPTER 2. CONCEPT OF MEASURE THEORY
+
+Figure 2.3: two circular grating overlapped with slits [16].
+
+2.1.4
+
+Increase measurement of range
+
+Because the diameter of the small holes on the circular plane are 10 um, a small rotation angle within 10 um could be detected by capturing the intensity of the light passing through the overlapped area in holes between two circular planes. To detect large rotated angle, the numbers of maximum intensity reading from CCD camera are counted. By adding up the small and large angular movements, the total angle of movement will be calculated. This will broadly extend the range of angular measurement to any angle.
+
+2.2
+
+Chapter summary
+
+In this chapter, the measurement of the overlapped area of holes of circular planes for calculating the rotation angles is introduced. To get the "virtual" circular plane position, the initial actual circular position is captured by the CCD camera and stored in the computer. To get more accurate measurements, a new circular plane in which the slits are changed into dots on the circular plane is designed. By adding up the small and large angle of rotation, 10
+
+CHAPTER 2. CONCEPT OF MEASURE THEORY
+
+Figure 2.4: Circular plane with holes the wider angle range can be calculated.
+
+11
+
+Chapter 3 Increase precision by using Kalman filter
+In this chapter, the concept of a Kalman filter will be discussed. The algorithm of Kalman filter will be introduced. The detailed calculation with hypothesis numbers and the advantage of using Kalman filter will be investigated.
+
+3.1
+
+Why kalman filter?
+
+Because of noise, samples collected from different times will be different in each time, but those values are very similar to a normal distribution model with a true value as it's mean. Recent year, new technology offers us much fast sampling speeds and the duration of the sample time can be as low as micro seconds. Due to noise or sample errors, each sample that comes from a different time may be very different. In order to determine the true value, a Kalman filter can calculate the most accurate value recursively by utilizing a mathematical process model and various incoming sampling measurements. Kalman filtering is a linear quadratic estimation. It is an algorithm that uses a series of measurements observed over time, containing statistical noise and other inaccuracies; it 12
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER also produces what are usually more precise estimates of unknown variables than estimates based only on one measurement [17]. In our system, according to a series of sampling values, a Kalman filter is applied to estimate the most accurate angle position of the circular plane with limited system noise.
+
+3.2
+
+Kalman filter algorithm
+
+The algorithm works in a two-step process shown in Equ. (3.1) to Equ. (3.5). In the prediction step, the Kalman filter produces estimates of the prior state variables: the prior estimated state xt|t-1 and the error of prior estimation Pt|t -1 , once the outcome of the next measurement yt (necessarily corrupted with some amount of error, including random noise) is observed, these prior estimates are updated by adding a weighted difference between measurement yt and prior estimated state Ht xt|t-1 to the prior estimated state xt|t-1 . The algorithm is recursive. After running a great number of times, the final estimation state value xt|t will converge to the true value. It can run in real time, using only the present input measurements and the previously calculated state; no additional past information is required. This saves much computational time. The formula [18] is given below: Predict:
+
+xt|t-1 = Ft xt-1 |t-1 + Bt ut
+
+(3.1)
+
+Pt|t -1 = Ft Pt-1|t-1 FtT + Qt Update( measurement step): xt|t = xt|t-1 + Kt (yt - Ht xt|t-1 )
+
+(3.2)
+
+(3.3)
+
+13
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER
+
+Kt = Pt|t-1 HtT (Ht (Pt|t-1 HtT + Rt ))- 1
+
+(3.4)
+
+Pt|t = (1 - Kt Ht )Pt|t-1 H Measurement matrix F State transition matrix u Control variables B Control matrix Pt|t-1 Error of prior estimate Pt|t Error of posterior estimate xt|t-1 Prior estimated state xt|t Posterior estimated state Kt Kalman gain yt Measurement value Rt Error from measurements Qt System noise
+
+(3.5)
+
+Our test is a constant model, hence the control matrix B and control variable u are set at 0, and the state transition matrix F is set at 1. Assume measurement value y is the same scale with estimated state x, so the measurement matrix H is equal to 1 as well. In the predict step, we get the prior estimated state xt|t-1 of overlapped area of holes Fig. 2.1 from last step of estimated state xt-1|t-1 shown in Equ. (3.1), and get the error of prior estimation of this step Pt|t-1 from the error of estimation of last step Pt-1|t-1 shown in Equ. (3.2). At this point, the estimation of current state values is completed.
+
+14
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER
+
+In the measurement step: In the measurement step: as it can be seen in the Equ. (3.3), the posterior estimated state of overlapped area of holes xt|t is the sum of the prior estimated state of overlapped area of holes xt|t-1 and the weighted difference between actual measurement yt and prior estimate state Ht xt|t-1 . When the measurement takes place each time, we update the estimating value with the weight of Kalman gain Kt shown in Equ. (3.4), which represents the relative importance of the error of measurement Rt or error of prior estimation Pt|t-1 with respect to the error of the prior estimation Pt|t-1 . When error of measurement Rt is larger with respect to the error of the prior estimation Pt|t-1 , the Kalman gain kt will be smaller as shown in Equ. (3.4) , thus the measurement yt is "trusted" less; when error of the estimation Pt|t-1 is larger with respect to the error of measurement Rt , the Kalman gain kt will be greater, and the measurement yt is "trusted" more. The post prior estimate state of this step will be the prior estimated state of the next step, and the error of prior estimation of this time Pt|t will be updated by the error of prior estimation of the next time Pt|t-1 , when the next measurement takes place, and the estimate values are adjusted according to Equ. (3.3), Equ. (3.4) , Equ. (3.5) . This will recursively converge the updated state value xt|t to the true value when this process is repeated enough times. In our study, the true angular position will be reached after running Kalman filter algorithm with a great number of times.
+
+3.3
+
+Filter testing
+
+We are assuming a constant model; therefore, xt+1 = xt , so Ft = 1. Control variables B and u are not used (i.e., both = 0). For simplicity, we will assume that our state estimate x is the exact same scale as the measurement(i.e., H = 1).
+
+15
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER The process is not well defined, so the noise will be adjusted (i.e., Q = q). We can simplify the equations as follows: Predict:
+
+xt|t-1 = xt-1|t-1
+
+(3.6)
+
+pt|t-1 = pt-1|t-1 + qt Update:
+
+(3.7)
+
+xt|t = xt|t-1 + Kt (yt - xt|t-1 )
+
+(3.8)
+
+Kt = pt|t-1 (pt|t-1 + r)-1
+
+(3.9)
+
+pt|t = (1 - Kt )pt|t-1
+
+(3.10)
+
+Now we can put some hypothesis numbers into the model to test feasibility of filter. For the first test, we assume the true value of the system is L = 2, where x is the estimate of L. The state is initialized with an arbitrary number that has an extremely high variance as it is unknown. x0 = 0 and the error of prior estimate p0 = 2000. If we initialize with a more meaningful variable, we will get faster convergence. The system noise chosen is q = 0.0005. Predict:
+
+x1|0 = 0
+
+(3.11)
+
+p1|0 = 2000 + 0.0005 = 2000.0005
+
+(3.12)
+
+The hypothetical measurement we get is y1 = 1.8 (due to noise). We assume a measure16
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER ment noise r = 0.1. Update:
+
+K1 = 2000.0005(2000.0005 + 0.1)-1 = 0.9999
+
+(3.13)
+
+x1|1 = 0 + 0.9999(1.8 - 0) = 1.7999
+
+(3.14)
+
+p1|1 = (1 - 0.9999)2000.0005 = 0.0999
+
+(3.15)
+
+As can be seen in Equ. (3.14) x1|1=1.7999, the initialization of 0, has been brought close to the true value of the system 2. Also, the initial variance p0 has been brought down to a reasonable value from 2000 to 0.0999. One more step: Predict: x2|1 = 1.7999 (3.16)
+
+p2|1 = 0.0999 + 0.0005 = 0.1004 The hypothetical measurement we get this time is y2 = 1.9 (due to noise). Update: K2 = 0.1004(0.1004 + 0.1)-1 = 0.5009
+
+(3.17)
+
+(3.18)
+
+x2|2 = 1.7999 + 0.5009(1.9 - 1.7999) = 1.8500
+
+(3.19)
+
+p2|2 = (1 - 0.5009)0.1004 = 0.0501
+
+(3.20)
+
+We can observe that the variance is reducing each time. If we continue this, we get the following results:
+
+17
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER Table 3.1: test predict xt|t-1 pt|t-1 yt 1.7999 0.0506 2.1 1.8500 0.0341 2 1.9508 0.0259 1.85 1.9300 0.0201 2.15 1.9683 0.0179 2.2 2.0035 0.0156 2.16 2.0248 0.0140 2.05 2.0279 0.0128 1.95 kalman filter Update Kt xt|t 0.3360 1.8500 0.2543 1.9508 0.2059 1.9300 0.1741 1.9683 0.1519 2.0035 0.1356 2.0248 0.1233 2.0279 0.1137 2.0190
+
+t 3 4 5 6 7 8 9 10
+
+pt|t 0.0336 0.0254 0.0205 0.0174 0.0151 0.0135 0.0137 0.0123
+
+As is shown in table Table 3.1, the model performs successfully. After stabilization (about t = 10) the estimated state is within 0.01 of the "true value, even though the measurements are between 1.8 and 2.2.
+
+Figure 3.1: The estimated value are very close to the true value after kalman filter even the measurement values are very fluctuated.
+
+18
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER By now, if we create a model based on the true situation, our estimated state will be close to the true value, even when the measurements are noisy (i.e., a 10% error, only produced a 1% inaccuracy). Another hypothetical measurement sequence yt has more fluctuation values; the result will be in the following: Table 3.2: test prodict xt|t-1 pt|t-1 yt 1.4751 0.1004 2.4 1.7859 0.0506 2 1.8404 0.0259 1.7 1.8115 0.0210 2.35 1.9053 0.0179 2.6 2.0108 0.0156 2.3 2.0500 0.0140 2.22 2.0710 0.0128 1.75 kalman filter Update Kt xt|t 0.3609 1.7859 0.2543 1.8404 0.2059 1.8115 0.1741 1.9053 0.1519 2.0608 0.1356 2.0500 0.1233 2.0710 0.1378 2.0345
+
+t 3 4 5 6 7 8 9 10
+
+pt|t 0.0501 0.0336 0.0254 0.0205 0.0174 0.0135 0.0123 0.0137
+
+From Table 3.2, we can see that the measurement values yt with around 30% error only produced 1% inaccuracy of pt|t . With an unstable measurement and random initial estimation value, an accurate estimation value is still given by the Kalman filter and it converges the estimation error to a very small number. This is the main purpose of the Kalman filter [18].
+
+19
+
+CHAPTER 3. INCREASE PRECISION BY USING KALMAN FILTER
+
+3.4
+
+Apply the Kalman filter in our system
+
+Due to system noise or environment noise, every sample could be very different. The Kalman filter could bring us the true value, even if we have either a large variance of estimation or an unstable measurement. Right now, an ADC of a controller can reach a 2 M sampling frequency easily, and the duration of two sampling times is about 0.5 us; this is fast enough to sample multiple times when the object is in one position, and to respond correspondingly to the rotation of the object.
+
+3.5
+
+Chapter summary
+
+In this chapter, we reviewed the theory of the Kalman filter algorithm. The hypothesis numbers have been plugged into a simple Kalman filter system to show the advantages of the Kalman filter intuitively. It has been proved that although there is uncertainty of the estimation error and initial estimation value, after a few steps of the test, the system will converge to the true value and the estimation error will become negligible.
+
+20
+
+Chapter 4 Using FPGA to increase measurement speed
+In this chapter, transferring data with slow speed is illustrated by showing process of data transferring in the CCD camera. An FPGA is introduced to increase system speed. The reason that the FPGA is superior in speed comparing with the processor is discussed. Finaly, an FPGA is applied in our system to enhance the response speed.
+
+4.1
+
+Drawbacks of the sequential data transfer of CCD camera
+
+Because the speed of reading information from a CCD camera is affected by how CCD camera array was arranged and how signal of CCD camera was transferred. In next three paragraphs we will describe how a CCD camera array is arranged , how CCD camera transfer information and why transferring information from a CCD camera is slow. A (charge-coupled device) CCD camera is a light sensitive device which capture the intensity of light in small solar cell and store it as electrons. It consist of thousands or
+
+21
+
+CHAPTER 4. USING FPGA TO INCREASE MEASUREMENT SPEED millions 2-D array of those solar cells with electrons [19], usually name it as pixel. CCD camera is comprised of many pixels that are arranged vertically in columns and horizontally in rows. The number of rows and columns defines the CCD size. The CCD cameras resolution is determined by the size and separation of the pixels. In most CCDs the pixels are touching each other shown in Fig. 4.1 and so the CCD resolution will be defined by the pixel size [20]. Fig.4.2 depicts a cross-section in a row of a CCD. Each pixel consists of three electrodes: I1,
+
+Figure 4.1: pixel array I2, and I3. To create the potential well only one of these electrodes is needed; however, to transfer the charge out of the CCD camera other electrodes are necessary. The first section of Fig.4.2 shows the charge being collected under one of the electrodes. For the charge to be transferred out of the CCD camera, the creation of a new potential well can be done by holding I3 high; as a result, the charge is shared between I2 and I3 (shown in Fig.4.2 section 2). If I2 is now taken low, the charge will be fully transferred under electrode I3 (shown in Fig.4.2section 3). For the continuation of the clocking out the signal of the CCD, taking I1 high and then I3 low will make it so that the charge cloud drifts across under the I1 electrode. As this process continues, the charge will progress either down the 22
+
+CHAPTER 4. USING FPGA TO INCREASE MEASUREMENT SPEED column, or across the row, depending upon the orientation of the electrodes.
+
+Figure 4.2: charge transfer in a CCD camera This process can be repeated in order for the controlling circuit to convert the arrays entire contents in the semiconductor to a sequence of voltages. After finishing with the transfer intensity information for a whole picture, the signal is then processed and fed out to other processors for transmission, recording, or other processing. When this occurs, the CCD camera controlled by the CCD controller transfers the pixel information sequentially, and after the whole picture is transferred, the data is able to be processed by other processors [21]. Moreover, for any given processor core, the processor executes instructions sequentially and only one instruction can be executed at a time. As a result, in processor-based systems there is a constant possibility of time-critical tasks preempting each other. In our project, it is required to measure the rotation of angle. Increasing the reading and processing speed will help the system to follow the rotation speed. A novel reading and processing method is needed for overcoming time-critical issues.
+
+23
+
+CHAPTER 4. USING FPGA TO INCREASE MEASUREMENT SPEED
+
+4.2
+
+The reason for selecting an FPGA
+
+In comparing processors which already have a fixed set of instructions, each of these instructions has their own corresponding block that is already hardwired into the processor.In field-programmable gate arrays (FPGAs) there are no hardwired logic. An FPGA is laid out like a net with each junction containing a switch that the user can make or break. Considering this, specified interconnections dedicated to the users design are able to be programmed in an FPGA, allowing the user to have a great deal of flexibility for each scheme. In processor-based systems there are often several layers of abstraction present to facilitate the scheduling of tasks and sharing of resources between multiple processes. The driver layer controls hardware resources and the OS manages memory and processor bandwidth. In any processor core, a single instruction can only be executed at a time. FPGAs, which do not use an OS, minimize reliability concerns through true parallel execution and deterministic hardware dedicated to every task. FPGAs are, or have the potential to be, configured as parallel processing devices. An entire algorithm might be executed in a single tick of the clock, or, in the worst case, far fewer clock ticks than it takes a sequential processor. Because of the flexibility of interconnections in an FPGA, the basic logic cell in an FPGA can be wired into different building blocks according to the users needs. This means one algorithm can be divided into different logic blocks to do parallel calculations in a few clock ticks [22]. In this study, a field-programmable gate array (FPGA) has been applied for parallel calculations while reading another part of the data in one picture, and there is no need to wait until the whole picture is read. This will largely save the total calculation time to reach our time critical requirement of measurement of angular rotation.
+
+4.3
+
+Chapter summary
+
+In this chapter, the reason that CCD transfer data with slow speed is shown by illustrating the pixel arrangement and by presenting data transferring process in CCD. Then, A 24
+
+CHAPTER 4. USING FPGA TO INCREASE MEASUREMENT SPEED field-programmable gate array (FPGA) with parallel data execution method is introduced. Finally, an FPGA is applied to replace the CCD controller and the processor to increase the system speed.
+
+25
+
+Chapter 5 Simulation test result and experimental setup
+In this chapter, simulation results have proven that the overlapped areas of the holes of the two circular planes changed when one of circular planes were rotated. The simulated result also shows the systems sensitivity and that stability reached a improved quality as expected. Finally, an experiment setup for the angle measurement is proposed.
+
+5.1
+
+Overlapped areas represent the position of a rotatable circular plane
+
+In this simulation, there are 10 small holes with the same diameter drilled into the two circular planes. When one of the circular planes is rotated slightly, the total overlapped area of 10 holes also changes. Within a gap between two holes, the more angle it is rotated the less the total overlapped area of the holes. Because one of the circular planes is continuously rotated, Fig. 5.1 shows that the overlapped area of the holes that belong to two circular planes is changed from large to small. The total overlapping areas in each picture of Fig. 5.1
+
+26
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP represent a corresponding angular position. If we calculate the sum of these overlapped areas we can know the angle position of the circular plane.
+
+Figure 5.1: When one of the circular planes rotated, the total overlapped area of holes changed accordingly.
+
+5.2
+
+The way that small holes arranged will affect the precision of measurement
+
+The rotation linear velocity can be expressed as: v =wR (5.1)
+
+Where w is the angular velocity, and R is the radius of the large circle. When w keeps the same, the velocity v is propositional to the radius R, the larger radius R will result in greater linear velocity v . In our experiment, a larger linear velocity implies a greater change of overlapped area while the same angle has been rotated, which in turn results in a better precision of the angular measurement. In the simulation result shown in Fig. 5.2 , the one with a radius of 200 (in blue color) shows the least linearity in comparison with the other two, and the one with a radius of 500 (in red color) has a little better linearity than the one 27
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP with a radius of 200. The one with a radius of 800 (in green color) has the best linearity among them. This proves that the larger radius has better sensitivity of angler measurement.
+0 × 10 7
+
+radius 200,500,800
+radius200 radius500 radius800
+
+-0.5
+
+Total area of overlapped holes
+
+-1
+
+-1.5
+
+-2
+
+-2.5 1 2 3 4 5 6 7 8 9 10
+
+degrees of rotation
+
+Figure 5.2: Different radius result different linearity of measurement.
+
+5.3
+
+Impact of the pixel size to the measurement precision
+
+Within the same size of an image, the greater the number of pixels and the smaller size of the pixels, the greater the resolution of the picture will be. Fig 5.3 is the same sized picture with different sizes of pixels. It can be seen that the picture with the more number(100*100) and smaller sized pixels is the clearest and shows more details. In this simulation, a smaller pixel size will have a better sensitivity in the measurement of rotation. Fig. 5.4 shows a different linearity with pixel sizes of 1 um, 4 um and 8 um. The biggest pixel size (8 um,in blue color) has the worst linearity compared with the other two, and the smallest pixel size (1 um,in green color) has the best linearity; this implies that better precision will be achieved by using smaller sized pixels. 28
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP
+
+Figure 5.3: Picture with more number and with smaller sized pixels shows more details
+0 × 10 7
+
+PixelSize 1 ,4,8
+
+-0.5
+
+-1
+
+Total area of overlapped holes
+
+-1.5
+
+-2
+
+-2.5
+
+-3
+
+-3.5
+
+-4
+PixelSize=8um PixelSize=4um PixelSize 1 um
+
+-4.5
+
+-5 1 2 3 4 5 6 7 8 9 10
+
+degrees of rotation
+
+Figure 5.4: Different size of pixel will result different precision of measurement.The smaller pixel size will result a better precision.
+
+5.4
+
+The stability of the system increased by the Kalman filter
+
+Because in reality there is always noise in each measurement, noise can be caused by environment, and the different light sources of conditions in each measurement and others. Those factors are other challenges for high precision angle position measurements. For reducing the system noise, a Kalman filter is applied. In the simulation result shown in Fig. 5.5, 1000 random samples were created in the mean of the overlapped area in one
+
+29
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP
+
+Figure 5.5: 1000 random noise samples (in the red color) will converge to true position value (in the blue color) after Kalman filtering. position, with variance of 1 as shown in Fig. 5.5 in red. The blue color is the simulation result after using the Kalman filter. It shows oscillating at the beginning and has a stable value after around 400 times calculation, which brings it close to the true value of measurement. By comparison of the values without or with the Kalman filter, obviously, the one with the Kalman filter has a much stabler value. This will further reduce the error of measurement.
+
+5.5
+
+The precision of measurement simulated in Matlab
+
+When one of the circular planes is rotated at a very small angle, it will result in a different overlapped area of the holes which belong to the two circular planes. This area could be calculated using Matlab. Suppose we have three situations, and all rotate at an angle 10 times. The first one rotates 0.0001 radians each time, the second one rotates 0.00001 radians each time, and the third one rotates 0.000001 radians each time. As Fig. 5.6 shows, the one that rotated 0.00001 radians each time (in blue color) and the one that rotated 0.000001 radians each time (in red color) do not show much linearity, and the one that rotated 0.0001 radians each time (in green color) shows good linearity; it can be seen that 0.0001 radians 30
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP are smallest precision in this simulation.
+2.545 × 10 4
+
+2.54
+
+Total area of overlapped holes
+
+2.535
+
+2.53
+
+2.525
+
+2.52
+turn000001 turn00001 turn0001
+
+2.515 1 2 3 4 5 6 7 8 9 10
+
+Number of holes
+
+Figure 5.6: Different rotation angles will result to different precision of measurement. 0.0001 radians converted into degrees is 0.005729 degrees. Furthermore, the gray-scale images intended for visual display are commonly stored with 8 bits per sampled pixel.This will give us 256 times more accurate results. Those factors will bring our accuracy from 0.005729 degrees to 2.2378  10- 5 degree. Kalman filter give aditional %1 accuarcy, Hence the total precision for the simulation is 2.2176  10- 5 degree.
+
+5.6
+
+Experiment setup
+
+In this section, an experimental design is introduced according to the proposed system. Because of the focus on a high precision of small angle rotations in this experiment, a system that can measure small angular rotations with micro degrees is needed. The output shaft of a gearbox rotates at a slower rate than the input shaft. This reduction in speed provides an advantage for angular measurement. In this system, there are four stages of the gearbox shaft with a total reduction ratio of 1:20,000. If the input gearbox shaft is rotated
+
+31
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP 1 degree, the output of the gearbox shaft will produce an angle with a 20,000 times smaller than the input rotation angle, which is only 5  10-5 degrees or 0.24 um radians. Because of a focus on a micrometer (um) scale of this high-positioning detection system, 5  10-5 degrees or 0.24 um radians are small enough for this experimental purpose. Our CCD camera pixel size is 1.4 um, as this size is small enough to detect a range of about 0.24 um movement of the object. Although the output of the shaft will be attached to the actual circular plane, whenever the input gearbox shaft rotates, the output of gearbox shaft will cause the circular plane to rotate 20,000 times fewer degrees, in order to examine the micrometer (um) scale of small angles. The system architecture is shown in Fig. 5.7 . On the other side of the circular plane, there is a convex with 10 times magnification, which will be further magnified to increase the resolution 10 times more. Following the convex, there is a CCD camera that will capture the light intensity of the overlapped area of the holes it is passing through in order to calculate rotated angles and store the information in the computer.
+
+Figure 5.7: Schematic diagram of system
+
+32
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP
+
+Figure 5.8: Experiment system structure designed by Solidworks
+
+5.7
+
+The experimental precision calculation
+
+Precision calculation depends on the pixel size of the CCD camera, radius of the circular planes and resolution of ADC. In this test, one pixel size is 1.4 um, and the radius of a circular plane is 0.05 m. If the smallest movement is 1.4 um, it can cause 2.8  10-5 m in radians shown in Fig.5.1 . Furthermore, if 8 bits of ADC are used it will cause the resolution to be reduced by another 256 times. Hence, the precision of this system will be 6.25  10-6 degree. Table 5.1: Precision calculation Effect factor for precision Precision In Radians Resolution caused by least move- 2.8  10-5 ment of 1.4 um (1.4 um/0.05m) Further resolution enhanced by 8 1.09  10-7 bits ADC used (further divided by 256)
+
+Precision In Degrees 1.604  10-3 6.25  10-6
+
+33
+
+CHAPTER 5. SIMULATION TEST RESULT AND EXPERIMENTAL SETUP
+
+5.8
+
+Chapter summary
+
+In this chapter,first, simulation results prove that the overlapped areas of the two circular planes changed when the circular planes were rotated. Meanwhile, the simulation results also show that the small holes arranged in a different big circle radius R will affect the measurement of the precision; the greater the radius of circle R is better. Moreover, the pixel size will affect the precision measurement as well; the smaller sized pixels are superior in precision calculation. Furthermore, simulation results display a high stability in data sampling after using a Kalman filter. Finally, an experiment setup is designed for implementation purpose. The experimental precision will be 6.25  10-6 degree.
+
+34
+
+Chapter 6 Conclusion
+In this study, a modified circular plane is proposed to increase the precision of angle measurement. The light intensity which has passed through the overlapped area of holes in circular planes is introduced to calculate the angle measurement. Several details are presented to increase the accuracy of angle measurement and to reduce the difficulty of manufacturing processing. 1) Only one circular plane is employed rather than using two. 2) A circular plane with holes is used instead of using the circular grating with slits. 3) To prevent measurement dead zones, the gap between the holes should be exactly the same as the diameter of one hole. 4) Small and large angles are summed to get entire circumference angle. An FPGA with parallel calculation is adopted to enhance the response speed in this system. Simulation results have proven that the precision of measurement is affected by the pixel size and radius of large circle R. Smaller-sized pixels will have better accuracy, and small holes arranged in a larger radius circle will have more precision of measurement. Simulation results have also proven that the Kalman filter approach will reduce sampling error notably, hence the measurement accuracy of this system will be further increased. In this system, an accuracy of 2.2176  10-5 degree can be reached. Measuring range can be extended to any angle range with a fast response speed. 35
+
+References
+[1] P. Paolino and L. Bellon, "Single beam interferometric angle measurement," Optics Communications, vol. 280, no. 1, pp. 1­9, Dec. 2007. [2] K. Hane and S. Hattori, "Moire displacement measurement technique for a linear encoder," Optics and Laser Technology, vol. 17, no. 1, pp. 89­95, Apr. 1985. [3] L. Yang and X. Wang, "A measuring instrument for angle based on invariant optical path and autocollimation principle," in Proc. IEEE International Electric Information and Control Engineering, Jan 2011, pp. 44­47. [4] X. L. Dai, O. Sasaki, and T. Suzuki, "Measurement of small rotation angles by using a parallel interference pattern," Applied Optics, vol. 36, pp. 6380­6388, Oct. 1995. [5] X. L. Dai, O. Sasaki, J. E. Greivenkamp, and T. Suzuki, "High accuracy, wide range, rotation angle measurement by the use of two parallel interference patterns," Applied Optics, vol. 36, no. 25, pp. 6190­6195, 1997. [6] "Laser micro drilling," 2008, Available in: https://www.oxfordlasers.com. [7] "Enhanced logic management," 2008, Available in:http://www.electronicdesign.com. [8] J. A. Stamper, "Interferometric measurement of small refraction angles," Applied Optics, vol. 19, pp. 3053­3054, 2008.
+
+36
+
+REFERENCES [9] P. Shi and E. Stijins, "New optical method for measuring small-angle rotations," Applied Optics, vol. 27, no. 20, pp. 49­60, 1998. [10] G. Zhang and R. Hocken, "A laser interferometric system for measuring arbritrary angles," CIRP Annals - Manufacturing Technology, vol. 36, pp. 395­398, Jan. 1987. [11] F. Siewert, J. Buchheim, and T. Hoft, "Investigations on the spatial resolution of autocollimator-based slope measuring profilers," Nuclear Instruments and Methods in Physics Research Section A, vol. 71, no. 11, pp. 42­47, May 2002. [12] K. Yen and M. Ratnam, "Inplane displacement sensing from circular grating moir fringes using graphical analysis approach," Sensor Review, vol. 31, no. 4, pp. 358­367, 2011. [13] A. Zhang and P. S. Huang, "Total internal reflection for precision small-angle measurement," Applied Optics, vol. 40, no. 10, pp. 1617­1622, 2007. [14] Y. Liu, C. Kuang, and Y. Ku, "Small angle measurement method based on the total internal multi-reflection," Optics and Laser Technology, vol. 44, pp. 1346­1350, 2012. [15] "Concentric circles," 2012, Available in: http://mathworld.wolfram.com. [16] Y. L. Lay and W. Y. Chen, "Rotation measurement using a circular moire grating," Optics and Laser Technology, vol. 30, pp. 539­544, 1998. [17] M. S. Grewal, "Kalman Filtering", International Encyclopedia of Statistical Science, 2011. [18] "Kalman filter applications," 2008, Available in: https://www.cs.cornell.edu. [19] "Charge-coupled device," 2008, Available in:https://en.wikipedia.org. [20] "An introduction to ccd operation," 2017, Available in: http://www.mssl.ucl.ac.uk. 37
+
+REFERENCES [21] "Charge-coupled devices," 2017, Available in: https://www.microscopyu.com. [22] "Difference between fpga and microprocessor," 2012, Available in:
+
+http://www.differencebetween.com.
+
+38
+
+

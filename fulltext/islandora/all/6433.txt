@@ -1,0 +1,1824 @@
+TIME-INTERLEAVED PULSE-SHRINKING AND ALL-DIGITAL  TIME-TO-DIGITAL CONVERTERS
+
+by
+
+Young Jun Park Master of Science, University of Southern California, USA, 2012 Bachelor of Engineering, Korea Aerospace University, South Korea, 2004
+
+A dissertation presented to Ryerson University in partial fulfillment of the requirements for the degree of Doctor of Philosophy in the Program of Electrical and Computer Engineering
+
+Toronto, Ontario, Canada, 2017 c Young Jun Park 2017
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A DISSERTATION
+
+I hereby declare that I am the sole author of this dissertation. This is a true copy of the dissertation, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this dissertation to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this dissertation by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+ii
+
+ABSTRACT Young Jun Park Time-Interleaved Pulse-Shrinking and All-Digital  Time-To-Digital Coverters Doctor of Philosophy, Electrical and Computer Engineering, Ryerson University, 2017
+
+This dissertation deals with the design of sub-per-stage-delay time-to-digital converters (TDCs). Two classes of TDCs namely pulse-shrinking TDCs and  TDCs are investigated. In pulse-shrinking TDCs, a two-step pulse-shrinking TDC consisting of a set of coarse and fine pulse-shrinking TDCs is proposed to increase a dynamic range without employing a large number of pulse-shrinking stages. A residual time extraction scheme capable of extracting the residual time of the coarse TDC is developed. The simulation / measurement results of the TDC implemented in an IBM 130 nm 1.2 V CMOS technology show that the TDC offers 1.4 ns conversion time, 1 LSB DNL and INL, and consumes 0.163 pJ/step. To further improve the conversion time, a time-interleaved scheme is developed to extract the residual time of the coarse TDC and utilized in design of a two-step pulse-shrinking TDC. Residual time extraction is carried out in parallel with digitization to minimize latency. The simulation and measurement results of the TDC show that it offers 0.85 ns conversion time, 0.285 LSB DNL, and 0.78 LSB. In  TDCs, a 1-1 multi-stage noise shaping (MASH)  TDC with a new differential cascode time integrator is proposed to suppress even-order harmonic tones and current mismatch-induced timing errors. Simulation results show that the proposed TDC offers 1.9 ps time resolution over 48-415 kHz signal band while consuming 502 µW. Finally, an alldigital first-order  TDC utilizing a bi-directional gated delay line integrator is developed. Time integration is obtained via the accumulation of charge of the load capacitor of gated delay stages and the logic state of gated delay stages. The elimination of analog components
+
+iii
+
+allows the TDC to benefit fully from technology scaling. Simulation results show that the TDC offers first-order noise-shaping, 10.8 ps time resolution while consuming 46 µW.
+
+iv
+
+ACKNOWLEDGMENTS
+
+I would first like to thank to my PhD supervisor, Professor Fei Yuan, for supporting me during the past four years. He has provided insightful discussions and suggestions about the research. I could not have completed this work without the support. I also should thank the members of my PhD committee, Professors Vadim Geurkov, Gul Khan, Guangjun Liu and Wai Tung Ng from University of Toronto. Their comments and feedback have been invaluable. I wish to thank my colleagues, Yushi Zhou, Durand Jarrett-Amor, Jean-Claude Clarke, Yue Li, and Matthew Dolan, in the Integrated Circuits and Systems Research group at Ryerson University who provided wonderful ideas and friendship. I would especially like to thank and dedicate this dissertation to my amazing family, my parents, parents-in-law, my sister, brother-in-law and his wife, for the love, support, and constant encouragement over the years. Finally, but most importantly, I wish to thank my wife, Jung Eun Koo, and children, Kyan Park and Lian Park for their patience, assistance, support and faith in me. I could not have completed my doctoral studies without the support of all these wonderful people!
+
+v
+
+Table of Contents
+Table of Contents List of Tables List of Figures List of Symbols and Abbreviations 1 Introduction of Time-Mode Signal Processing 1.1 1.2 1.3 Why Time-Mode? . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Challenges in Time-Mode Signal Processing . . . . . . . . . . . . . . . . . . An Overview of TDCs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1.3.1 1.3.2 1.3.3 1.3.4 1.3.5 1.3.6 1.4 1.5 1.6 1.7 Delay-line TDCs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Vernier delay-line TDCs . . . . . . . . . . . . . . . . . . . . . . . . . Hierarchical vernier delay-line TDCs . . . . . . . . . . . . . . . . . . Pulse-shrinking TDCs . . . . . . . . . . . . . . . . . . . . . . . . . . Gated ring oscillator TDCs . . . . . . . . . . . . . . . . . . . . . . .  TDCs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . vi x xi xvi 1 2 3 3 4 5 6 7 9 10 12 14 15 16
+
+Motivation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dissertation Organization . . . . . . . . . . . . . . . . . . . . . . . . . . . . Chapter Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . vi
+
+2 Time-Interleaved Pulse-Shrinking TDC 2.1 2.2 Two-Step Pulse-Shrinking TDC . . . . . . . . . . . . . . . . . . . . . . . . . Characteristics of Two-Step Pulse-Shrinking TDC . . . . . . . . . . . . . . . 2.2.1 2.2.2 2.2.3 2.2.4 2.2.5 2.2.6 2.2.7 2.2.8 2.3 2.4 Mismatch-induced timing errors . . . . . . . . . . . . . . . . . . . . . Thermal noise-induced timing errors . . . . . . . . . . . . . . . . . . Switching noise-induced timing error . . . . . . . . . . . . . . . . . . Timing error of delay stages . . . . . . . . . . . . . . . . . . . . . . . Conversion time . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Power consumption . . . . . . . . . . . . . . . . . . . . . . . . . . . . Silicon area consumption . . . . . . . . . . . . . . . . . . . . . . . . . Gain mismatch . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+17 17 20 20 25 26 29 29 30 32 33 34 36 37 38 39 41 43 44 46 47 49 52 52 57
+
+Time-Interleaved Pulse-Shrinking TDC . . . . . . . . . . . . . . . . . . . . . Characteristics of Time-Interleaved Pulse-Shrinking TDC . . . . . . . . . . . 2.4.1 2.4.2 2.4.3 2.4.4 2.4.5 2.4.6 Silicon area consumption . . . . . . . . . . . . . . . . . . . . . . . . . Power consumption . . . . . . . . . . . . . . . . . . . . . . . . . . . . Mismatch-induced timing error . . . . . . . . . . . . . . . . . . . . . Conversion time . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Timing analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Jitter . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+2.5
+
+Simulation and Measurement Results . . . . . . . . . . . . . . . . . . . . . . 2.5.1 2.5.2 2.5.3 2.5.4 Simulation results of two-step pulse-shrinking TDC . . . . . . . . . . Measurement results of two-step pulse-shrinking TDC . . . . . . . . . Simulation results of time-interleaved pulse-shrinking TDC . . . . . . Measurement results of time-interleaved pulse-shrinking TDC . . . .
+
+2.6
+
+Chapter Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . vii
+
+3 1-1 MASH  TDC 3.1 Time Integrator . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.1.1 3.1.2 3.1.3 3.1.4 3.2 3.3 Time adder . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Time register . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Single-ended time integrator . . . . . . . . . . . . . . . . . . . . . . . Differential time integrator . . . . . . . . . . . . . . . . . . . . . . . .
+
+60 60 60 62 64 66 67 68 68 72 75 76 77 77 77 78 78 79 83 85 85 87 89 91
+
+Time-Mode 1-1 MASH  Modulator . . . . . . . . . . . . . . . . . . . . . Timing Error . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.3.1 3.3.2 3.3.3 3.3.4 Random timing error . . . . . . . . . . . . . . . . . . . . . . . . . . . Deterministic timing error . . . . . . . . . . . . . . . . . . . . . . . . Total timing error . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Model of time integrator . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3.4
+
+Discussion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.4.1 3.4.2 3.4.3 3.4.4 Timing signal . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Sampling frequency . . . . . . . . . . . . . . . . . . . . . . . . . . . . Offset time Tos . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Gain of time integrator . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3.5 3.6
+
+Simulation Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Conclusions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4  TDC with Bi-Directional Gated Delay Line Time Integrator 4.1 4.2 4.3 4.4 Bi-Directional Gated Delay Cell . . . . . . . . . . . . . . . . . . . . . . . . . Bi-Directional Gated Delay Line . . . . . . . . . . . . . . . . . . . . . . . . . All-Digital First-Order Single-Bit  TDC . . . . . . . . . . . . . . . . . . . Design Considerations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+viii
+
+4.5 4.6
+
+Simulation Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Chapter Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+92 93 95 95 96 98
+
+5 Conclusions 5.1 5.2 Conclusions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Bibliography
+
+ix
+
+List of Tables
+2.1 3.1 4.1
+Performance comparison of pulse-shrinking TDCs. . . . . . . . . . . . . . . . . .
+
+59 83 93
+
+Performance comparison of  TDCs. . . . . . . . . . . . . . . . . . . . . . Performance comparison of  TDCs. . . . . . . . . . . . . . . . . . . . . .
+
+x
+
+List of Figures
+1.1 1.2 1.3 1.4 1.5 1.6 1.7 Delay-line TDCs [1], [2], [3]. . . . . . . . . . . . . . . . . . . . . . . . . . . . Vernier delay-line TDCs [4]. . . . . . . . . . . . . . . . . . . . . . . . . . . . Hierarchical vernier delay-line TDC [5]. . . . . . . . . . . . . . . . . . . . . . Pulse-shrinking TDCs [6, 7]. . . . . . . . . . . . . . . . . . . . . . . . . . . . Cyclic pulse-shrinking TDCs. . . . . . . . . . . . . . . . . . . . . . . . . . . GRO TDCs [8]. (A) Block diagram. (B) Waveform. . . . . . . . . . . . . . . (A) Time adder [9]. (B) Gated delay cell [9]. (C)  TDC [10]. (D) Waveform of time adder. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .  TDCs [6, 7]. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Simplified schematic of two-step pulse-shrinking delay-line TDC. All D flipflops (DFFs) are positive edge triggered. . . . . . . . . . . . . . . . . . . . . . . . Extraction of the residual pulse of coarse TDC. (a) 3T < Tin < 4T . (b) 2T < Tin < 3T . (c) T < Tin < 2T . (d) 0 < Tin < T . . . . . . . . . Simplified schematic of residual pulse selection and waveform. (a) Simplified schematic. (b) 0 < Tin < T . (c) T < Tin < 2T . (d) 2T < Tin < 3T . (e) 3T < Tin < 4T . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Mismatch-induced timing error in pulse-shrinking stage. The timing error at the output of a pulse-shrinking stage contains the timing error present at the input and that induced by the mismatch of the pulse-shrinking stage. . . . . Jitter of pulse-shrinking stages. . . . . . . . . . . . . . . . . . . . . . . . . . The effect of the delay error of delay stages on the TDC. . . . . . . . . . . . 5 6 7 8 9 11
+
+12 14
+
+1.8 2.1
+
+19
+
+2.2
+
+20
+
+2.3
+
+21
+
+2.4
+
+23 27 30
+
+2.5 2.6
+
+xi
+
+2.7
+
+Residual pulse of coarse TDC. The location and width of the residual pulse Tres of the coarse TDC are determined by Tin and the residual pulse is only available at the falling edge of Tin . . . . . . . . . . . . . . . . . . . . . . . . . (A) Time-interleaved pulse-shrinking TDC. The pulse-shrinking stages of the coarse and fine TDCs have the same transistor dimensions but distinct capacitor loads. The load capacitance of the pulse-shrinking stages of the fine TDCs are from devices while that of the coarse TDC is an external 402 fF MiM capacitor. (B) Configuration of pulse-shrinking TDCs. The outputs of the coarse TDC are Qc,1 , Qc,2 , ..., Qc,M with the first subscript identifying the coarse TDC and the second subscript identifying the delay stage of the TDC. Qin is the input of the coarse TDC. The outputs of the fine TDC are Qf,1 , Qf,2 , ..., Qf,N with the first subscript identifying the fine TDC and the second subscript identifying the delay stage of the TDC. . . . . . . . . . . . . . . . Non-overlapping waveforms of Tin,f 1 and Tin,f 2 for Tin =45 ns. . . . . . . . . .
+
+34
+
+2.8
+
+36 37 42 43
+
+2.9
+
+2.10 Mismatch-induced time error in pulse-shrinking TDCs. . . . . . . . . . . . . 2.11 Strobing the output of fine TDC1. (a) Proper strobing. (b) Early strobing. . 2.12 Strobing the output of fine TDC1 with Tin mismatch. (a) Tin,f 1 has a mismatchinduced delay. (b) Tin,f 2 has a mismatch-induced lead. . . . . . . . . . . . . 2.13 Strobing the output of fine TDC1 with reset mismatch. (a) Rf 1 has a mismatchinduced delay. (b) Rf 2 has a mismatch-induced delay. . . . . . . . . . . . . . 2.14 Jitter of pulse-shrinking stages. . . . . . . . . . . . . . . . . . . . . . . . . . 2.15 Die micrograph of the 4 bit two-step pulse-shrinking TDC (left) and that of the 8 bit time-interleaved pulse-shrinking TDC including a thermometer-tobinary encoder (Right). The core area of the two-step TDC : 145 µm x 155 µm. The core area of the time-interleaved TDC : 450 µm x 220 µm. . . . . . 2.16 Simulated DNL of the TDC (post-layout). Top - Normal process condition. Bottom - SS and FF process corners. . . . . . . . . . . . . . . . . . . . . . . 2.17 Simulated INL of the TDC (post-layout). Top - Normal process condition. Bottom - SS and FF process corners. . . . . . . . . . . . . . . . . . . . . . . 2.18 Simulated spectrum the TDC (post-layout). Input : Sinusoid of 5.176 MHz @fs = 100 MHz. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.19 Monte Carlo simulation results when Tin = 2.2 ns (200 samples). . . . . . . . 2.20 Test setup of the two-step pulse-shrinking TDC (PCB with SMA connectors for connecting to test equipment not shown). . . . . . . . . . . . . . . . . . . xii
+
+44
+
+45 46
+
+47
+
+48
+
+49
+
+50 50
+
+51
+
+2.21 Measured dependence of the pulse shrinkage of the coarse pulse-shrinking stage on bias voltage. Top - Without offset calibration. Bottom - With 5ns offset calibration. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.22 (A) Simulated DNL (post-layout), (B) Simulated INL (post-layout), (C) Monte Carlo simulation results when Tin = 15 ns (90 samples). . . . . . . . . . . . . 2.23 Test setup of the time-interleaved pulse-shrinking TDC. An Agilent B1130A pattern generator was used to generate Tin and an Agilent 16851A logic analyzer was used to capture the digital output of the TDC. Three DC voltages, namely Vbias,c , Vbias,f1 , and Vbias,f2 for tuning the discharge current of the coarse and fine TDCs so as to obtain the desired per-stage pulse shrinkage are from a BK 9130 multi-channel DC power supply. . . . . . . . . . . . . . . . . 2.24 Measured transfer characteristics of TDC. . . . . . . . . . . . . . . . . . . . 2.25 Screen shot of logic analyzer with Tin = 70ns. (A) Single shot, (B) Multiple shots with infinite persistence mode on. . . . . . . . . . . . . . . . . . . . . . 2.26 (A) Major error sources in the test chip. [a] Signal path mismatch. [b] Reset time mismatch. [c] Tstrobe,f timing error. [d] Propagation delay mismatch between two fine TDCs' input. (B) MSB error. (C) LSB error. . . . . . . . 2.27 (A) Pulse width comparison. (B) Coarse TDC pulse shrinkage. . . . . . . . . 2.28 Vss line resistance. 3.1 3.2 3.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+52
+
+53
+
+54 55
+
+56
+
+57 58 58 61 63
+
+Time adder. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Timing diagram of time adder. . . . . . . . . . . . . . . . . . . . . . . . . . . ^in is measured Polarity of time variables. (a) Tin [n] > 0. (b) Tin [n] < 0. T from the rising edge of STR to that of STP. . . . . . . . . . . . . . . . . . . Time register. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Schematic of single-ended time integrator. The output of the time integrator is the time interval bordered by the rising edge of vinv,a and that of STRa . The time offset of ACKa changes from Tos to 2Tos after the first cycle of the operation, due to the time duration of the time register. . . . . . . . . . . . . Timing diagram of single-ended time integrator. The time offset of ACKa changes from Tos to 2Tos after the first cycle of the operation, due to the time duration of the time register. . . . . . . . . . . . . . . . . . . . . . . . . . . . Differential time integrator. . . . . . . . . . . . . . . . . . . . . . . . . . . . xiii
+
+63 64
+
+3.4 3.5
+
+65
+
+3.6
+
+66 67
+
+3.7
+
+3.8 3.9
+
+Generation of differential sinusoidal time variable. . . . . . . . . . . . . . . . Spectrum of time integrators. Sampling frequency 25 MHz, input frequency 415 kHz, amplitude 50 ps. 1024 samples with Hanning window. . . . . . . .
+
+68
+
+69 70
+
+3.10 1-1 MASH time-mode  TDC. . . . . . . . . . . . . . . . . . . . . . . . . . 3.11 Timing error due to supply voltage fluctuation (left) and threshold voltage fluctuation of load inverter (right). . . . . . . . . . . . . . . . . . . . . . . . 3.12 Current mismatch. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.13 Model of time integrator. Ea outside the loop will be shaped out when the integrator is in a  modulator. . . . . . . . . . . . . . . . . . . . . . . . . 3.14 Timing of single-ended time integrator. . . . . . . . . . . . . . . . . . . . . . 3.15 Positive time variable generation. . . . . . . . . . . . . . . . . . . . . . . . .
+
+72 73
+
+76 77 78
+
+3.16 Timing diagram of single-ended time integrator with offset time blocks removed. 79 3.17 Waveforms of single-ended time integrator. Input : Tm = 15 ps, fin = 317 kHz. Sampling frequency fs = 25 MHz. . . . . . . . . . . . . . . . . . . . . . 3.18 Behavioral analysis of 1-1 MASH  TDC. . . . . . . . . . . . . . . . . . . 3.19 Waveform of the output of 1-1 MASH  TDC from behavioral analysis. . . 3.20 Spectrum of 1-1 MASH time-mode  Modulator from both behavioral analysis and schematic-level simulation (cascode time integrators with raised threshold voltage of load inverter). . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.21 Spectrum of 1-1 MASH time-mode  Modulator. . . . . . . . . . . . . . . 3.22 Spectrum of 1-1 MASH  TDC with both differential cascode time integrator and different threshold voltage of load inverter. Blue : VT = 0.8V. Red : VT = 0.6V. Integration capacitor value is changed from 2.1 pF with 0.6V threshold voltage to 3.2 pF with 0.8V threshold voltage. . . . . . . . . . . . 4.1 4.2 Bi-directional gated delay cell. . . . . . . . . . . . . . . . . . . . . . . . . . . Bi-directional gated delay line. When Tin is positive, the forward direction is enabled, and Tin is negative, the reverse direction is enabled. . . . . . . . . . Signal propagation in bi-directional gated delay line. The bold lines highlight the path that the signal propagates. Gating signals are not shown for brevity.
+
+80 81 81
+
+82 83
+
+84 87
+
+88
+
+4.3
+
+89
+
+xiv
+
+4.4 4.5 4.6 4.7
+
+(A) Digital-to-time converter [10], (B) Edge alignment block [11]. . . . . . . All-digital first-order  TDC with a single-bit time quantizer. . . . . . . . Effect of mismatch between forward and reverse gated delay cells. . . . . . . Spectrum of  TDC. fin = 231.93 kHz, fs = 25 MHz. ENOB = 6.3 over frequency band 36.62232 kHz. . . . . . . . . . . . . . . . . . . . . . . . . .
+
+90 91 92
+
+93
+
+xv
+
+List of Symbols and Abbreviations
+ ADC ADP LL BSIM CDR CM OS DAA dB DCO DF F DN L DR DT C EN OB FFT F oM GDC GDL Delta-sigma Analog-to-digital converter All-digital phase-locked loop Berkeley Short-channel IGFET Model Clock and data recovery Complementary Metal-Oxide Semiconductor Digitally assisted analog Decibel Digitally controlled oscillator D-type flip-flop Differential nonlinearity Dynamic range Digital-to-time converter Effective number of bits Fast Fourier transform Figure-of-merit Gated delay cell Gated delay line
+
+xvi
+
+GRO Hz IN L KHz LSB M ASH M Hz M IM M SB MUX N M OS NT F OP AM P OSR OT A PFD P LL P M OS P SD PV T SN R SN DR SP ICE
+
+Gated ring oscillator Hertz Integral nonlinearity KiloHertz Least significant bit Multi-stage noise-shaping MegaHertz Metal-insulator-metal Most significant bit Multiplexer n-type metal oxide semiconductor Noise transfer function Operational amplifier Oversampling ratio Operational transconductance amplifier Phase frequency detector Phase-locked loop p-type metal oxide semiconductor Power spectral density process, voltage, and temperature Signal-to-noise ratio Signal-to-noise-plus-distortion ratio Simulation program with integrated circuit emphasis xvii
+
+SRO ST F T DC V CDU V TO V TC
+
+Switched ring oscillator Signal transfer function Time-to-digital converter Voltage controlled delay unit Voltage controlled oscillator Voltage-to-time converter
+
+xviii
+
+Chapter 1
+Introduction of Time-Mode Signal Processing
+The rapid scaling of CMOS technology has resulted in the sharp increase of time resolution and the continuous decrease of voltage headroom. As a result, time-mode circuits where information is represented by the time difference between two rising edges of pulses rather than the nodal voltages or branch currents of electric networks offer a viable and technology friendly means to combat scaling-induced difficulties encountered in design of mixed-mode systems. A time variable possesses a unique duality characteristic. Specifically, it is an analog signal as the continuous amplitude of the analog signal is represented by the difference between two rising edges of the pulses and it is also a digital signal as it only has two largely distinct values. The duality of time variables enables them to conduct analog signal processing in a digital environment. This unique characteristic is not possessed by neither analog nor digital variables. Since information to be processed by time-mode circuits is represented by the time difference of digital signals, these circuits are essentially digital systems and perform mixed-mode signal processing in digital domain without using powergreedy digital signal processing (DSP) blocks. This chapter examines the fundamentals of time-mode circuits. The intrinsic advantages of time-mode signal processing are examined in Section 1.1. The challenges encountered in time-mode signal processing are examined in Section 1.2. Section 1.3 provides an overview of time-to-digital converters (TDCs), the most important building block of time-mode systems. Section 1.4 presents the motivation of this dissertation. Primary contributions of this dissertation is in Section 1.5. Dissertation organization is detailed in Section 1.6. Finally, the chapter is concluded in Section 1.7.
+
+1
+
+1.1
+
+Why Time-Mode?
+The performance of analog circuit continues to fall behind the rapid scaling of CMOS
+
+technologies mainly optimized for digital circuits. Digitally assisted analog (DAA) circuits have been used to leverage digital circuits to improve the performance of analog circuits by adjusting the parameters of analog circuits so as to meet design specifications. The addition of DAA circuits, however, has a detrimental impact on the performance of analog circuits such as increasing the capacitance of the critical nodes through which high-frequency signals propagate. The intrinsic gate delay of digital circuits, on the other hand, has been the primary beneficiary of technology scaling. The improved switching characteristics of MOS transistors offer an excellent timing accuracy such that the time resolution of digital circuits has well surpassed the voltage resolution of analog circuits implemented in nano-scale CMOS technologies. Since time-mode circuits perform analog signal processing in the digital domain, not only the performance of these circuits scales well with technology, time-mode circuits also offer a number of attractive characteristics including full programmability, the ease of portability, and high-speed operation. As information to be processed by time-mode circuits is represented by the time difference between the occurrence of digital events, timemode circuits are essentially digital circuits. The detrimental effect of technology scaling on the performance of voltage-mode or current-mode analog signal processing vanishes in time-mode circuits. The full programmability of time-mode circuits, attribute to their digital realization, allows them to be deployed in a broad spectrum of applications where tunable characteristics are mandatory. In addition to programmability, portability is of a critical importance in order to minimize design turn-around time. The digital nature of time-mode circuits allows them to be migrated from one generation of technology to another with the minimum design time subsequently the lowest cost. As the intrinsic gate delay of digital circuits benefits the most from technology scaling, time-mode circuits are capable of carrying out rapid signal processing.
+
+2
+
+1.2
+
+Challenges in Time-Mode Signal Processing
+Although it is evident from the preceding investigation that time-mode signal pro-
+
+cessing possesses many desirable characteristics such as excellent scalability with technology, full programmability, the ease of portability, and high-speed operation, a number of challenges are yet to be overcome in order for time-mode circuits to be deployed in a broad range of applications. One of the most challenges in time-mode signal processing is the design of time-mode arithmetic units, especially time integrators. The integration of a variable in the voltage domain can be conveniently realized by representing the variable as a current and integrating the current onto a capacitor. Withholding or storing a time variable, however, is difficult due to the irretrievable nature of time. To implement time integrators, time-mode arithmetic units such as time adders and time registers are critically needed in time-mode signal processing.
+
+1.3
+
+An Overview of TDCs
+TDCs that map a time variable to a digital code are the most important building
+
+block of time-mode systems. Although the applications of TDCs in high-energy physics for time-of-flight measurement in nuclear science dates back to 1970s [12], the deployment of TDCs in analog-to-digital converters (ADCs) [13, 14, 15, 8, 16] and all-digital phase-locked loops (ADPLLs) [17, 18] emerged recently. TDCs can be loosely classified into sampling TDCs and noise-shaping TDCs. A sampling TDC digitizes a time variable using either a high-frequency low-jitter reference clock and counting the number of the cycles of the clock within the duration of the time variable or a delay line to count the number of the stages of the delay line that the front edge of the time variable propagates before the arrival of the rear edge of the time variable directly. Sampling TDCs include delay-line TDCs, vernier delay-line TDCs, and pulse-shrinking TDCs, to name a few. A one-to-one mapping between a time input variable and a corresponding output digital code exists in sampling TDCs since for each time variable, there is a corresponding digital code generated by sampling TDCs. The resolution of these TDCs is bound by quantization noise.
+
+3
+
+Noise-shaping TDCs, on the other hand, suppress the quantization noise of TDCs using system-level techniques such as  operations that are capable of moving most of inband quantization noise to higher frequencies outside the signal band so that the displaced excessive quantization noise can be removed effectively using a decimation low-pass filter in a post-processing step, thereby achieving a large signal-to-noise ratio. As compared with sampling TDCs, noise-shaping TDCs offer the key advantage of a better signal-to-noise ratio (SNR). An example of noise-shaping TDCs is gated ring oscillator (GRO) TDCs that possess first-order noise-shaping obtained by freezing the residual phase of one sampling phase and ported it over to the next phase [13]. Although the in-band noise of noise-shaping TDCs is lower than quantization noise, one-to-one mapping between input time variables and their digital output codes is lost since the average of the output represents the input in  operations.
+
+1.3.1
+
+Delay-line TDCs Delay-line TDCs quantize a time variable using a delay line. The simplified schematic
+
+of delay line TDCs is shown in Fig 1.1. The signal, Start, is applied to the first delay cell and delayed through the buffer delay chains. Each buffer considered as a reference time difference ladder analogous to the reference resistor ladder in a flash ADC is comprised of two inverters which have the minimum propagation delay in a circuit usually. Each buffer chain is tapped to D input of each D-flip flop (DFF) which is used as a time comparator. The signal, Stop, is fed to the clock pins of all DFFs. Finally, the thermometric outputs of the DFFs are fed to a thermometer to binary decoder, not shown in the figure, generating digital codes. The conversion time of a TDC is the amount of the time that the TDC needs to complete the digitization of a time variable. The conversion time of the delay-line TDC is Tin +DF F where DF F is the clock-to-Q propagation delay of the DFFs. One of the main disadvantages of this architecture is that the time resolution is lower bound by per-stage propagation delay.
+
+4
+
+Figure 1.1: Delay-line TDCs [1], [2], [3].
+
+1.3.2
+
+Vernier delay-line TDCs Vernier delay-line TDCs shown in Fig 1.2 are one of the older techniques that pro-
+
+vide time resolution below per-stage delay. A vernier delay-line TDC adds an additional buffer delay chain having a different delay in the Stop path. In this case, the effective time resolution is the difference of the two propagation delays, 1 - 2 , where 1 and 2 represent the propagation delay of the buffers in Start path and the one of the buffer in Stop path, respectively. Since 1 is designed to have larger delay then 2 , Stop signal will catch up Start signal even though it is launched late. Because the difference between two delay lines is the effective time resolution, vernier delay-line TDC can have a much higher resolution than that of the basic delay-line TDCs shown in Fig 1.1. The time instant at which a catch-up takes place is determined from Tcatch = N1 = N2 +Tin , where N is the number of the stages that Stop signal propagates though before the catch-up takes place. For a given
+Tin Tin , we have N= (1 . Since 1 - 2 is very small, Tin must be small in order to have a - 2 )
+
+manageable value of N. The dynamic range of vernier delay line TDCs is upper-bound by
+
+5
+
+N(1 - 2 ) and lower-bound by 1 - 2 theoretically. Improving time resolution is one of the biggest advantages of this architecture. Long conversion time is one of the disadvantages since the final thermometer output codes will be generated after Stop catches up Start. To increase a dynamic range, it requires many stages at the cost of increased silicon and power consumption.
+
+Figure 1.2: Vernier delay-line TDCs [4].
+
+1.3.3
+
+Hierarchical vernier delay-line TDCs The conversion time of vernier delay-line TDCs can be reduced while preserving the
+
+resolution by using the 2-level hierarchical configuration shown in Fig.1.3[5]. Hierarchical
+
+6
+
+vernier delay-line TDC consists of a coarse vernier delay-line TDC with a total of N stages and N fine vernier delay-line TDCs. If c and f shown in Fig.1.3 represent the propagation delay of the buffers in coarse delay-line and the one of the buffer in fine delay-line, respectively, the conversion time of the coarse vernier delay-lines is Nc . Since the digitization undertaken by the fine vernier delay-line TDCs is carried out in parallel with that by the coarse vernier delay-line TDC, the total conversion time of the hierarchical vernier delay-line TDC is the same as that of the coarse vernier delay-lines, i.e., Nc . If we assume that c can be resolved by the fine vernier delay-line TDCs with a total of M stages, c = Mf will hold. It should be noted that the price paid for reducing conversion time is the increased silicon area.
+
+Figure 1.3: Hierarchical vernier delay-line TDC [5].
+
+1.3.4
+
+Pulse-shrinking TDCs Resolution finer than per-stage delay can also be achieved using pulse-shrinking TDCs
+
+shown in Fig.1.4 [6, 7]. To set the resolution, Vc is set to VDD and per-stage shrinkage is at the minimum. Tcal is then asserted. The width of Tcal is reduced stage-wise uniformly by T .
+
+7
+
+T is adjusted by Vc adjusting the discharge current J of the pulse-shrinking stages until the pulse at the output of the last stage just disappears (DM = 0). Once this occurs, the resolution of the TDC becomes T = Tcal /M . M is the number of the pulse-shrinking stages. Clearly if M is sufficiently large, Tcal /M can be made arbitrarily small. By adjusting time resolution, calibration is also achieved. Increasing the number of pulse-shrinking stages, though improving resolution, is at the cost of increased silicon and power consumption. The detrimental effect of mismatches between pulse-shrinking stages deteriorates with the increase in the number of pulse-shrinking stages. The conversion range of the pulse-shrinking TDC is given by T  Tin  NT or T  Tin  Tcal . Although a large N is preferred from a better resolution point of view, the effect of jitter and mismatch intensifies with the increase in the number of the stages of pulse-shrinking TDCs, deteriorating the linearity of pulse-shrinking TDCs in a similar way as that in delay line TDCs.
+
+Figure 1.4: Pulse-shrinking TDCs [6, 7].
+
+To improve the resolution of pulse-shrinking TDCs without employing a large number of pulse-shrinking stages, cyclic pulse-shrinking TDCs were proposed, as shown in Fig.1.5
+
+8
+
+[19]. A cyclic pulse-shrinking TDC consists of a delay line with stages 1, 2, ..., i - 1, i + 1, ... having the same dimension (homogeneous stages) and stage i having different dimensions (inhomogeneous stage), a control logic block, and a counter. The control logic is designed in such a way that when Tin is applied to the loop, the pulse will continue to circulate the loop until its width reduces to zero. The inhomogeneity of ith delay stage gives rise to a reduction in the width of the propagating pulse every time it completes a round trip. A counter is used to record the number of the round trips that the pulse completes before it diminishes. Since the number of the round trips that the pulse completes is directly proportional to Tin , the content of the counter when the pulse vanishes yields the digital representation of Tin . Cyclic pulse-shrinking TDCs exhibit a perfect linearity as the amount of cycle-to-cycle pulse shrinkage remains unchanged. In addition, they do not need to be calibrated periodically as the amount of pulse shrinkage is only set by the physical dimensions of the delay stages. One drawback of cyclic pulse-shrinking delay line TDCs is that an input pulse can be applied only after the previous one has vanished completely, resulting in a long conversion time.
+
+Figure 1.5: Cyclic pulse-shrinking TDCs.
+
+1.3.5
+
+Gated ring oscillator TDCs GRO TDCs are one of popular noise-shaping TDCs. The TDC shown in Fig.1.6 (A)
+
+digitises time input Tin generated from two input signal, Start and Stop, by using a gated rign oscillator (GRO) [8]. The operation of GRO is depicted as follows: A GRO is similar to an ring oscillator (RO) except its delay stage has two additional transistors compared to the normal inverter. One is transistor between PMOS transistor and the positive power supply and the other is between NMOS transistor and the negative power supply. They act
+
+9
+
+like switches. Oscillation is enabled only when Tin = 1 and disabled when Tin = 0. The beauty of this structure is that when Tin = 0, the switch transistors are open. Oscillation is suspended and the phase of the oscillator remains unchanged until next Tin . The residue phase is transferred to the next Tin , i.e. ei [k ] = ef [k - 1], where ef [k] is a residue phase information in kTs , and ef [k-1] is a residue phase information in (k-1)Ts . Fig.1.6 (B) shows a waveform based on the basic operation of GRO. The quantization error can be calculated for a given measurement interval between kTs and (k-1)Ts , Terror is given by
+
+Terror [k ] = ef [k ] - ef [k - 1].
+
+(1.1)
+
+The first-order noise shaping of quantization noise is evident in (1.1). In addition to the firstorder noise shaping of quantization noise, the effect of delay element mismatch is also firstorder shaped. The randomness of the initial phase of each sampling period also effectively scrambles quantization error across different sampling periods so that it can be first-order shaped. The resolution of GRO TDCs is lower bound by the oscillation frequency of the ring oscillator of the TDCs, which is inversely proportional to the number of the delay stages of the oscillator. The quantization error of GRO TDCs given by  /N where N is the number of the stages of the oscillator is also inversely proportional to the number of the delay stages of the oscillator. The larger the number of the stages of the oscillator, the lower the quantization noise and the worse the resolution. GRO TDCs suffer from missing count caused by the early reset of the counter at the end of Tin while the edge-detection and transition detection are still in action [20]. They also exhibit dead-zone behaviour if the period of the gating signal Tin is in the vicinity of an integer multiple of the period of the oscillator [21].
+
+1.3.6
+
+ TDCs It is well understood that  operation offers noise-shaping. However, the realization
+
+of  configurations in time-mode is rather difficult because of the lack of time-mode integra10
+
+Figure 1.6: GRO TDCs [8]. (A) Block diagram. (B) Waveform.
+
+tors needed to achieve high-order  modulators. As a result,  TDCs are often realized using a partial time-mode partial voltage-mode approach, more specifically, integrators using OTAs are voltage-mode while quantizers are voltage-controlled oscillator (VCO)-quantizers. Taillefer and Roberts proposed a ring oscillator voltage-to-time integrator consisting of two voltage-controlled delay units [22]. Implementing high-order integrators using this approach is rather difficult. Fig.1.7(C) shows  TDC using the time accumulator in [10]. Time accumulator is evolved from the time adder proposed in [9] shown in Fig.1.7 (A). The core of time accumulator is a time register using gated-delay cell (GDC) shown in Fig.1.7 (B) that holds an input time variable and releases the held time variable on the arrival of a triggering a signal, AWK. Time adder shown in Fig.1.7 (A) consists of two time-registers. The operation of the time register can be briefly depicted as follows: assume CL1 is fully charged initially, when IN1 arrives, Vmid1 starts to drop. When HLD1 arrives, the gated delay cell enters its hold stage and Vmid1 remains unchanged. When AWK is asserted, the gated delay cell is reactivated and Vmid1 starts to drop again. If there is another time register whose HLD input and AWK are connected, the output of this time register can be a reference. Therefore, if we compare the time difference between two time registers' outputs, it should be the same as the time input variable. The preceding time register can be utilized to construct a time adder shown in Fig.1.7 (A). It should be noted that the second gated delay cell has a reversing the order of the input data because of TOU T 1 = Td -Tin1 and TOU T 2 = Td -Tin2 leading to 11
+
+Figure 1.7: (A) Time adder [9]. (B) Gated delay cell [9]. (C)  TDC [10]. (D) Waveform of time adder.
+
+TOU T =TOU T 1 -TOU T 2 =Tin1 -Tin2 instead of Tin1 +Tin2 . To deal with this, the order of the input is reversed as shown in Fig.1.7(A). Fig.1.7(D) shows a timing diagram of the time adder. Td is a normal propagation delay of the GDC. The time accumulator consists of two back-toback connected time adders. Fig.1.7(C) shows the schematic of the time accumulator in [10]. In the time accumulator, one of time adders functions like a time register since the inputs of the second time adder are tied together such that Tin2 becomes 0. Therefore, Tin1 + 0 = Tin1 , which is identical to z -1 function in discrete-time domain. The operation of the time
+n
+
+adder and time register performs y [n] =
+k=0
+
+Tin [k].
+
+1.4
+
+Motivation
+TDCs with a sub-per-stage-delay resolution and a short conversion time are critical to
+
+a number of applications. For applications such as  modulators, conversion time directly affects the oversampling ratio subsequently the performance of the modulators. Conversion time is also of a great importance for phase-locked loops (PLLs) with a TDC phase detector.
+
+12
+
+This is because conversion time in this case directly affects the speed of the TDC phase detector subsequently the loop dynamics of the PLLs. Also resolution affects the phase noise of PLLs. Vernier delay-line TDCs and hierarchical vernier delay-line TDCs are not attractive for these applications due to their long conversion time and high power and silicon consumption. Pulse-shrinking that also offer sub-per-stage delay are good candidates for these application. To improve resolution, a large number of pulse-shrinking stages are needed. Reducing the number of pulse-shrinking stages is highly desirable in minimizing nonlinearities arising from stage mismatch. To reduce the number of stages without sacrificing resolution, a two-step architecture is explored in this dissertation. A drawback of the two-step architecture is long conversion time since it needs to extract the residue information then apply to the fine stage. To combat this, a time-interleaved pulse-shrinking TDC is proposed in this dissertation.  modulation is an effective means to improve time resolution below per-stage delay.  TDCs can be used along with a voltage-to-time converter to perform analog-to-digital conversion. Currently analog-to-digital conversion utilizing time-mode techniques is most realized using a voltage-controlled oscillator (VCO)-based quantizers. VCO-based quantizers offer a number of attractive intrinsic advantages including built-in first-order noise-shaping, inherent multi-bit quantization with a good linearity, fast quantization subsequently a large over-sampling ratio, and full scalability with technology. To have a better signal-to-noiseplus-distortion ratio (SNDR), a high-order OTAs based voltage-mode integrator is required in the forward path in order to have an adequate loop gain to suppress the effect of the nonlinearities and quantization noise as shown in Fig.1.8. These ADCs are therefore not all-digital. As a result, their performance does not scale naturally with technology. As the performance of voltage-mode integrators scales poorly with technology, time integrators with a large in-band gain are critically needed for all-digital  TDC. Efforts have been made to replace OTA filters with time-mode filters such that entire modulators can be realized digitally. Taillefer and Roberts proposed a ring oscillator voltageto-time integrator consisting of two voltage-controlled delay units (VCDUs) and a static inverter [22]. Implementing high-order integrators using this approach is rather difficult.
+
+13
+
+Figure 1.8:  TDCs [6, 7].
+
+The time accumulator proposed by Hong et al. consists of two back-to-back connected time adders realized using four GDCs [10]. The core of the time accumulator is a time register proposed capable of storing a time variable and reading out the stored variable [9]. Kim et al. showed that a gated delay line (GDL) functions as a time register with the gating signal consisting of the time variable to be stored and a trigger signal [23, 24]. A time adder is realized using two GDCs, each has a large capacitor. The need for two GDCs, however, increases power and silicon consumption. To minimize power and silicon consumption, a new time integrator is proposed consisting of two new time adders using only one capacitor in each time adder. In this dissertation, two time integrators realized using digital circuits are proposed and are used to implement all-digital  modulators.
+
+1.5
+
+Contributions
+1) A silicon and power-efficient two-step pulse-shrinking TDC was proposed. The
+
+TDC consists of a coarse TDC and a fine TDC with an efficient residual time extraction technique. The proposed TDC in [25] and [26] allows rapid digitization of a time input with the minimum silicon and power consumption without sacrificing time resolution. 2) A time-interleaved pulse-shrinking TDC was proposed to overcome the conversion time inefficiency of the two-step pulse-shrinking TDC also developed in this study. Similar to the preceding two-step pulse-shrinking TDC, the time-interleaved TDC in [27] and [28] is composed of a coarse TDC but a pair of fine TDCs that operate in a time-interleaved manner such that time synchronization logic and associated time latency existing in the preceding two-step pulse-shrinking TDC are removed. 14
+
+3) A new all-digital time integrator consisting of a cascode time adder with a raised threshold voltage and a time register is proposed. The developed time integrator is utilized in the development of an all-digital 1-1 MASH  modulator to realized an all-digital secondorder  modulator. To the best of the knowledge of the author, this is the first all-digital 1-1 MASH  modulator ever reported in [29], [30] and [31]. 4) A novel power efficient time integrator utilizing a bi-directional gated delay line was proposed. The open-loop characteristics of the proposed time integrator enables the rapid integration of time variables without stability constraints and power consumption penalty. The time integrator is utilized in the development of an all-digital first-order  modulator in [32]. The large loop bandwidth of the modulator benefited from the rapid integration capability of the time integrator enables the modulator to digitize large bandwidth signals.
+
+1.6
+
+Dissertation Organization
+This dissertation comprises of 5 chapters. Chapter 2 presents a time-interleaved
+
+pulse-shrinking TDC consisting of a 16-stage coarse pulse-shrinking TDC and a pair of 16stage fine pulse-shrinking TDCs to overcome the conversion time issue present in two-step pulse-shrinking TDC. Chapter 3 deals with a 1-1 MASH  TDC by using time integrator. It shows a differential cascode time integrator. The differential cascode time integrator suppresses second-order harmonic tone present in single-ended time integrators. The effect of the nonidealities of the TDC, in particular, the delay uncertainty of the digital-to-time converter functioning as a time summer and jitter due to device current noise and current mismatch between the discharge paths of the time adder, are examined in detail. The chapter 4 presents a low-power time integrator and its applications in an alldigital first-order  TDC. The time integrator is realized using a bi-directional gated delay line with time variable to be integrated as the gating signal. The accumulation of the time variable is obtained via the accumulation of the charge of the load capacitor and logic state
+
+15
+
+of gated delay stages. Issues affecting the performance of the time integrator and TDC are examined. Finally, conclusions drawn from this study and further research that can be built upon this dissertation are provided in Chapter 5.
+
+1.7
+
+Chapter Summary
+In this chapter, we briefly examined technology scaling-induced challenges encoun-
+
+tered in design of mixed-mode systems. We showed that although technology scaling results in a reduced voltage accuracy, it sharply improves the switching accuracy of digital circuits at the same time. As a result, analog signal processing can be performed using time-mode approaches while taking the full advantages of technology scaling. The challenges encountered in design of time-mode circuits were explored. An overview of TDCs including sampling TDCs such as delay-line TDCs, vernier delay-line TDCs, hierarchical vernier delay-line TDCs, pulse-shrinking TDCs, and noise-shaping TDCs such as GRO TDCs and  TDCs, were briefly explored. The motivation and primary contributions of this dissertation were discussed. Finally, the organization of the dissertation was outlined.
+
+16
+
+Chapter 2
+Time-Interleaved Pulse-Shrinking TDC
+This chapter presents an area efficient time-interleaved pulse-shrinking TDC with minimal conversion time. The TDC consists of a 16-stage coarse pulse-shrinking TDC with per-stage shrinkage 4.8 ns and a pair of 16-stage fine pulse-shrinking TDCs with per-stage shrinkage 296 ps. The fine TDCs are operated in a time-interleaved manner in parallel with the coarse TDC so as to minimize conversion time. The remainder of the chapter is organized as follows : Section 2.1 presents the architecture of a two-step pulse-shrinking TDC that can be thought as a conventional approach to minimize the delay stages. The characteristics of the TDC including mismatch and noise-induced timing errors, the timing error of delay stages, conversion time, power, and silicon consumption are investigated in detail in Section 2.2. Section 2.3 presents the architecture of a time-interleaved pulse-shrinking TDC that minimizes conversion time. The characteristics of the TDC including silicon consumption, power consumption, mismatch-induced error, conversion time, and timing errors are investigated in detail in Section 2.4. Section 2.5 presents the simulation and measurement results of the two-step pulse-shrinking TDC and time-interleaved pulse-shrinking TDC implemented in an IBM 130 nm 1.2 V CMOS technology. The chapter is concluded in Section 2.6.
+
+2.1
+
+Two-Step Pulse-Shrinking TDC
+The two-step pulse-shrinking TDC shown in Fig.2.1 uses a coarse TDC with M
+
+identical pulse-shrinking stages of per-stage shrinkage T1 to quantize an input time variable
+
+17
+
+Tin bound by T2 Tin M T1 and a fine TDC with N identical pulse-shrinking stages of per-stage shrinkage T2 = T1 /N to quantize the residual pulse of the coarse pulseshrinking TDC. The outputs of both the coarse and fine TDCs are read using D flipflops (DFFs) implemented using TSPC (true-single-phase-clock) logic. A residual pulse extraction block extracts the residual pulse of the coarse TDC and conveys it to the fine TDC. Fig.2.2 shows the residual pulse of a 4-stage pulse-shrinking TDC. It is seen that the residual pulse Tres becomes available only at the falling edge of Tin . Also, the residual pulse is bound by 0 < Tres < T1 . If the residual phase is at the output of m stage, we will have Xm = 1 and Xm+1 = 0 where Xm and Xm+1 are the output of mth and (m + 1)th stages, respectively. Clearly Xm  Xm+1 can be used to determine the location of the residual pulse, specifically, if Xm  Xm+1 = 1, the residual pulse will exist at the output of mth stage. Otherwise, no residual pulse will be present at the output of mth stage. Fig.2.3 shows the simplified schematic of residual pulse extraction block. To illustrate its operation, consider a time variable Tin that satisfies T1 < Tin < 2T1 , as shown in Fig.2.3(c). Since Xc,1 = 1 and Xc,2-4 = 0, the residual pulse is located at Xc,1 as Tin  Xc,1 = 1, Xc,1  Xc,2 = 1, Xc,2  Xc,3 = 0, and Xc,3  Xc,4 = 0. Note that since Xc,j subsequently Qc,j , j = 1, 2, 3, 4 assume their value at different times, in order for the multiplexer to select the correct residual pulse using only one selection signal, Xc,j needs to be delayed by T1 prior to multiplexing. It is seen from Fig.2.3 that the residual pulse extraction block is capable of extracting the residual pulse of the coarse TDC regardless of the value of Tin . Similar to one-step pulse-shrinking TDCs, the two-step pulse-shrinking TDC needs to be calibrated prior to measurement. To calibrate the TDC, a known time variable Tcal , typically a reference clock of known period, is applied to the TDC. The pulse propagates through the pulse-shrinking stages of the coarse TDC. The per-stage shrinkage is adjusted by varying Vb1 until the pulse just disappears at the output of the last stage of the coarse TDC. This process can be automated using a delay-locked loop, similar to that used in [6, 7]. Once this is done, the calibration of the coarse TDC is completed and the resolution of the calibrated coarse TDC is given by T1 = Tcal /M . Once the coarse TDC is calibrated, the
+
+18
+
+Figure 2.1: Simplified schematic of two-step pulse-shrinking delay-line TDC. All D flipflops (DFFs) are positive edge triggered.
+
+width of the pulse at the input of the last stage is exactly T1 . This pulse is then fed to the fine TDC. The per-stage shrinkage of the fine TDC is adjusted by varying Vb2 until the pulse propagating in the fine TDC just disappears at the output of the last stage of the fine TDC. Once this occurs, the calibration of the fine TDC is completed and its resolution of the calibrated fine TDC is given by T2 = T1 /M = Tcal /(M N ).
+
+19
+
+Figure 2.2: Extraction of the residual pulse of coarse TDC. (a) 3T < Tin < 4T . (b) 2T < Tin < 3T . (c) T < Tin < 2T . (d) 0 < Tin < T .
+
+2.2
+
+Characteristics of Two-Step Pulse-Shrinking TDC
+This section examines the characteristics of the two-step pulse-shrinking TDC. For the
+
+purpose of comparison, a single-step pulse-shrinking TDC that provides the same resolution and dynamic range as those of the TDC is utilized.
+
+2.2.1
+
+Mismatch-induced timing errors Although ideally the resolution of a pulse-shrinking TDC is set by the per-stage
+
+shrinkage T and T can be made sufficiently small if the number of the pulse-shrinking stages is large enough, in reality, the lower bound of the resolution of pulse-shrinking TDCs is set by the timing errors caused by mismatch between pulse-shrinking stages and the noise of the TDC. To simplify analysis, we assume that mismatch between pulse-shrinking stages is dominated by the mismatch of the discharge of the load capacitor. Since capacitance ratio in standard CMOS technologies can be made accurately, the mismatch of the discharge of the load capacitor is dictated by the mismatch of the discharge current. Let the mismatch 20
+
+Figure 2.3: Simplified schematic of residual pulse selection and waveform. (a) Simplified schematic. (b) 0 < Tin < T . (c) T < Tin < 2T . (d) 2T < Tin < 3T . (e) 3T < Tin < 4T .
+
+between the discharge current of pulse-shrinking stages be J . Assume that J is normally distributed with a zero mean µJ = 0 and a non-zero standard deviation J . If J is generated by a nMOS transistor in saturation, the current of the transistor with the presence of a dimension mismatch (W/L) and a threshold voltage mismatch VT is determined from
+
+1 W J = µn Cox + 2 L
+
+W L
+
+(Vb - VT - VT )2 .
+
+(2.1)
+
+21
+
+Note that we have neglected the effect of channel length modulation and high-order effects. Neglecting high-order terms, we obtain mismatch-induced current error Jm
+
+J Jo 1 +
+
+2VT (W/L) - W/L Vb - VT
+
+,
+
+(2.2)
+
+1 where Jo = 2 µn Cox
+
+W L
+
+(Vb - VT )2 is the current without mismatch. Since (W/L) and
+2
+T
+
+2 2 2 VT are uncorrelated, we have power of mismatch-induced current :  Jm = JW/L + JV
+
+where
+
+2  JW/L 
+
+Jo W/L
+
+2
+
+2 ( W/L)
+
+and
+
+2  JVT
+
+
+
+2Jo Vb -VT
+
+2  VT .
+
+Let us now calculate the timing
+
+error m caused by the mismatch-induced current error Jm . When Jm is present, we have
+
+vx = VDD - At the threshold-crossing, vx = VT , we have T + m =
+
+J + Jm t. Cx
+
+(2.3)
+
+(VDD - VT )Cx 1 . J 1 + Jm /J we have T + m  T 1 -
+ Jm J
+
+(2.4)
+
+Making use of
+(VDD -VT )Cx . J
+
+1 m 1+ J J
+
+1-
+
+Jm , J
+
+where T =
+
+It becomes evident that the mismatch-induced timing error is given by
+
+m  -
+2 with its power  m = T 2 J
+
+T J
+
+Jm
+
+(2.5)
+
+2  Jm . It is seen from (2.5) that mismatch-induced timing
+
+error per pulse-shrinking stage m is directly proportional to per-stage shrinkage T and mismatch-induced current error Jm , and inversely proportional to the discharge current J .
+
+22
+
+Figure 2.4: Mismatch-induced timing error in pulse-shrinking stage. The timing error at the output of a pulse-shrinking stage contains the timing error present at the input and that induced by the mismatch of the pulse-shrinking stage.
+
+Having derived the mismatch-induced timing error per pulse-shrinking stage, let us now examine the propagation of mismatch-induced per-stage timing error in a pulse-shrinking TDC. Refer to Fig.2.4. The input of the second pulse-shrinking stage, denoted by Tin,2 , is given by Tin,2 = Tin - (T + m,1 ) where m,1 denotes the timing error caused by the mismatch of stage 1. Tin,2 is fed to the second pulse-shrinking stage that also has a mismatch discharge current Jm . The timing error of the output of the 2nd stage and the input of the 3rd pulse-shrinking stage, denoted by Tin,3 , contains the timing error transmitted from that of the input of the 2nd stage and the timing error induced by the mismatch of the 2nd stage, and is given by Tin,3 = Tin,2 -(T +m,2 ) = Tin -2T -(m,1 +m,2 ). Similarly, one can show
+k
+
+that the input of (k + 1)th pulse-shrinking stage is given by Tin,k+1 = Tin - k T -
+j =1
+
+m,j .
+
+Since m,j , j = 1, 2, ..., are uncorrelated, the power of the timing error at the input of (k + 1)th stage is obtained
+
+23
+
+k 2  m,k+1
+
+=
+j =1
+
+2  m,j .
+
+(2.6)
+
+If we further assume m,1 , m,2 , ... have an identical distribution profile, i.e.,
+2 2 2 µm,1 = µm,2 = ... = 0 and  m,1 = m,2 = ... = m , it follows from (2.6) that
+
+2 2  m,k+1 = km .
+
+(2.7)
+
+It is important to note that Tin,k+1 decreases linearly with the increase in the number of pulse2 shrinking stages while  m,k+1 increases linearly with the number of pulse-shrinking stages.
+
+The mismatch-induced timing error has the worst impact on the LSB of pulse-shrinking TDCs. For a single-step pulse-shrinking TDC with M stages, the worst-case output time variable is given by Tin,M = Tin - (M - 1)T - (M - 1)m . In order for the readout DFFs to capture the output of the last pulse-shrinking stage without entering a meta-stable state, Tin,M  setup + hold , where setup and hold are the set time and hold time of DFFs respectively is required. For a given pulse-shrinking TDC, if we neglect mismatch-induced timing error, we will have
+
+T 
+
+Tin - (setup + hold ) M -1
+
+.
+
+(2.8)
+
+Eq.(2.8) gives the maximum per-stage shrinkage of the pulse-shrinking TDC for a given Tin . If the mismatch-induced timing error is included, we will have
+
+24
+
+T 
+
+Tin - (setup + hold ) M -1
+
++ m .
+
+(2.9)
+
+Since m is random, T with mismatch is smaller as compared with that without mismatch.
+
+2.2.2
+
+Thermal noise-induced timing errors Mismatch-induced timing error is static while noise-induced timing error is dynamic.
+
+Noise-induced timing error arises from device noise such as thermal noise and switching noise with the former affecting individual stage and the latter impacting all stages. Let us first consider the timing error caused by thermal noise. Refer to Fig.2.5, let vn denote the thermal
+2 = kT /C where noise present at the voltage of the load capacitor with its power given by vn x
+
+k is Boltzmann constant and T is temperature in degrees kelvin [33]. It can be shown that
+2 the power of noise-induced timing error n , denoted by  n with the subscript n signifies
+
+noise, is obtained from
+
+2  n
+
+(Tx )2 2 kT (Tx )2 = vn = . 2 2 VDD Cx VDD
+
+(2.10)
+
+Since Tx =
+
+Cx VDD , J
+
+we have
+
+2  n =
+
+kT Tx . VDD J
+
+(2.11)
+
+The TDC has both coarse pulse-shrinking stages and fine pulse-shrinking stages with T1 = N T2 , we have Tx1 = N Tx2 . Since both have the same discharge current in order
+2 2 2 to minimize power consumption, from (2.11), we have  n,c = N n,f , where n,c and 2  n,f are the power of the noise-induced timing jitter of the coarse and fine pulse-shrinking
+
+25
+
+stages, respectively. Utilizing (2.7) and noting that noise-induced timing error in each pulseshrinking stage is uncorrelated, we obtain the overall jitter of the one step pulse-shrinking TDC
+
+2 2 = (M N ) 1-step n,f .
+
+(2.12)
+
+Similarly, the overall jitter of the TDC is given by
+
+2 2 2 proposed = M  n,c + N n,f .
+
+(2.13)
+
+We therefore arrive at
+
+2 2 proposed = (M + 1)N  n,f
+
+(2.14)
+
+A comparison of (2.12) with (2.14) reveals that the jitter of the TDC is comparable to that of the 1-step pulse-shrinking TDC.
+
+2.2.3
+
+Switching noise-induced timing error Switching noise is caused by the voltage drop across the bond wires of supply and
+
+ground rails. It gives rise to on-chip supply voltage fluctuation and ground bouncing and is the main source of the jitter of pulse-shrinking TDCs. The jitter of pulse-shrinking TDCs caused by device noise such as thermal and flicker noise is uncorrelated while that induced by switching noise is correlated. Since the rising edge of the output voltage of pulse-shrinking stages governed by time constant Rp Cx where Rp is the ON-resistance of the PMOS transistor and Cx is the load capacitance is much sharper as compared with its falling edge controlled
+
+26
+
+Figure 2.5: Jitter of pulse-shrinking stages.
+
+by the current source J , the jitter of the output of the pulse-shrinking stage is mainly due to ground bounce-induced switching noise occurring during the discharge of the load capacitor. Let the ground bouncing of the pulse-shrinking stage be represented by vsn . The discharge current of the load capacitor is given by J  Jo 1 - ground bouncing induced current error Jsn
+2vsn Vb -VT
+
+from which we obtain
+
+Jsn = -
+
+2Jo Vb - VT
+
+vsn .
+
+(2.15)
+
+Utilizing (2.5), we obtain the per-stage ground bouncing induced timing error denoted by sn
+
+sn =
+
+T J
+
+Jsn .
+
+(2.16)
+
+It follows that
+
+27
+
+2  sn =
+
+T J
+
+2 2  Jsn .
+
+(2.17)
+
+Following the similar approach as that for computing the propagation of mismatchinduced timing error in a pulse-shrinking TDC, we obtain the input of (k + 1)th pulseshrinking stage with ground bouncing considered only
+
+k
+
+Tin,k+1 = Tin - k T -
+j =1
+
+sn,j .
+
+(2.18)
+
+The jitter of each pulse-shrinking stage caused by ground bouncing is completely correlated and therefore has the same distribution profile, i.e., sn,1 = sn,2 = ... = sn . Eq.(2.18) can be written as
+
+Tin,k+1 = Tin - k T - k sn .
+
+(2.19)
+
+It follows that
+
+2 2 2  sn,k+1 = k sn .
+
+(2.20)
+
+The difference between (2.20) and (2.7) is apparent. The power of the timing error caused by the thermal noise of devices increases linearly with the number of the pulse-shrinkage stages while that caused by switching noise arises quadratically with the number of the pulse-shrinkage stages. Since m , n , and sn are uncorrelated, the total timing error  is obtained from
+
+28
+
+ =
+
+(m )2 + (n )2 + (sn )2 .
+
+(2.21)
+
+2 2 2 2 and its power is given by   = m + n + sn . If we assume that an input sinusoid
+
+signal with an amplitude A, SNR (Signal-to-Noise) becomes
+
+SN R =
+
+A2 /2 . 2  
+
+(2.22)
+
+2.2.4
+
+Timing error of delay stages It was shown that for a pulse-shrinking TDC with M stages, a total of M delay
+
+stages are needed to delay Xc,j , j = 1, 2, ..., M by T1 prior to multiplexing. In this work, each delay stage was implemented using a pair static inverters with a large capacitor load, as shown in Fig.2.6. Although simple, this delay cell suffers from a high level of power consumption. This is because the slowly rising and falling transients of the capacitor voltage due to the large load capacitance give rise to a large time interval in which the short-circuit current of the load inverter exists. To investigate the effect of the timing error of these delay cells on the performance of the TDC, we assume that the delay error of the delay cell that provides time delay T1 be 1 . Since the selection signal of the multiplexer does not go through the delay cells, it is not affected by the delay error of the delay cells. Further, since 
+ T1 while the space between the assertion of S4 = 1 and Xc, 3 = 1 is T1 , the slight
+
+ variation of the delay provided by the delay cells, which only affects the assertion of Xc, 3 = 1
+
+has no effect on the extraction of the residual pulse, as evident in Fig.2.6.
+
+2.2.5
+
+Conversion time If a single-stage pulse-shrinking TDC is used, since digitization starts at the rising
+
+edge of Tin and completes at the falling edge of Tin , the conversion time measured from the
+
+29
+
+Figure 2.6: The effect of the delay error of delay stages on the TDC.
+
+availability of the input data, which is the falling edge of Tin , to the availability of the digital output is given by 1-step = DF F , where DF F is the delay of DFFs. For the TDC it is seen from Fig.2.3 that the worst-case conversion time is given by proposed = M U X +T1 + DF F , where M U X is the delay of the multiplexer. The conversion time of the TDC is therefore slightly longer as compared with that of single-step pulse-shrinking TDCs. This result is expected as the residual pulse of the coarse TDC will become available only at the falling edge of Tin . The conversion time of the fine TDC is the duration of the residual pulse of the coarse TDC with its worst value T1 .
+
+2.2.6
+
+Power consumption The total power consumption of the pulse-shrinking stage in cycle is the sum of the
+
+power consumption for charging Cx by VDD via the pMOS transistor, discharging Cx by the current source, and charging and discharging Co . Since the average dynamic power
+
+30
+
+2 consumption of an static inverter in an input period is given by P = CL VDD f where CL is
+
+the load capacitance of the inverter and f is the frequency of the input of the inverter, we
+2 obtain the power for charging Cx : Cx VDD f /2 and that for charging and discharging Co : 2 Co VDD f . To calculate the power for discharging Cx , since
+
+vx = VDD -
+
+VDD Tx
+
+t, 0  t  Tx ,
+
+(2.23)
+
+utilizing Tx =
+
+VDD VT
+
+T , we have the instantaneous power for discharging Cx
+
+px = Jvx = J VDD -
+
+VDD t . Tx
+
+(2.24)
+
+The average power consumption for discharging Cx is obtained from Px = 1 Tx
+Tx 0
+
+1 px (t)dt = JVDD . 2
+
+(2.25)
+
+The total power consumption of the pulse-shrinking stage is therefore given by 1 1 2 2 + JVDD )f. Ps = (Co VDD + Cx VDD 2 2 Because
+J1 Cx1
+
+(2.26) =
+Cx1 J2 Cx2 J1
+
+=
+
+VDD -VT T1
+
+and
+
+J2 Cx2
+
+=
+
+VDD -VT T2
+
+, we arrive at
+
+T1 T2
+
+= N . To minimize
+
+power consumption, we choose J1 = J2 = J and Cx1 = N Cx2 = N Cx . The total power consumption of the single-step pulse-shrinking TDC is obtained from
+
+P1-step =
+
+Co +
+
+Cx 2
+
+1 2 VDD + JVDD f (M N ) 2
+
+(2.27)
+
+31
+
+The total power consumption of the TDC is obtained from Pproposed = + 1 N Cx 2 VDD + JVDD f M 2 2 Cx 1 2 Co + VDD + JVDD f N 2 2 Co +
+
+(2.28)
+
+It is evident from (2.27) and (2.28) that the TDC consumes significantly less power as compared with the single-stage TDC of the same dynamic range and resolution. It should be noted that the power consumption of the residual pulse extraction block including the delay blocks is not included in the preceding analysis. In our design, a set of simple delay blocks were used in order to extract the correct residual pulse of the coarse TDC. The simply configuration of these delay blocks is at the cost of power consumption, as to be seen later.
+
+2.2.7
+
+Silicon area consumption If a single-step pulse-shrinking TDC is used to achieve the same resolution and dy-
+
+namic range as those of the TDC, a total of M N pulse-shrinking stages with per-stage shrinkage T2 will be needed. The TDC, on the other hand, only needs M + N pulseshrinking stages. Note that T1 = N T2 is realized using J2 = J1 and Cx1 = N Cx2 . Let the silicon consumption of the load capacitor of the coarse and fine pulse-shrinking stages be Ax1 and Ax2 , respectively. Further, let the silicon consumption of readout DFFs be ADF F . Neglect the silicon consumption of other logic gates for simplicity. Since Ax1 = N Ax2 , we have the total silicon consumption of the 1-step TDC
+
+A1-step = (Ax2 + ADF F )M N.
+
+(2.29)
+
+The total silicon consumption of the TDC is given by
+
+32
+
+Aproposed = (N Ax2 + ADF F )M + (Ax2 + ADF F )N = (M + 1)N Ax2 + (M + N )ADF F . (2.30)
+
+It is seen that if ADF F is smaller as compared with Ax2 , then the TDC will consume comparable silicon as the 1-step TDC does. If ADF F is large, the TDC will consume less silicon. It should be noted that if we choose Cx1 = Cx2 and Jf = N Jc , Tx1 = N Tx2 will also hold. In this case, the silicon consumption of the TDC will be much lower as compared with that of the single-stage TDC.
+
+2.2.8
+
+Gain mismatch The TDC uses a 2-step approach to achieve an improved resolution while minimizing
+
+silicon consumption. Similar to other TDCs, the TDC is subject to the gain error caused by the mismatch of per-stage shrinkage. Since the fine TDC digitizes the residue of the coarse TDC, the gain error of the coarse TDC will be reflected in the residue of the coarse TDC, specifically, the input of the fine TDC contains both a normal residue and a residue caused by the gain error of the coarse TDC. Clearly the latter will also be digitized by the fine TDC. The gain error of the fine TDC will directly affect the output of the fine TDC. Ideally the gain of the coarse TDC and that of the fine TDC should be identical. Any mismatch between them will introduce an error. Since the gain error of the TDC is due to the mismatch of per-stage shrinkage, minimizing the number of stage stages will reduce the gain error. Increasing transistor size of pulse-shrinking stages will also lower the gain error. To further minimize gain mismatch, the coarse and fine TDCs are calibrated separately to achieve T1 = N T2 where T1 and T2 are the resolution of the coarse TDC and that of the fine TDC, respectively, and N is the number of the stages of the fine TDC.
+
+33
+
+2.3
+
+Time-Interleaved Pulse-Shrinking TDC
+Two-step pulse-shrinking TDC is good for silicon and power consumption compared
+
+to the one-step pulse-shrinking TDC. However, it has a disadvantage in the conversion time explained in subsection 2.2.5. To improve the conversion time, a time-interleaved scheme is developed. The TDC uses a coarse pulse-shrinking TDC with a total of M stages of perstage shrinkage T1 to quantize input time variable Tin and a fine pulse-shrinking TDC with a total of N stages of per-stage shrinkage T2 with T1 = N T2 to quantize the residual pulse of the coarse pulse-shrinking TDC. The residual pulse of the coarse TDC will only become available at the falling edge of Tin , as shown in Fig.2.7. The location and width of the residual pulse Tres constrained by 0Tres T1 are therefore Tin -dependent.
+
+Figure 2.7: Residual pulse of coarse TDC. The location and width of the residual pulse Tres of the coarse TDC are determined by Tin and the residual pulse is only available at the falling edge of Tin .
+
+For an input T2 < Tin < 4T1 in Fig.2.7, the pulse might vanish at the output of any of the delay stages of the TDC. If we assume that the pulse disappears at the output
+
+34
+
+of (m + 1)th stage, we will have Xm = 1 and Xm+1 = 0 where Xm and Xm+1 are the output of mth and (m + 1)th stages, respectively. A residual pulse will exist at Xm and become available at the falling edge of Tin . This residue pulse needs to be extracted and fed to the fine TDC for further digitization. The simplified schematic of the time-interleaved pulse-shrinking TDC is shown in Fig.2.8 (A) with the schematic of the generic pulse-shrinking TDC shown in Fig.2.8 (B). The extraction of the residual pulse of the coarse pulse-shrinking TDC is performed by the residual pulse extraction logic. To demonstrate the operation of the residual pulse extraction, consider Fig.2.7(c) where the output of XOR gate with inputs X1 and X2 is 1 and others are 0. We have Tin,f 1 = Tin  X1 + X2  X3 = 0 and Tin,f 2 = X1  X2 + X3  X4 = 1 where  is the exclusive-OR operator. Tin,f 1 and Tin,f 2 are time inputs for a fine TDC1 and fine TDC2, respectively. For simplicity, we treat the data of Tin as a digital data although it is a time domain variable. Similarly, one can show in other cases of Fig.2.7, Tin,f 1 and Tin,f 2 are non-overlapping. Fig.2.9 plots the waveform of Tin,f 1 and Tin,f 2 for Tin = 45 ns. In order to route the output of the chosen fine TDC to the DFFs using OR2 gates, the output of the other fine TDC needs to be set 0. This is achieved using the reset signal generation logic that consists of a pair of inverters and 2-to-1 multiplexers with selection signal Tin . When Tin is absent, both multiplexers select 0. Otherwise, MUX-1 selects Tin,f 1 while MUX-2 selects Tin,f 2 . The output of the fine pulse-shrinking TDC is sampled by the DFFs at the rising edge of strobe signal Tstrobe,f . Since the residual pulse of the coarse TDC is only available at its falling edge of Tin , a minimum time interval from the falling edge of Tin to the assertion of Tstrobe,f in order for the fine TDC to complete the digitization of the residual pulse of the coarse TDC is required to ensure that the output of the fine TDC is stable when Tstrobe,f is asserted. The coarse and fine pulse-shrinking TDCs have 16 stages with T1 = 4.8 ns and T2 = 296 ps. To calibrate the TDC, a calibrating pulse of width 4.8 ns × 16=76.8 ns is fed to the coarse pulse-shrinking TDC. Vbias,c is adjusted until a pulse width generated by XORing the output of the first pulse-shrinking stage and that of 15th pulse-shrinking delay stage becomes 72 ns. At this point, the coarse pulse-shrinking TDC is calibrated. With 35
+
+Figure 2.8: (A) Time-interleaved pulse-shrinking TDC. The pulse-shrinking stages of the coarse and fine TDCs have the same transistor dimensions but distinct capacitor loads. The load capacitance of the pulse-shrinking stages of the fine TDCs are from devices while that of the coarse TDC is an external 402 fF MiM capacitor. (B) Configuration of pulse-shrinking TDCs. The outputs of the coarse TDC are Qc,1 , Qc,2 , ..., Qc,M with the first subscript identifying the coarse TDC and the second subscript identifying the delay stage of the TDC. Qin is the input of the coarse TDC. The outputs of the fine TDC are Qf,1 , Qf,2 , ..., Qf,N with the first subscript identifying the fine TDC and the second subscript identifying the delay stage of the TDC.
+
+Vbias,c kept unchanged, the fine pulse-shrinking TDCs are adjusted by varying Vbias,f 1 and Vbias,f 2 until both pulse widths generated from the calibration block becomes 4.5 ns. This process can be automated using a delay-locked loop, similar to that used in [6, 7].
+
+2.4
+
+Characteristics of Time-Interleaved Pulse-Shrinking TDC
+In this section we examine the characteristics of the TDC. To provide a quantita-
+
+tive comparison, a single-step pulse-shrinking TDC that provides the same resolution and dynamic range, is utilized.
+
+36
+
+Figure 2.9: Non-overlapping waveforms of Tin,f 1 and Tin,f 2 for Tin =45 ns.
+
+2.4.1
+
+Silicon area consumption We first examine the silicon consumption of the TDC. If a single-step pulse-shrinking
+
+TDC is used to achieve the same resolution and dynamic range, a total of M N pulse-shrinking stages with per-stage shrinkage T2 will be needed. The TDC, on the other hand, only needs M + 2N pulse-shrinking stages, a significant reduction in silicon consumption is obtained especially when the number of the pulse-shrinking stages is large. In addition to fewer pulseshrinking stages, fewer DFFs for readout are needed in the TDC. A total of M N readout DFFs will be needed for the single-step pulse-shrinking TDC. The number of DFFs needed for the TDC is only M + 3N . In the design presented in this work, M = N = 16. A total of 256 pulse-shrinking stages and 256 DFFs will be needed with an single-step pulse-shrinking TDC while only 48 pulse-shrinking stages and 64 DFFs are needed with the TDC.
+
+37
+
+2.4.2
+
+Power consumption For the purpose of simplicity, we neglect the effect of short circuit current that flows
+
+between pMOS and nMOS transistors as the input signal changes and leakage current. We will consider only one largest Tin case which is 76ns in this work. Therefore, we can assume the dynamic power is dominant. The average dynamic power consumption of an static
+2 inverter in an input period is given by P = CL VDD f where  is the activity factor, CL is
+
+the load capacitance of the inverter and f is the frequency of the input of the inverter. In this analysis,  is average number per clock cycle when the clock goes one from zero. Therefore,  is 1 in the analysis. The time-interleaved pulse-shrinking TDC, especially fine TDC, will be activated always when each pulse-shrinking stage in the coarse TDC is activated. This is one of main differences compared to the conventional 2-step pulse-shrinking TDC explained in the previous chapter [?] which generates the residual pulse after the falling edge of Tin . Therefore, we can easily assume that this will consume more power than 2-step pulse-shrinking TDC since it is unknown when Tin will end, the two fine TDCs should be operated always. The total power consumption will be sum of the power consumption in the coarse TDC and the one in the fine TDC times the number of pulse-shrinking stage in the coarse TDC since the fine TDC is activated always.
+
+2 Pproposedc = c Cc VDD f. 2 Pproposedf = f Cf VDD f (M ).
+
+(2.31) (2.32)
+
+Pproposedc and Pproposedf are the total power consumption in the coarse and fine TDC respectively given in the largest Tin . Cc and Cf are the capacitance used in the coarse and fine TDC respectively. M and N are the total number of pulse-shrinking delay cells used in the coarse and fine TDC respectively. c will be M and f will be N since  is an activity factor transitioning from zero to one in one period. M is the number of pulse-shrinking stage in the coarse TDC. Therefore, the total power consumption in the architecture is
+
+38
+
+2 2 f (M ). f + (N )Cf VDD Pproposed = (M )Cc VDD
+
+(2.33)
+
+In the single-stage TDC, the total dynamic power consumption is
+
+2 P1-step = 1 Cf VDD f.
+
+(2.34)
+
+2 f and 1 will be MN. If we design Cf = Cc , then the singe-stage TDC will be (MN)Cf VDD 2 f. Therefore, the TDC will consume M times more. If the TDC will be (M+MN)Cf VDD 2 f. However, in this case, the short we design Cc = NCf , then the TDC will be 2MNCf VDD
+
+circuit current in the coarse TDC will be higher than the fine TDC since the input signal's slope applied to the coarse TDC will be lower causing longer transition time compared to the fine TDC. Therefore, it will consume more power in either cases. This is the price pay for the faster conversion time compared to the single-stage TDC.
+
+2.4.3
+
+Mismatch-induced timing error Similar to delay line TDCs, the resolution of pulse-shrinking TDCs is affected by the
+
+mismatch between pulse-shrinking stages. To simplify analysis, we assume that mismatches between pulse-shrinking stages is dominated by that of the discharge of the load capacitor. Since capacitance ratio in standard CMOS technologies can be made quite accurate, it is reasonable to assume that the mismatches of the discharge of the load capacitor are dominated by that the mismatch of the discharge current. With this in mind, let the mismatch between the discharge currents of pulse-shrinking stages be I with I I . Further let
+
+I be normally distributed with a zero mean µI = 0 and a non-zero standard deviation I .
+I In this case vx = VDD - I + t. At vx = VT , making use of 1/(1 + x)  1 - x for |x| Cx
+
+1, we
+
+39
+
+have T + T  T
+(VDD -VT )Cx . I
+
+1-
+
+I I
+
+(2.35)
+
+where T = T
+I I
+
+It becomes evident that mismatch-induced time error T 
+
+is directly proportional to I and inversely proportional to I . If I is generated by
+
+a nMOS transistor biased in saturation, the current error due to W/L and Vth mismatches can be obtained as follows [34] 1 W I = µn Cox + 2 L W L (vGS - Vth - Vth )2 (2.36)
+
+where (W/L) and Vth are dimension mismatch and threshold mismatch, respectively. Note that (W/L) W/L, Vth Vth , and (W/L) and Vth are assumed to be normally
+
+distributed with zero means and non-zero variances. Neglecting high-order terms, we arrive from (2.36)
+
+1 I  µn Cox 2 We thus have IW/L = I
+
+W L
+
+(vGS - Vth )2 1 +
+
+2Vth (W/L) - W/L vGS - Vth
+2Vth vGS -Vth
+
+(W/L) W/L
+
+and IVth = -I
+
+where I = 1 µ C 2 n ox
+
+W L
+
+(vGS -
+
+Vth )2 , IW/L and IVth denote the current error due to W/L-mismatch and Vth -mismatch, respectively. The current error due to mismatches is given by I = (IW/L )2 + (Vth )2 (2.37)
+
+To minimize I , a large nMOS transistor with a large overdrive voltage should be used to generate the discharge current I . Let us now consider a pulse-shrinking delay line with an input Tin . Let the mismatch of the discharge current of each pulse-shrinking stage be I that is normally distributed with mean µI = 0 and standard deviation I . The mean of T is given by µT = 0. The 40
+
+2 I variance of T is given by T = (T )2 I 2 . The input of the second pulse-shrinking stage,
+
+2
+
+denoted by Tin,2 , is given by Tin,2 = Tin - (T + T1 ) where T1 denotes the time error caused by the current mismatch of stage 1. Tin,2 is fed to the second pulse-shrinking stage that also has a mismatch discharge current I . It can be shown that the output of the second pulse-shrinking stage or the input of the 3rd pulse-shrinking stage, denoted by Tin,3 , is given by Tin,3 = Tin2 - (T + T2 ) = Tin - 2T - (T1 + T2 ). Note T1 and T2 are independent of each other. Continuing this process, one can show that the input of (m + 1)th pulse-shrinking stage, denoted by Tin,m+1 , is given by Tin,m+1 = Tin - mT - m+1 where m+1 = T1 + T2 + ... + Tm . Since Tj , j = 1, 2, ..., are independent of each other, we have the mean of m+1 given by : µm+1 = 0 and the variance of m+1 given by :
+2 2 2 2  = T + T + ... + T m m+1 1 2
+
+(2.38)
+
+If we further assume T1 , T2 , ... have the identical distribution profile, i.e., T1 = T2 = ... =  Tm = T , it follows that m+1 = ( m) T . The above results are similar to the jitter of ring oscillators given in [35, 36]. It is important to note Tin,m+1 decreases with the increase in the number of pulse-shrinking stages while m+1 increases with the number of pulse-shrinking stages. As a result, stage-wise measurement accuracy drops. This is illustrated graphically in Fig.2.10. The worst case is when all M stages of the coarse TDC and all N stages of  the fine TDC are used. In this case, M +N = M + N - 1 T . In order to minimize mismatch-induced timing error, the number of pulse-shrinking stages should be kept at the minimum.
+
+2.4.4
+
+Conversion time Conversion time is the time between the end of the input time interval and the
+
+moment when the measurement result is available at the TDC interface. If a single-stage pulse-shrinking TDC is used and the average propagation delay per stage is  , the worst-case conversion time will be 1-step = DF F where DF F is the delay of the DFF readout circuitry. For the TDC, the residual pulse extraction logic operates in synchronization with the coarse TDC, specifically immediately after the assertion of the rising edge of Tin , the rising edge of 41
+
+Figure 2.10: Mismatch-induced time error in pulse-shrinking TDCs.
+
+Xc,j , j = 1, 2, ..., M becomes available along with the propagation of the rising edge of Tin in the pulse-shrinking stages of the coarse TDC. As a result, the rising edges of Tin,f 1 and Tin,f 2 also become available and the fine TDC is activated. The preceding analysis shows that both the coarse and fine TDCs carry out the digitization of Tin simultaneously. This differs fundamentally from 2-step TDCs such as the one explained in the previous chapter in [?] where the residual pulse of the coarse TDC will only become available at the falling edge of Tin then it needs to be fed to the fine TDC. The worst-case conversion time of the TDC is therefore given by proposed = max{M c , N f } + 2DF F where c and f are the per-stage propagation delay of the coarse and fine TDCs, respectively. Note that we have neglected the delay of logic gates for extracting Tin,f 1 and Tin,f 2 . Clearly, the conversion time of the TDC is a little bit bigger as compared with that of the single-stage TDC especially since it should consider DFF reset time and it has one more DFF groups. However, it is much smaller as compared with that of 2-step TDCs explained in the previous chapter [?].
+
+42
+
+2.4.5
+
+Timing analysis Tin,f 1 and Tin,f 2 in Fig.2.8 are the inputs of the fine TDCs. They should be non-
+
+overlapping ideally as shown in Fig.2.11. Strobing signal Tstrobe,f1 and Tstrobe,f2 that read the output of fine TDCs 1 and 2 should be asserted close to the falling edge of Tin,f 1 and Tin,f 2 respectively. In Fig.2.11(a), Qf 1,1-3 = 1 and Qf 1,4-16 = 0 when Tstrobe,f is properly asserted. If Tstrobe,f1 is asserted earlier (Fig.2.11b), Qf 1,1-2 = 1 and Qf 1,3-16 = 0. As the output of the fine TDC is a thermometer code, Qf 1 = 0...0 111 (no early strobing) and
+13
+
+Qf 1 = 0...00 11 (early strobing). The locations and number of erroneous bits are therefore
+14
+
+set by the time displacement of the strobing signal.
+
+Figure 2.11: Strobing the output of fine TDC1. (a) Proper strobing. (b) Early strobing.
+
+Mismatches between the propagation delay of the logic generating Tin,f 1 and Tin,f 2 and the pulse shrinking stages of the coarse TDC give rise to overlapping between Tin,f 1 and Tin,f 2 . Consider the two cases shown in Fig.2.12 where Tstrobe,f 2 is asserted at the same time instant. It is seen in Fig.2.12(a) that Qf 1,1-2 = 1 and Qf 1,3-16 = 0 where in Fig.2.12(b), Qf 1,1-4 = 1 and Qf 1,5-16 = 0.
+
+43
+
+Figure 2.12: Strobing the output of fine TDC1 with Tin mismatch. (a) Tin,f 1 has a mismatchinduced delay. (b) Tin,f 2 has a mismatch-induced lead.
+
+Mismatch between the reset paths of the fine TDCs also introduces errors. Consider Fig.2.13(a) where Rf 2 has a mismatch-induced delay. Although Rf 2 only affects the reset of fine TDC 2, the delayed reset of fine TDC 2 might affect the overall output of the fine TDCs. ^ ^ This is because Q f = Qf 1 + Qf 2 . In Fig.2.13(b) where Rf 1 has a mismatch-induced delay. It is seen that Rf 1 affects the reset of fine TDC 1. The output in this case is Qf 1,1-2 = 1 and Qf 1,3-16 = 0 rather than the correct Qf 1,1-3 = 1 and Qf 1,4-16 = 0.
+
+2.4.6
+
+Jitter To estimate the jitter of the output of a pulse-shrinking delay cell, we follow the
+
+approach for the jitter analysis of ring oscillators presented in [33]. Refer to Fig.2.14, let vn denote the noise stored in Cx driven by the previous stage of the pulse-shrinking stage. For the purpose of simplicity, we neglect the effect of switching noise. The power of vn
+2 is given by v 2 = kT /C where k is Boltzmann constant and T is temperature denoted by vn x n
+
+in degrees kelvin. It can be shown that the jitter of vo or the variance of Tj , denoted by
+2 j , is obtained from
+
+44
+
+Figure 2.13: Strobing the output of fine TDC1 with reset mismatch. (a) Rf 1 has a mismatchinduced delay. (b) Rf 2 has a mismatch-induced delay.
+
+2 j =
+
+(Tx )2 2 kT (Tx )2 vn = 2 2 VDD Cx VDD
+
+(2.39)
+
+Since Tx = (Cx /I )VDD , we have
+2 j =
+
+kT Tx VDD I
+
+(2.40)
+
+It is seen from (2.40) that j is directly proportional to discharge time Tx and inversely proportional to discharge current I . Tx of the coarse pulse-shrinking stage is larger than that of the fine pulse-shrinking stage. Note that both have the same discharge current in order to minimize power consumption. As a result, the jitter of the coarse TDC will be larger as compared with that of the fine TDCs. If we assume that the jitter of pulse-shrinking stages is uncorrelated and it contributes equally to the output jitter, the overall jitter of the one step pulse-shrinking TDC that has a total of M N pulse-shrinking stages of per-stage
+2 2 shrinkage T2 is obtained from 1-step = (M N )f . Similarly, the overall jitter of the TDC 2 2 2 2 2 is given by proposed = M c + N f where c and f are the power of the jitter of the
+
+coarse pulse-shrinking stage and fine pulse-shrinking stage, respectively. Since the discharge 45
+
+Figure 2.14: Jitter of pulse-shrinking stages.
+
+time in the coarse pulse-shrinking stage is N times that of the fine pulse-shrinking stage,
+2 2 2 2 = (M + 1)N f . For the TDC presented in = N f follows. We therefore have proposed c 2 2 2 2 2 . = 272f and 1-step = 256f = 0.94proposed this work, M = N = 16, we have proposed
+
+The preceding results reveal that the jitter of the TDC is comparable to that of the 1-step pulse-shrinking TDC.
+
+2.5
+
+Simulation and Measurement Results
+A 4-bit two-step TDC consisting of a 4-stage coarse TDC with per-stage shrinkage
+
+1 ns and a 4-stage fine TDC with per-stage shrinkage 250 ps and a 8-bit time-interleaved pulse-shrinking delay-line TDC consisting of a 16-stage coarse pulse-shrinking TDC of perstage shrinkage 4.8 ns and two 16-stage fine pulse-shrinking TDCs of per-stage shrinkage 0.3 ns were designed in an IBM 130 nm 1.2 V CMOS technology. The chip photo of both pulseshrinking delay-line TDCs are shown in Fig. 2.15. A total of 18 and 20 bonding pads were used in the two-step TDC and the time-interleaved TDC, respectively. The total silicon area including the bonding pads is 1 mm × 1 mm both. The filling metals for satisfying density design rules were configured in such a way that they formed a large decoupling capacitor between VDD and VSS rails. MiM decoupling capacitors were also used between VDD and VSS rails to minimize the effect of switching noise. 46
+
+Figure 2.15: Die micrograph of the 4 bit two-step pulse-shrinking TDC (left) and that of the 8 bit time-interleaved pulse-shrinking TDC including a thermometer-to-binary encoder (Right). The core area of the two-step TDC : 145 µm x 155 µm. The core area of the time-interleaved TDC : 450 µm x 220 µm.
+
+2.5.1
+
+Simulation results of two-step pulse-shrinking TDC The simulated differential nonlinearity (DNL) of the two-step TDC in the nominal
+
+process condition is shown in Fig.2.16(top). It is seen that in the normal process conditions, the DNL is approximately 0.5 LSB. The DNL of the TDC at SS and FF process corners is shown in Fig.2.16(bottom). It is seen that there is a missing code in SS corner. This is because of a negative gain error in the coarse TDC. The resolution becomes larger than the target resolution in SS corner. In this case, Tresidue can not be extracted properly due to the fixed delay line between the coarse and fine TDC. For example, if the target T1 is 1 ns and the measured coarse TDC resolution is 1.2 ns, the transmission gate at the extraction logic will be turned off 1.2 ns later. However, since the delay of the delay line is 1 ns, 0.2 ns time information can go to the fine TDC. If this is greater than the resolution of the fine TDC, it will generate one LSB and cause a DNL error. The simulated integral nonlinearity (INL) of the TDC in the nominal process condition and at SS and FF process corners are shown in Fig.2.17. It is seen that in the normal process conditions, the INL is approximately 0.5 LSB. At the process corners, the INL drops to approximately 1 LSB. Fig.2.18 shows the spectrum of the TDC. To simulate it, we designed a voltage-to-time converter by using a
+
+47
+
+current-starved inverter [22] with input range 90 ps to 4 ns. The simulation results show that ENOB is 3.16 bits. Fig.2.19 shows the results of Monte Carlo simulation with Tin set to 2.2 ns.
+
+Figure 2.16: Simulated DNL of the TDC (post-layout). Top - Normal process condition. Bottom - SS and FF process corners.
+
+The breakdown of the power consumption of the blocks of the TDC is : Delay block : 105 µW. Fine pulse-shrinking stages : 17.9 µW. Coarse pulse-shrinking stages : 9.5 µW. DFFs and reset : 29.8 µW. Residue pulse extraction : 20.2 µW. It is seen that a significant portion of the power consumption of the TDC comes from the delay block. The reason for the high level of power consumption of the delay block was explained earlier. Clearly a better residual pulse extraction method that consumes less power needs to be developed should power consumption is of a critical concern. The simulated conversion time is 1.4 ns. The conversion time of the TDC consists of three components : the delay of the 4-to-1 multiplexer M U X , the delay of the DFFs DF F s , and the maximum range of the input time variable of the fine TDC T1 = N T2 . Since T1 =1 ns, M U X + DF F  0.4 ns. 48
+
+Figure 2.17: Simulated INL of the TDC (post-layout). Top - Normal process condition. Bottom - SS and FF process corners.
+
+2.5.2
+
+Measurement results of two-step pulse-shrinking TDC The designed chip was fabricated and packaged with surface-mount, 20 gull-wing leads
+
+from Spectrum Semiconductor Materials Inc. The fabricated was mounted on a FR4 printed circuit board. The test setup is shown in Fig.2.20. An Agilent B1130A pattern generator was used to provide Tin . An Agilent 16851A logic analyzer was used to capture the digital output of the TDC. The single-ended flying leads of the logic analyzer were connected to the output of the TDC directly. DC voltages including supply voltage and tuning voltages of the coarse TDC and that of the fine TDC were from a BK 9130 multi-channel DC power supply. An Agilent 33250A arbitrary waveform generator was used to provide the reset signal for all DFFs. Ideally the reset signal should be generated on chip directly with its source from the pattern generator so as to avoid timing difficulty. The TDC was calibrated manually. A known time variable from a precision pulse generator was applied to the TDC. The difference between Q1c and Q3c of the coarse TDC was measured using a logic analyzer. This value should be 2T1 ideally. If a difference was 49
+
+Figure 2.18: Simulated spectrum the TDC (post-layout). Input : Sinusoid of 5.176 MHz @fs = 100 MHz.
+
+Figure 2.19: Monte Carlo simulation results when Tin = 2.2 ns (200 samples).
+
+observed, the per-stage time shrinkage of the coarse TDC was tuned by varying its biasing voltage. Similarly, for the fine TDC, we measured the difference between Q1f and Q3f . This value should be 2T2 ideally. If a difference was observed, the per-stage time shrinkage of the fine TDC was tuned by varying its biasing voltage. Only when both the coarse and fine TDCs were calibrated, the calibration of the TDC was completed.
+
+50
+
+Figure 2.20: Test setup of the two-step pulse-shrinking TDC (PCB with SMA connectors for connecting to test equipment not shown).
+
+The measured pulse shrinkage of the coarse pulse-shrinking stage of the TDC on its biasing voltage Vb2 is shown in Fig.2.21(top). It is seen that the influence of Vb2 on the amount of pulse shrinkage diminishes when Vb2 exceeds 0.8V. This is because when Vb2 > 0.8V, the nMOS transistor enters the triode mode of operation while when Vb2 < 0.8V, it is in saturation. It is also seen that the minimum amount of pulse shrinkage is approximately 4.5 ns, well above 1 ns, the per-stage pulse shrinkage of the coarse TDC, indicating that a static time offset of 4.5 ns exists. The static time offset is caused by the delay of the output buffer for reading the output of the coarse TDC and associated PCB that connects the output buffer to the test equipment. This static timing error can be removed via calibration. For example, if we introduce a timing offset of 4.5 ns, the dependence of the pulse shrinkage of the coarse pulse-shrinking stage on bias voltage is shown in Fig.2.21(bottom). It is evident from Fig.2.21 that the per-stage shrinkage of the coarse TDC can now be tuned between 0 and 1 ns. Also observed is that the hyperbolic profile of the measured dependence of the pulse shrinkage of the coarse pulse-shrinking stage on bias voltage. Due to the process defects of the fabricated chip, especially in the delay line, we were unable to measure the dependence of the pulse shrinkage of the fine pulse-shrinking stage on bias voltage. To have an accurate delay line for accuracy, we can use a delay-locked loop (DLL) since it is good for skew control. However, in this case, we need to consider increasing silicon and power 51
+
+consumption since DLL needs a reference clock signal and control logic to control enable / disable DLL block.
+
+Figure 2.21: Measured dependence of the pulse shrinkage of the coarse pulse-shrinking stage on bias voltage. Top - Without offset calibration. Bottom - With 5ns offset calibration.
+
+2.5.3
+
+Simulation results of time-interleaved pulse-shrinking TDC The simulated DNL and INL of the TDC in the nominal process condition are shown
+
+in Fig.2.22 (A) and (B). The largest DNL and INL are found to be ±0.285 LSB and 0.785 LSB, respectively. Fig.2.22 (C) shows the results of Monte Carlo simulation with Tin set to 15 ns.
+
+2.5.4
+
+Measurement results of time-interleaved pulse-shrinking TDC The designed chip was fabricated and was mounted on a FR4 printed circuit board.
+
+The test setup is shown in Fig.2.23.
+
+52
+
+Figure 2.22: (A) Simulated DNL (post-layout), (B) Simulated INL (post-layout), (C) Monte Carlo simulation results when Tin = 15 ns (90 samples).
+
+The measured transfer characteristics of the TDC over the input range 0-70 ns is shown in Fig.2.24, along with the ideal transfer characteristic for reference. It is seen that the measurement result of the output of the TDC generally agree with the desired characteristics of the TDC. Two periodic abnormal increases, one by 16 and the other by 10 approximately, exist in the measured output of the TDC. Both have a period of 9.6 ns approximately. The increase of 10 occurs approximately at the mid-point between two increases of 16. These irregularities are caused by the timing mismatches between Tin,f 1 and Tin,f 2 and that between Rf 1 and Rf 2 . We notice that the per-stage pulse-shrinkage of the coarse TDC is 4.8 ns and the coarse TDC has 16 pulse-shrinking stages. The outputs of the residual extraction logic blocks Tin,f 1 and Tin,f 2 are a total of eight 50% duty cycle non-overlapping pulses with period 9.6 ns if Tin takes the full-range value of the input of the TDC (76.8 ns). The overlapping of Tin,f 1 with Tin,f 2 and that of Rf 1 with Rf 2 will cause Tin,f 1 and Tin,f 2 to deviate from their nominal values at their rising or falling edges, 4.8 ns apart in the nominal condition. The variation of Tin,f 1 with Tin,f 2 are digitized by the fine TDCs, resulting in the periodic irregularities in
+
+53
+
+Figure 2.23: Test setup of the time-interleaved pulse-shrinking TDC. An Agilent B1130A pattern generator was used to generate Tin and an Agilent 16851A logic analyzer was used to capture the digital output of the TDC. Three DC voltages, namely Vbias,c , Vbias,f1 , and Vbias,f2 for tuning the discharge current of the coarse and fine TDCs so as to obtain the desired per-stage pulse shrinkage are from a BK 9130 multi-channel DC power supply.
+
+the transfer characteristics of the TDC. The overlaps of Tin,f 1 with Tin,f 2 and Rf 1 with Rf 2 are observed in Fig.2.25 (A) where the screen shot of the output of the logic analyzer that captures the digital outputs of the TDC for Tin = 70 ns is shown. Since only one buffer was designed and implemented for probing Tin,f 1 , only Tin,f 1 is captured and shown in the figure. The waveform of Tin,f 1 has 8 pulses spaced by 9.6 ns approximately, indicating that the even pulse-shrinking stages of the coarse TDC are also activated. The detrimental effect caused by the overlapping of Tin,f 1 and Tin,f 2 , and that of Rf 1 and Rf 2 reveals the importance that any overlapping between Tin,f 1 and Tin,f 2 , that between Rf 1 with Rf 2 should be removed. This can be achieved using cross-coupled OR2 gates, i.e., a RS-latch whose outputs are Q and Q and are non-overlapping. This non-overlapping prevention scheme, unfortunately, was not implemented in our design. As a result, mismatch-induced errors exist in the output of the TDC. Fig.2.25(B) shows the result of the multiple shots with oscilloscope's infinite persistence mode on.
+
+54
+
+The pulse width of Tin,f 1 , fine1cal , and fine2cal in Fig.2.8 were measured using the logic analyzer and the results are shown in Fig. 2.27. Signal A (Tin,f 1 ) shows the pulse width of the coarse TDC. f ine1cal and f ine2cal show the pulse width of the fine TDC1 and fine TDC2 including 15 stages, respectively. We also measured a pulse width in the coarse TDC by increasing Tin by 200 ps and measured the pulse width change of signal A, as shown in Fig. 2.27. The results show that there is a systematic error caused by a voltage drop due to the resistance of Vss line. Fig. 2.28 shows the mechanism of this systematic error. Since each pulse-shrinking delay element is activated sequentially and the spacing between pulse-shrinking delay elements is 30 um, the voltage drop due to the resistance of the Vss line is not negligible. As a result, per-stage pulse shrinkage is not constant.
+
+Figure 2.24: Measured transfer characteristics of TDC.
+
+Major error sources are shown in Fig. 2.26. Error source [a] is a signal path mismatch of generating signals A and B. In this test chip, tdA is greater than tdB. This error causes non-uniform pulse-shrinkage in the coarse TDC shown in Fig. 2.27 (B) and MSB part error that is related to the increase of output code by 16 shown in Fig.2.24. Error source [b] is
+
+55
+
+Figure 2.25: Screen shot of logic analyzer with Tin = 70ns. (A) Single shot, (B) Multiple shots with infinite persistence mode on.
+
+a reset time mismatch between two fine TDCs. In this test chip, trst1 is larger than trst2. This error combining with error source [c] which is Tstrobe,f timing error causes LSB part error that is related to the increase of output code by 10 shown Fig. 2.24. Error source [3] is a Tstrobe,f timing error. Error source [d] is a propagation delay mismatch error for the residual signal fed to fine TDC1 or fine TDC2. Fig. 2.26 shows the output code when MSB error and LSB error occurs. The following Figure-of-Merit (FoM)
+
+FoM =
+
+P . N 2 × fs
+
+(2.41)
+
+where N = Bits - log2 (INL + 1) is the effective number of linear bits, P is the power consumption, and fs is the conversion rate is used to quantify the performance of the TDC on the basis of the amount of power consumption per conversion step [24]. Table 2.1 compares the performance of the TDC with that of some reported pulse-shrinking TDCs.
+
+56
+
+Figure 2.26: (A) Major error sources in the test chip. [a] Signal path mismatch. [b] Reset time mismatch. [c] Tstrobe,f timing error. [d] Propagation delay mismatch between two fine TDCs' input. (B) MSB error. (C) LSB error.
+
+2.6
+
+Chapter Summary
+An area-efficient time-interleaved pulse-shrinking TDC with minimal conversion time
+
+was presented. The TDC consists of a 16-stage coarse pulse-shrinking TDC with per-stage shrinkage 4.8 ns and a pair of 16-stage fine pulse-shrinking TDCs with per-stage shrinkage 296
+
+57
+
+Figure 2.27: (A) Pulse width comparison. (B) Coarse TDC pulse shrinkage.
+
+Figure 2.28: Vss line resistance.
+
+ps. The fine TDCs digitize the residual time of the coarse TDC and are operated in a timeinterleaved manner. The analysis and design of a two-step pulse-shrinking TDC consisting of a 4-stage coarse pulse-shrinking TDC with per-stage shrinkage 1 ns and a 4-stage fine pulseshrinking TDC with per-stage shrinkage 250 ps was also presented. The characteristics of the both TDCs including mismatch and noise-induced timing errors, timing errors of delay blocks, conversion time, power consumption, and silicon consumption were investigated in detail. The TDC was implemented in an IBM 130 nm 1.2 V CMOS technology. Simulation results show that the TDC offers 0.296-76.8 ns dynamic range, 850 ps conversion time, 0.285 LSB differential nonlinearity, and 0.78 LSB integral nonlinearity while consuming 7 mW including output buffers. A distinct characteristic of the TDC is that both the coarse and fine TDCs carry out the digitization of input time variables immediately from the arrival of the rising edge of input time variables. This differs fundamentally from the two-step TDCs where the residual pulse of the coarse TDC, i.e, the input of the fine TDC, will only become
+
+58
+
+Table 2.1: Performance comparison of pulse-shrinking TDCs.
+
+Parameters [7] Tech. 1.2 µm VDD 5V Conversion rate 10 KHz Resolution 780 ps Linearity 50 ps Bits 6 Power 15 mW FoM (pJ/conv.step) 249 Chip size (mm2 ) 7.25
+
+[23] 0.065 µm 1.2 V 200 MHz 3.75 ps 2.3 LSB 7 3.6 mW 0.463 0.02
+
+[37] 0.35 µm 3.3 V 10 Hz 40 ps 0.6 LSB 10(**) 1.65 µW 258 0.025
+
+[38] 0.065 µm 1.2 V 250 MHz 1.12 ps 1.7 LSB 9 15.4 mW 0.325 0.14
+
+[39] This 0.09 µm 0.13 µm 1.2 V 1.2 V 180 MHz 12.88 MHz 4.7 ps 296 ps (*) 1.2 LSB 0.78 LSB (*) 7 8 3 mW 7 mW (*) 0.287 3.79 0.02 0.099
+
+* Resolution and Linearity results are coming from the simulation results. Power is the test chip measurement result including output buffers. ** Bits are calculated from the input range and the resolution.
+
+available at the falling edge of input time variables at which the digitization carried out by the coarse TDC has already completed. The digitization of input time variables by the coarse TDC and the residual pulse of the coarse TDC by the fine TDCs are carried out simultaneously.
+
+59
+
+Chapter 3
+1-1 MASH  TDC
+This chapter presents a differential cascode time integrator and its application in a 1-1 MASH  TDC. The detrimental effect of the nonidealities of the modulator on its timing accuracy is analyzed. The remainder of the chapter is organized as follows : Section 3.1 introduces the proposed time integrator. Both single-ended and differential time integrators are presented. Section 3.2 presents the design of a 1-1 MASH  modulator utilizing the proposed time integrator. In Section 3.3, the imperfections of the modulators and their detrimental effects are examined in detail. Issues critical to the operation of the proposed modulator are investigated in Section 3.4. The simulation results of a 1-1 MASH  modulator realized in IBM 130 nm 1.2 V CMOS technology are presented in Section 3.5. The performance of the TDC is compared with that of recently published TDCs. Finally, the chapter is concluded in Section 3.6.
+
+3.1
+3.1.1
+
+Time Integrator
+Time adder Time integration is realized using a pair of time adders that recursively accumulate
+
+the time variable to be integrated over a time interval. Fig.3.1 shows the schematic of the time adder [29]. The DFFs are reset when RST is asserted to ensure that the integration capacitor is fully charged at the beginning of an addition operation. When STR1 , STR2 , or both arrive, M2, M4, or both will operate in the saturation region and function as current 60
+
+source(s) due to a large vDS 1 . STP1 and STP2 whose value is set to 0 initially by RST are selected by the multiplexers. The discharge of the integration capacitor is halted once STP1,2 = 1 are asserted. The two time inputs of the time adder Tin1 and Tin2 are the time duration from the rising edge of STR1,2 to that of STP1,2 , respectively, as shown in Fig.3.2. Consider the case where Tin1 arrives first in [t1 , t2 ]. It is followed by [t2 , t3 ] where an overlap between Tin1 and Tin2 exists and [t3 , t4 ] where Tin1 ends while Tin2 continues. When STR1 arrives, the integration capacitor will start to discharge via M1-M2 path in [t1 , t2 ]. If channel modulation is not accounted for, the discharge current will be constant and vc will drop at constant rate k = I/C where I is the discharge current when only one of the two identical discharge paths is activated. When STR2 arrives in [t2 , t3 ], the integration capacitor will discharge via both M1-M2 and M3-M4 paths and vc will drop at rate 2k . At t3 where STP1 = 1, discharge path formed by M1 and M2 will be disabled while that formed by M3 and M4 will remain active. vc in this case will drop at rate k in [t3 , t4 ]. Finally, when STP2 = 1 is asserted at t4 , Q2 = 0 will be set, eliminating discharge path M3-M4. As a result, vc will remain unchanged. Discharge will resume once ACK1 = 1 is asserted at t5 . When vc drops below VDD /2, the threshold voltage of the load inverter, vinv = 1 is set, marking the completion of one discharge cycle of the integration capacitor.
+
+Figure 3.1: Time adder.
+vDS at the onset of the discharge of integration capacitor is VDD and that at the threshold crossing of the load inverter is VDD /2.
+1
+
+61
+
+To assist analysis, let TF S be the time for vc to drop from VDD to VDD /2 when only one of the two discharge paths is activated. In this work, TF S is set to 1/2 of the duration of STR1 , denoted by Ts . Let Tinv be the time duration from the assertion of ACK1 to the time instant at which vinv = 1. Since v1 = VDD - k21 and v2 = v1 - 2k32 where ij denotes the duration of time interval [ti , tj ], we have v3 = v2 - k43 = VDD - k (Tin1 + Tin2 ) . It follows that Tin1 + Tin2 = 1 (VDD - V3 ) . k (3.2) (3.1)
+
+Tin1 + Tin2 is thus the amount of the time for vc to drop from VDD to v3 with only one discharge path activated, as shown graphically in Fig.3.2. It is straightforward to show that Tin1 + Tin2 = TF S - Tinv . (3.3)
+
+Tin1 + Tin2 is marked by the rising edge of vinv and the falling edge of ACK1 . Since the rising edge of ACK1 lags that of STR1 by TF S , Tin1 + Tin2 is also marked by the rising edge of vinv and that of STR1 . It should be noted that the rising edge of STR should lead that of STP, corresponding to Tin > 0, in order for the time adder to function properly. If Tin < 0, a delay stage with delay Tos > Tin needs to be employed to delay STP such that STR will lead STP, the delayed version of STP, as shown in Fig.3.3. The value of Tos should be set in such a way ^in [n] = Tin [n] + Tos > 0, n holds. that T
+
+3.1.2
+
+Time register The preceding time adder can be utilized to construct a time register that stores the
+
+input and exports the stored input upon a readout request. Specifically, if we ground one of the two inputs of the time adder while routing the time input to the other input of the time 62
+
+Figure 3.2: Timing diagram of time adder.
+
+^in is measured from Figure 3.3: Polarity of time variables. (a) Tin [n] > 0. (b) Tin [n] < 0. T the rising edge of STR to that of STP.
+
+adder, as shown in Fig.3.4, the time adder will function as a time register with the stored time variable marked from the rising edge of vinv to that of STR1 . The time register realizes Tin1 + Tin2 = Tin1 + 0 = Tin1 .
+
+63
+
+Figure 3.4: Time register.
+
+3.1.3
+
+Single-ended time integrator Integration of time variable Tin over K clock cycles performs
+j -1 k=1 K k=1 K k=1
+
+Tin [k ]. Each
+j k=1
+
+integration operation consists of a time addition operation that performs Tin [j ] + Tin [k ] and a time registration operation that stores
+
+Tin [k ] =
+
+Tin [k ]. Fig.3.5 shows
+
+the schematic of the time integrator. Time addition is performed at the rising edge of STRa and time registration is conducted at the falling edge of STRa . ACKa is a periodic pulse with pulse width TF S and arising edge ahead of the falling edge of STRa by TF S . The duration of ACKa = 1 is set to TF S that is sufficiently long such that the integration capacitor will discharge to VDD /2 after ACKa = 1 is asserted. The integration capacitor of the time register starts to discharge when STRa is asserted. Since the rising edge of STRa might lag that of STPr , i.e., Tin [n] < 0 while the operation of the time adder requires a positive time variable, an auxiliary delay cell with delay Tos > max{
+n k=1
+
+Tin [k ]} is employed to delay STPa such
+
+that STPa always lags STRa 2 . ACKa is also delayed by Tos in order to accommodate STRa . Since the duration from the rising edge of vinv,a to the falling edge of ACKa is Tos + Tin [n]
+When the time integrator is used in a  modulator, the error signal Terr [n] = Tin [n] - TF B [n] to be integrated can be either positive or negative.
+2
+
+64
+
+while the falling edge of ACKa is aligned with that of STRa , the duration between the rising edge of vinv,a and that of STRa is Tin [n]. In the second half of STRa where STRa = 0, since STRa lags vinv,a , vinv,a is delayed by Tos so that STRa leads STPr , enabling the register to function properly. The input of the time register is from the rising edge of STRa to that of STPr , which is Tos - Tin [n]. ACKr is also delayed by Tos accordingly. Since the falling edge of ACKr is aligned with that of STRa while the rising edge leads the falling edge of ACKr by the input of the register, i.e., Tos - Tin [n], the time difference between the rising edge of STRa and that of vinv,r is Tin [n]. The preceding analysis shows that at the end of nth cycle of STRa , Tin [n] is stored and is ready to be added to the next input Tin [n + 1] in (n + 1)th cycle of STRa . Since the result of addition operation is the time between the rising edge of vinv and that of STR1 shown in Fig.3.2, the output of the time integrator is the time bordered by the rising edge of vinv,a and that of STRa . The time offset of ACKa becomes 2Tos after the first cycle of the operation, due to the time duration of the time register.
+
+Figure 3.5: Schematic of single-ended time integrator. The output of the time integrator is the time interval bordered by the rising edge of vinv,a and that of STRa . The time offset of ACKa changes from Tos to 2Tos after the first cycle of the operation, due to the time duration of the time register.
+
+65
+
+Figure 3.6: Timing diagram of single-ended time integrator. The time offset of ACKa changes from Tos to 2Tos after the first cycle of the operation, due to the time duration of the time register.
+
+3.1.4
+
+Differential time integrator Single-ended time integrators suffer from a large second harmonic tone arising from
+
+current mismatch of time adders. In this paper, we propose a differential time integrator shown in Fig.3.7 that consists of two single-ended time integrators. Note the polarity of the time variable to be integrated differs in the two single-ended time integrators.
++ - Differential time input Tin [n] = Tin [n] - Tin [n] is generated using a differential voltage-
+
+controlled delay line (VCDL) with a sinusoidal input, as shown in Fig.3.8. A differential VCDL consists of two identical single-ended VCDLs. The output of the single-ended VCDLs is the time bordered by the rising edge of CLK and that of the load inverter. Single-ended VCDLs suffer from a high degree of nonlinearity, arising from the dependence of the discharge current of the capacitor on vDS of the discharge transistor. The full differential configuration suppresses even-order harmonics, as evident in Fig.3.9 where the output of single-ended and differential time integrators is shown. It is seen that the input of the time integrator 66
+
+Figure 3.7: Differential time integrator.
+
+generated using a differential VCDL does not have 2nd-order harmonic at 830 kHz. The 3rd-order harmonic tone at 1245 kHz, however, is large. The output of the single-ended and differential time integrators is shown in Fig.3.9. It is seen that the second harmonic is reduced from 22.9 dB of the single-ended time integrator to 9.9 dB of the differential time integrator. The signal is increased by 7 dB. The differential time integrator consumes 189.2 µW while the single-ended time integrator consumes 101.6µW.
+
+3.2
+
+Time-Mode 1-1 MASH  Modulator
+The proposed time integrator is utilized to construct a 1-1 MASH  TDC consisting
+
+of two  TDCs called TDC1 and TDC2, as shown in Fig.3.10. Since the output of TDC1 Do1 determines whether feedback Tf b1 should be added to or subtracted from the time input of TDC1. The same holds for TDC2 as well. DTC2 extracts the quantization error of TDC1. To extract the quantization error of TDC1, the output of DTC2 is subtracted from the output of the differential time integrator of TDC1. The value of Tf b2 is determined based on the maximum output of the time integrator of TDC1.
+
+67
+
+Figure 3.8: Generation of differential sinusoidal time variable.
+
+3.3
+
+Timing Error
+The timing error of the time integrator can be classified into random timing error and
+
+deterministic timing error. The former is due to system noise such as switching noise and device noise such as thermal and flicker noise while the latter is caused by the nonidealities of the time integrator such as charge injection, clock feed-through, and current mismatch.
+
+3.3.1
+
+Random timing error
+
+Device noise-induced timing error in charging phase When RST is asserted, the integration capacitor is charged by the supply voltage via the PMOS transistor. Since the PMOS transistor operates in the triode region, it can be replaced with a resistor Rp and a thermal noise voltage source whose power is given by
+
+68
+
+Figure 3.9: Spectrum of time integrators. Sampling frequency 25 MHz, input frequency 415 kHz, amplitude 50 ps. 1024 samples with Hanning window.
+
+2 = 4kT R f where k is Boltzmann constant, T is temperature in degrees kelvin, and vnp p
+
+f is the frequency range over which the power is calculated. The total noise power at the
+2 = integration capacitor is given by vnp kT . C
+
+The resultant jitter is obtained from 2TF S VDD
+2
+
+2 P M OS
+
+=
+
+kT . C
+
+(3.4)
+
+Making use C we have
+2 P M OS =
+
+2ITF S , VDD
+
+(3.5)
+
+kT 2TF S . I VDD
+
+(3.6)
+
+Device noise-induced timing error in discharging phase Thermal noise and flicker noise of the channel current of the transistors in the dis2 charge paths with their power given by i2 nt = 4kT gm f and inf = Kf I f , f
+
+respectively
+
+69
+
+Figure 3.10: 1-1 MASH time-mode  TDC.
+
+give rise to uncertainty in the voltage of the integration capacitor, which in turn gives rise to uncertainty n of the threshold-crossing time of the load inverter subsequently jitter of the output of the time adder. Since I + int + inf = C with dv VDD /2  , dt TF S + n we have TF S + n  C I + int + inf VDD . 2 (3.9) (3.8) dv , dt (3.7)
+
+70
+
+Further making use (3.5), we arrive at TF S + n  Since 1+ as int , inf I , we have TF S I
+2 2 i2 nt + inf .
+
+TF S 1+
+int +inf I
+
+.
+
+(3.10)
+
+int + inf int + inf 1- I I
+
+(3.11)
+
+2 n
+
+
+
+(3.12)
+
+It is evident from (3.12) that the larger I , the smaller the timing error. This, however, is at the expense of power consumption.
+
+Supply voltage fluctuation induced timing error The integration capacitor is initially charged to VDD prior to a discharge operation. The fluctuation of the supply voltage arising from switching noise gives rise to uncertainty in the threshold-crossing of the load inverter subsequently the timing error in the output of the time adder, as shown in Fig.3.11(a). It can be shown that
+2 V DD
+
+=
+
+2TF S VDD
+
+2 2 VDD ,
+
+(3.13)
+
+where VDD is the variation of the supply voltage VDD . The effect of switching noise is minimized with the differential configuration of the modulator.
+
+Threshold voltage fluctuation induced timing error The fluctuation of the threshold voltage of the load inverter arising from switching noise, denoted by VT , gives rise to uncertainty in the threshold-crossing of the inverter subsequently the timing error in the output of the time adder, as shown in Fig.3.11(b). It 71
+
+can be shown that
+2 V = T
+
+2TF S VDD
+
+2
+
+VT2 .
+
+(3.14)
+
+Figure 3.11: Timing error due to supply voltage fluctuation (left) and threshold voltage fluctuation of load inverter (right).
+
+3.3.2
+
+Deterministic timing error
+
+Current mismatch induced timing error Although the two discharge paths of the integration capacitor are identical, the difference between the input time variable and accumulated time variable gives rise to a current mismatch. To illustrate this, consider Fig.3.12 (ignore transistors M5 and M6 shown in light color). The amount of the charge discharged by M3 and M4 is a function of both the duration of gating signals and the drain-source voltages vDS 3 and vDS 4 of the transistors. Let I3 and I4 represent vDS -induced currents of M3 and M4, respectively. Tin [n] is typically much smaller as compared with
+n-1 k=1 n-1 k=1
+
+Tin [k ], especially when approaching the end of integration
+
+operation. As a result, Tin [n]-induced discharge process via M3 is much shorter as compared with Tin [k ]-induced discharge process via M4. As a result, vDS due to Tin [n] is much
+n-1 k=1
+
+smaller as compared with that due to
+
+Tin [k ]. We therefore have I4
+
+I3 .
+
+72
+
+Figure 3.12: Current mismatch.
+
+To quantify current mismatch-induced timing error, we notice 21 = C V1 C V1  I3 + I4 + I3 + I4 I3 + I4 1- I3 + I4 I3 + I4 , (3.15)
+
+where V1 = VDD - V1 . Timing error due to vDS is therefore given by 21  - Similarly one can show that 32  - C V2 I4 , 2 I4 (3.17) C V1 (I3 + I4 ) . (I3 + I4 )2 (3.16)
+
+where V2 = V1 - V2 . Since I3 = vc /ro3 and I4 = vc /ro4 where ro3 and ro4 are the output resistance of M3 and M4, respectively, 21  - C V1 (I3 + I4 )2 32 1 1 + vc . ro3 ro4 C V2 vc - 2 . I4 ro4 (3.18) (3.19)
+
+73
+
+Since Tout = 21 + 32 , we have timing error due to current mismatch denoted by I2 I = 21 + 32 . (3.20)
+
+To minimize vDS induced jitter, M5 and M6 can be added to form cascode, as shown in Fig.3.12. Since the operation range of vc is from VDD to VDD /2, transistors M3-M6 mostly operate in saturation. The cascode configuration effectively increases the output impedance seen from the drain of M5 and M6 to (gm5 ro5 )ro3 and (gm6 ro6 )ro7 , respectively. Eq.(3.18) becomes 21  - C V1 1 1 + vc . 2 (I3 + I4 ) (gm5 ro5 )ro3 (gm6 ro6 )ro4 C V2 vc 32  - 2 . I4 (gm6 ro6 )ro4 (3.21) (3.22)
+
+The effect of current mismatch is therefore reduced. vDS -induced effect can be further lowered by increasing the threshold voltage of the load inverter via proper transistor sizing such that the variation of the voltage of the integration capacitor is smaller than VDD /2. This is equivalent to lowering V1 and V2 , which will in turn lower 21 and 32 , as evident in (3.21). It should be noted that since increasing the threshold voltage also affects TF S whose value is set by system specifications, the value of the integration capacitor needs to be adjusted accordingly to ensure that TF S remains unchanged.
+
+Charge Injection-induced timing error Although the integration capacitor is initially charged to VDD , the turn-off of the PMOS transistor will force the portion of the charge stored in the channel of the transistor to be injected into the integration capacitor, resulting in an additional voltage vQ added to the initial voltage of the integration capacitor prior to the discharge operation. This is similar to VDD fluctuation investigated earlier. If we assume that half of the channel charge is dumped to the integration capacitor, then the resultant vQ is given by vQ = 74
+1 Cg V 2 C DD
+
+where Cg is the gate capacitance of the PMOS transistor. We therefore arrive at the timing error due to charge injection denoted by Q Q = Cg C TF S . (3.23)
+
+It is seen from (3.23) that lowering Cgs7 reduces the timing error caused by charge injection.
+
+Clock feed-through induced timing error In addition to charge injection from the PMOS transistor, the voltage of the integration capacitor is also affected by the effect of clock feed through via Cgd of discharge transistors with its amount give by v = though denoted by  is obtained from  = 2Cgd Cgd + C TF S . (3.24) Cgd
+Cgd V . Cgd +C DD
+
+The timing error due to clock feed
+
+It is seen from (3.24) that to minimize the timing error caused by clock feed through, C is required.
+
+3.3.3
+
+Total timing error The total timing error of the time integrator can be obtained by considering both the
+
+random timing error and deterministic timing error. Assume that jitter caused by the noise sources of the time integrator is uncorrelated, we have the worst-case timing error max =
+2 2 2 2 P M OS + n + VDD + VT
+
++ |I | + |Q | + | |.
+
+(3.25)
+
+75
+
+3.3.4
+
+Model of time integrator Having analyzed the timing error of the time integrator, we now derive the model of
+
+the time integrator. Fig.3.13 shows the block diagram of the time integrator where ea and er denote the timing error of the adder and register, respectively. Note that ea < er as one of the two discharge paths of the register is always disabled. Because the output of the time adder is bordered by the rising edge of vinv,a and that of STRa with the former corrupted by the effect of the nonidealities of the adder investigated earlier while the latter is the input of the time integrator and is therefore assumed to be ideal, and the signal from the time adder to the time register is vinv,a , timing error ea exists in both the output of the time integrator and the input of the time register. Further, because the signal from the output of the time register to the time adder, vinv,r , is also subject to the effect of the nonidealities of the time register, er exists at the output of the time register. It can be shown that Tout = Since sTs 1 Tin + Ea + z -1 Er + Ea . - 1 1-z (3.26)
+
+1, we have 1 - z -1  sTs and z -1  1. As a result, Tout  1 (Tin + Ea + Er ) + Ea . sTs
+1 fs . 2 fin
+
+(3.27)
+
+It is seen from (3.27) that the gain of the single-ended time integrator is
+
+Figure 3.13: Model of time integrator. Ea outside the loop will be shaped out when the integrator is in a  modulator.
+
+76
+
+3.4
+
+Discussion
+In this section, we examine factors critical to the operation of the modulator.
+
+3.4.1
+
+Timing signal It is seen from the timing diagram of the single-ended time integrator given in Fig.3.6
+
+that the key signal that controls the operation of the time integrator is STRa . The operation of time addition takes place at the rising edge of STRa while that of time registration occurs at the falling edge of STRa , as shown graphically in Fig.3.14. Note that the sampling frequency of the time input is given by fs = 1/Ts .
+
+Figure 3.14: Timing of single-ended time integrator.
+
+3.4.2
+
+Sampling frequency The minimum sampling period Ts is determined by the following constraints : (i)
+
+^in = Tos + Tin > 0 must be satisfied in order to ensure the proper operation of the time T adder. Since ACKa is asserted in the middle of STRa , Tin + Tos < Ts /2 must be satisfied. (ii) The time difference between the rising edge of ACKa and that of vinv,a must be smaller than Ts /2.
+
+77
+
+3.4.3
+
+Offset time Tos The deployment of the offset blocks with time offset Tos ensures the proper operation
+
+^in > 0 when Tin < 0, of the time adder. As the only purpose of having Tos is to ensure T one can remove the offset blocks by employing a DFF to detect the polarity of Tin so as to determine whether an addition or subtraction operation should be taken. If STR and STP are routed to the data and clock inputs of the DFF, respectively, then Q = 1 when Tin > 0 and Q = 0 when Tin < 0, as shown in Fig.3.15. The time offset blocks shown in Fig.3.1 can be removed. Fig.3.16 sketches the timing diagram of the single-ended time integrator with the time offset blocks removed. It is evident that the removal of the time offset blocks will significantly simplify the timing diagram, which in turn, allowing the reduction of Ts .
+
+Figure 3.15: Positive time variable generation.
+
+3.4.4
+
+Gain of time integrator Let the time input generated by the single-ended VCDL be Tin (t) = Tm cos(in t)
+
+where Tm and in are the amplitude and frequency of the input, respectively. The input variable is sampled at the rising edge of STRa with sampling frequency fs = 1/Ts , the sampled time input at t = nTs can therefore be written as Tin [n] = Tm cos(2fin nTs ). The output of the time integrator is obtained from
+n
+
+Tout [n] =
+0
+
+Tm cos(2fin kTs )dk Tm fs sin (2fin nTs ) . 2 fin 78 (3.28)
+
+=
+
+Figure 3.16: Timing diagram of single-ended time integrator with offset time blocks removed.
+
+The gain of the time integrator is therefore obtained 1 fs OSR Tout [n] = = , Tin [n] 2 fin  (3.29)
+
+where ORS = fs /(2fin ) is the oversampling ratio. Eq.(3.29), also derived earlier in (3.27), shows that the gain of the time integrator is set by the ratio of the sampling frequency fs to the frequency of the input fin . For a given input, both fs and Tm are fixed, the gain of the time integrator can only be adjusted by varying sampling frequency. In the example presented in this paper, fs = 25 MHz and fin = 317 kHz. The calculated and simulated gain of the single-ended time integrator are 21.97 dB and 21.74 dB, respectively, as shown in Fig.3.9. Fig.3.17 shows the waveform of the input and output of the time integrator. A 90 degree phase shift between the output and input is evident.
+
+3.5
+
+Simulation Results
+To verify whether the proposed TDC functions properly or not, a behavioral analysis
+
+was performed prior to schematic-level design. Specifically, a differential sinusoidal time input Tin of frequency 415 kHz and amplitude 50 ps generated from a 415 kHz sinusoidal
+
+79
+
+Figure 3.17: Waveforms of single-ended time integrator. Input : Tm = 15 ps, fin = 317 kHz. Sampling frequency fs = 25 MHz.
+
+voltage signal of amplitude 200 mV using the differential VCDL shown in Fig. 3.8 with clock frequency fs = 25 MHz was fed to the TDC. For each cycle of the operation of the TDC, Tin was obtained from the schematic-level simulation of the differential VCDL using Spectre from Cadence Design Systems with BSIM4 device models. The input Terr1 and output Tin1 of the integrator of TDC1, the input of the TDC2 Terr2 , and the input Terr3 and output Tint2 of the integrator of TDC2 were calculated and the results are tabulated in Fig.3.18. The digital output of the TDC is shown in Fig.3.19. Fig.3.20 shows the spectrum of the output of the TDC calculated using the preceding behavioral analysis. The TDC exhibits 2nd-order noise-shaping outside the signal band. Also observed is the effect of the flicker noise at low frequencies, arising from the generation of Tin using the differential VCDL. The SNR of the TDC is 38.66 dB over 48  415 kHz . The ENOB of the TDC is 6.13 and its resolution is 1.45 ps. The preceding 1-1 MASH  TDC was then designed in an IBM 130 nm 1.2 V CMOS technology. The TDC was analysed using Spectre from Cadence Design Systems with BSIM4 device models. The spectrum of the TDC is plotted in 3.19, together with that from behavioral analysis for comparison. 1024 samples with a Hanning window were used. It is seen that the TDC exhibits 2nd-order noise-shaping outside the signal band. Also observed is that the in-band noise floor of the TDC is approximately 20 dB higher as
+
+80
+
+Figure 3.18: Behavioral analysis of 1-1 MASH  TDC.
+
+Figure 3.19: Waveform of the output of 1-1 MASH  TDC from behavioral analysis.
+
+compared with that of the ideal TDC, revealing the detrimental effect of the imperfections of the TDC examined earlier. Fig.3.21 plots the spectrum of the TDC with the without cascode adders. It is seen that the cascode configuration of the time adder not only lowers in-band noise floor as 81
+
+Figure 3.20: Spectrum of 1-1 MASH time-mode  Modulator from both behavioral analysis and schematic-level simulation (cascode time integrators with raised threshold voltage of load inverter).
+
+compared with that without cascode. It also improves the degree of linearity, manifested by reduced harmonic tones. Cascode also improves the noise-shaping profile of the modulator. The SNR is 36.25 dB over 48  415 kHz. The ENOB of the TDC is 5.73 and its resolution is 1.96 ps. Fig.3.22 shows the spectrum of the TDC with the threshold voltage of the load inverter raised from 0.6 V to 0.8 V. The improvement in noise-shaping profile is evident. No visible reduction in both the in-band noise floor and harmonic tones is observed. Table 3.1 compares the performance of recently published time-mode  modulators. The most relevant reference to which this work should be compared is [10] where a time adder-based time integrator was used. All other references list in Table 3.1 uses an OTAbased integrator. This work has better effective time resolution since it is the second-order  modulator.
+
+82
+
+Figure 3.21: Spectrum of 1-1 MASH time-mode  Modulator.
+
+Table 3.1: Performance comparison of  TDCs.
+
+Tech. (nm) [40] 130 [22] 180 [41] 130 [10] 32 This 130
+
+Ref.
+
+Supply (V) 1.5 1.8 1.2 1.0 1.2
+
+BW (Hz) 1M 400k 100k 100k 415k
+
+OSR 25 348 250 50 30
+
+Effective Power Order Res. (ps) (mW) 1 2.2-21 1st 8.7 (*) 0.78 1st 11 1.7 3rd 4.4 0.25 1st 1.9 (**) 0.5 2nd
+
+* ENOB. ** Ideal digital filters used.
+
+3.6
+
+Conclusions
+An all-digital 1-1 MASH  TDC utilizing a differential cascode time integrator was
+
+proposed. A cascode time adder with raised inverter threshold voltage was proposed to minimize the deterministic jitter caused by the current mismatch of the two discharge paths of the time adder. A differential time integrator consisting of a pair of identical single-ended time integrators was proposed to minimize the effect of the nonlinearities of the single-ended
+
+83
+
+Figure 3.22: Spectrum of 1-1 MASH  TDC with both differential cascode time integrator and different threshold voltage of load inverter. Blue : VT = 0.8V. Red : VT = 0.6V. Integration capacitor value is changed from 2.1 pF with 0.6V threshold voltage to 3.2 pF with 0.8V threshold voltage.
+
+time integrator. The random and deterministic timing errors of the TDC were analyzed in detail. The simulation results of the proposed modulator demonstrated that the modulator exhibits 40 dB noise-shaping. The cascode-configured discharge paths and raised threshold voltage of the load inverter are effective in improving the linearity and improving noiseshaping profile of the TDC. The TDC achieves 1.9 ps time resolution over 48  415 kHz signal band while consuming 502 µW.
+
+84
+
+Chapter 4
+ TDC with Bi-Directional Gated Delay Line Time Integrator
+This chapter presents a bi-directional gated delay line time integrator and its applications in an all-digital first-order  TDC. Section 4.1 presents an operation of bi-directional gated delay cell. Section 4.2 presents an operation of bi-directional gated delay line for a new low-power time-mode integrator. The time integrator consists of a bi-directional gated delay line with the time variable to be integrated as the gating signal. The accumulation of time variables is obtained via the accumulation of the charge of the load capacitor and logic state of gated delay stages. As compared with the reported time integrators, the proposed time integrator is significantly simpler. An all-digital first-order single-bit  TDC is explained in detail in Section 4.3. Section 4.4 presents design considerations. Section 4.5 presents the simulation results of the proposed all-digital first-order single-bit  TDC implemented in an IBM 130 nm 1.2 V CMOS technology. The chapter is concluded in Section 4.6.
+
+4.1
+
+Bi-Directional Gated Delay Cell
+Consider the bi-directional gated delay line shown in Fig.4.1. The rising edge of a
+
+digital signal can propagate from node 1 to node 2 (forward) if the gating signal Tin > 0 or from node 2 to node 1 (reverse) if Tin < 0 in Fig.4.5 with the same per-stage delay. Consider the case where the signal propagates from node 1 to node 2. The node 1 and node 2 are initialized to VDD and ground, respectively before time t1 shown in Fig.4.1. Let the gating 85
+
+signal Tin be a pulse bounded by 0VDD in amplitude and [0, t] in time. The gated switch is in triode region while that of the pMOS transistor of the inverter is in saturation region. When vc increases above VSG -|Vthp |, the pMOS transistor will enter triode region eventually. However, to simplify analysis, we assume that the pMOS transistor of the inverter is in saturation region until vc arrives at VDD /2 in the velocity saturated short channel device [42]. Therefore, in this analysis, we can ignore a nonlinear behaviour when vc goes above VDD /2. Then the voltage of the load capacitor at the end of the time interval is given by
+
+vc (t) =
+
+1 C
+
+t
+
+Idt 
+0
+
+I Tin , C
+
+(4.1)
+
+Eq.(4.1) shows that the gating signal Tin is represented by the voltage variation of the load capacitor. We now consider the case where the gating signal Tin is a train of pulses in time interval [tk-1 , tk ], k = 1, 2, ..., K . The pulses can be either positive (Tin,k > 0) or negative (Tin,k < 0). If a pulse is positive, the load capacitor is charged and the amount of voltage increment is given by (4.1). Similarly, if a pulse is negative, the load capacitor is discharged and the amount of voltage decrement is also quantified by (4.1). It is seen from Fig.4.1 that
+
+K
+
+Tin,k =
+k=1
+
+C I
+
+K
+
+vc,k
+k=1
+
+(4.2)
+
+holds. Eq.(4.2) reveals that the bi-directional gated delay cell performs the accumulation (integration) of time variables by means of the accumulation of the voltage of the load capacitor.
+
+86
+
+Figure 4.1: Bi-directional gated delay cell.
+
+4.2
+
+Bi-Directional Gated Delay Line
+If the load of a bi-directional gated delay cell is another bi-directional gated delay
+
+cell whose threshold voltage is VT,GDL = VDD /2, the voltage range of the load capacitor is only 0VT,GDL , limiting the number of Tin pulses that can be summed. Although one can use a large load capacitor to handle a long train of positive or negative pulses, in order to quantify the voltage of the load capacitor so as to yield the output of the time integrator, a VTC is needed, contradicting our goal to perform time-mode integration in digital domain. An alternative is to cascade multiple bi-directional gated delay cells to form a bi-directional gated delay line, as shown in Fig.4.2. Load capacitance Ck is formed by device capacitances only. No explicit capacitors are needed. When the voltage of the gated delay stage exceeds VT,GDL , the output of the driven gated delay stage will be toggled. The use of the gated delay line allow us to perform time accumulation over a large range. In order to handle both positive and negative time variables, the left-half-side nodes from node M in Fig.4.2 are initialized to VDD and those in the right-half-side from node M are initialized to ground. Also, the left-most gated delay cell is connected to VDD while the right-most gated delay cell is grounded to transfer charges bi-directionally. By doing this, logic-1 can be shifted to the right and logic-0 can be shifted to the left.
+
+87
+
+Figure 4.2: Bi-directional gated delay line. When Tin is positive, the forward direction is enabled, and Tin is negative, the reverse direction is enabled.
+
+To demonstrate that the bi-directional gated delay line functions as a time integrator, consider a train of 5 pulses, Tin,k , k = 1, 2, ..., 5 with Tin,1 = 1.2 , Tin,2 = 1.5 , Tin,3 = -1.1 , Tin,4 = 0.7 , and Tin,5 = -2.5 where  is the per-stage delay. Assume V1n = V2n = VM = 1 and V1p = V2p = 0 initially. The rate of change of the output voltage of gated delay cells is VT,GDL / . With Tin,1 = 1.2 , logic-1 at node M propagates through one stage in the forward direction and charges C1p to 0.2VT,GDL . Similarly, with Tin,2 = 1.5 , the signal continues to propagate through 2 stage and charges C2p to 0.7VT,GDL . When Tin,3 = -1.1 arrives, the forward gated delay line is disabled while the reverse gated delay line is activated. Since v3p = 0, the charge of C2p is discharged. The same for v1p . It becomes evident that the bi-directional gated delay line performs the accumulation (integration) of Tin,k . To digitize the result of the time integration, DFFs can be deployed at the output of each gated delay stage. The output of the time integrator is a thermometer code in the form 1...10...0 with the left-most 0 specifying the vanishing location of the node M. It becomes apparent that the maximum quantization error of the time integrator, denoted by max , is  . The actual quantization error, denoted by k , is preserved in the form of the voltage of the load capacitor vc,k of the stage whose right-adjacent stage has an output of 1. Utilizing the relation between VT,GDL and  , we arrive at
+
+k =
+
+vc,k VT,GDL
+
+.
+
+(4.3)
+
+88
+
+Figure 4.3: Signal propagation in bi-directional gated delay line. The bold lines highlight the path that the signal propagates. Gating signals are not shown for brevity.
+
+4.3
+
+All-Digital First-Order Single-Bit  TDC
+In this section, we utilize the preceding time integrator to construct an all-digital
+
+first-order  TDC with a single-bit time quantizer. To construct the time quantizer, we notice that the output of the bi-directional gated delay line time integrator is a thermometer
+K
+
+code. If the output of the time integrator is larger than  , i.e.,
+k=1
+
+Tin,k >  , v1p will be set
+K k=1
+
+to 1. Otherwise, it will be set to 0. Note that since max =  , 0 <
+
+Tin,k <  cannot
+
+89
+
+be detected. This observation reveals that the output of the delay stage right-connected to node M provides the single bit quantization of the output of the integrator. The subtraction of feedback time feedback, Tf b , from the input time variable Tin is performed using a digital-to-time converter (DTC) shown in Fig.4.4(A). The multiplexers are controlled by the output of the time comparator Dout . If Dout > 0, Tf b is subtracted from Tin by delaying the leading edge A by Tf b . Otherwise, it is added to Tin by delaying the leading edge B by Tf b . The resultant Terr , along with its polarity, are connected to |Tin | block to make a negative input a positive input. 200 ps time offset Tof f is added to generate an enable pulse applied to the bi-directional gated delay line time integrator. The polarity of Terr is determined using a DFF whose output is 1 if Terr > 0 and 0 otherwise.
+
+Figure 4.4: (A) Digital-to-time converter [10], (B) Edge alignment block [11].
+
+The all-digital first-order single-bit  TDC shown in Fig.4.5 consists of a DTC a 30-stage bi-directional gated delay line time integrator, and a time comparator. All blocks are realized using digital logic. To turn on/off PMOS and NMOS simultaneously for bidirectional gated delay line time integrator, we used an edge alignment block shown in Fig.4.4(B).
+
+90
+
+Figure 4.5: All-digital first-order  TDC with a single-bit time quantizer.
+
+4.4
+
+Design Considerations
+In this section, we examine issues affecting the performance of the  TDC. (i) As the
+
+load capacitor of the gated delay stage is isolated from the gated MOS switching transistors by either a PMOS or a NMOS transistor, the effect of charge injection from the switching transistors and clock feed-through from Tin to the load capacitor is minimized. (ii) Gated delay cells in forward and reverse directions should be identical such that if
+K k=1 K k=1 K k=1 K k=1
+
+Tin,k = 0,
+
+vc,k = 0 will follow, as illustrated in Fig.4.6. Should mismatches between forward and vc,k = 0 even though Tin,k = 0. (iii) Similar to
+
+reverse gated delay cells exist,
+
+delay-line TDCs, per-stage delay mismatch in either forward or reverse directions gives rise to the nonlinearity of the time integrator and the degree of nonlinearity deteriorates with the increase in the length of the gated delay line. (iv) The range of the output of the integrator is set by both per-stage delay and the number of delay stages. In order for the time integrator to have a large range without employing a large number of delay stages, the per-stage delay can be gradually increased when moving away from the middle node of the delay line. Since for  TDCs, Terr is small in the steady state, a large per-stage delay of stages distance 91
+
+away from the middle node will not affect the performance of the modulator. Since we add Tof f shown in Fig.4.5 for XOR to make a pulse, we need to compensate it. This is simply done by obtaining the final output of the 1 bit quantizer from the shifted location based on Tof f , not just taken from the middle location.
+
+Figure 4.6: Effect of mismatch between forward and reverse gated delay cells.
+
+4.5
+
+Simulation Results
+The all-digital first-order  TDC was designed in an IBM 130 nm 1.2 V CMOS
+
+technology and analysed using Spectre from Cadence Design Systems with BSIM4 models. The bi-directional gated delay line has a total 30 stages. The outputs of the 15 stages to the left from the node M were set to 1.2V and those of the 15 stages to the right from node M were set to 0V in an initialization phase. A sinusoid time signal of frequency 232 kHz and amplitude 430 ps was digitized by the proposed  TDC. Fig.4.7 shows the spectrum of the  TDC obtained using FFT analysis with 2048 samples and a Hanning window. First-order noise-shaping is evident. In Table 4.1, the performance of recently published time-mode  TDCs is compared with this work. This work has advantage in terms of power consumption since it does not
+
+92
+
+Figure 4.7: Spectrum of  TDC. fin = 231.93 kHz, fs = 25 MHz. ENOB = 6.3 over frequency band 36.62232 kHz.
+
+Table 4.1: Performance comparison of  TDCs.
+
+Tech. (nm) [13] 130 [22] 180 [41] 130 [10] 32 This 130
+
+Ref.
+
+VDD (V) 1.5 1.8 1.2 1.0 1.2
+
+BW (Hz) 1M 400k 100k 100k 232k
+
+OSR 25 348 250 50 54
+
+Res. PWR (ps) (mW) 1 2.2-21 8.7 (*) 0.78 11 1.7 4.4 0.25 10.8 (**) 0.046
+
+Order 1st 1st 3rd 1st 1st
+
+* This is the effective number of bits (ENOB). ** Raw resolution is 96ps.
+
+consume any static power and spends power only during the enable time in the bi-directional gated-delay time integrator.
+
+4.6
+
+Chapter Summary
+A bi-directional gated delay line time integrator and its applications in an all-digital
+
+first-order  TDC were presented. The time integrator consists of a bi-directional gated
+
+93
+
+delay line with the time variable to be integrated as the gating signal. The accumulation of time variables is performed via the accumulation of the charge of the load capacitor and logic state of the gated delay stages. Issues critically affecting the performance of the integrator were examined. With a sinusoid time input of frequency 232 kHz with OSR 54 and amplitude 430 ps, the  TDC exhibits first-order noise-shaping and provides an effective time resolution 10.8 ps which is lower than one inverter delay over frequency band 36.62232 kHz while consuming 46 µW.
+
+94
+
+Chapter 5
+Conclusions
+5.1 Conclusions
+This dissertation dealt with the design of sub-per-stage-delay TDCs to minimize silicon consumption without sacrificing resolution and conversion time. Two classes of TDCs namely pulse-shrinking TDCs and  TDCs were studied. In pulse-shrinking TDCs, a two-step pulse-shrinking TDC consisting of a set of coarse and fine pulse-shrinking TDCs was proposed to increase a dynamic range without employing a large number of pulse-shrinking stages. A residual time extraction scheme capable of extracting the residual time of the coarse TDC was developed. The simulation and measurement results of the TDC implemented in an IBM 130 nm 1.2 V CMOS technology shows that the TDC offers 1.4 ns conversion time, 1 LSB DNL and INL, and consumes 0.163 pJ/step. To further improve the conversion time of the 2-step pulse-shrinking TDC, a time-interleaved scheme was developed to extract the residual time of the coarse TDC. Residual time extraction is carried out in parallel with digitization so as to minimize conversion time. The simulation and measurement results of the TDC show that the TDC offers 0.85 ns conversion time, 0.285 LSB DNL, and 0.78 LSB. In  TDCs, a 1-1 MASH  TDC with a new differential cascode time integrator was presented to suppress even-order harmonic tones and current mismatch-induced timing errors. Simulation results show that the TDC offers 1.9 ps time resolution over 48-415 kHz
+
+95
+
+signal band while consuming 502 µW. Finally, an all-digital first-order  TDC utilizing a bi-directional gated delay line integrator was developed. Time integration is obtained via the accumulation of charge of the load capacitor of gated delay stages and the logic state of gated delay stages. The elimination of analog components allows the TDC to benefit many desirable characteristics of time-mode signal processing especially excellent scalability with technology. Simulation results show that the TDC offers first-order noise-shaping, 10.8 ps time resolution while consuming 46 µW.
+
+5.2
+
+Future Work
+Bi-directional gated delay line integrator was proposed in this dissertation for the
+
+very first time. In order to utilize this integrator in emerging applications such as all-digital  modulators and ADPLLs, more work is needed. Below are some future research topics :
+
+· Auto calibration : The per-stage-delay of gated delay cells in forward and reverse directions should be identical such that if
+K k=1 K k=1
+
+Tin,k = 0,
+
+K k=1
+
+vc,k = 0 will follow.
+K k=1
+
+Should mismatches between forward and reverse gated delay cells exist, even though
+
+vc,k = 0
+
+Tin,k = 0. Manual calibration is done in the dissertation work.
+
+Automatic foreground calibration should be developed. · Residue extraction : If we can extract the residue time information accurately, we can build higher-order  modulators using MASH to lower in-band quantization noise. The residue time information can be extracted in a similar way as that used in [23]. However, since the bi-directional gated delay line integrator stores time information all the time, it cannot be reset. New residue extraction methods that are different from that in [23] are needed. · Multi-bit quantization : The developed bi-directional gated delay line integrator can be used as a multi-bit quantizer naturally since it is based on the GDLs whose output constitutes a thermometer code. With multi-bit digital-to-time converters (DTCs), we
+
+96
+
+can have lower quantization noise to per-stage-delay. As a result, in-band noise can be further lowered via  operation. · Bi-directional gated delay line integrator can be used in ADPLLs to replace TDC phase detectors and loop filters since it performs both accumulation and digitization simultaneously, thereby significantly simplifying the design of ADPLLs.
+
+97
+
+Bibliography
+[1] T. Rahkonen, J. Kostamovaara, and S. Saynajakangas, "Time interval measurements using integrated tapped CMOS delay lines," in Proc. IEEE Mid-West Symp. Circuits Syst., 1990, pp. 201­205. [2] P. Levine and G. Roberts, "A calibration technique for a high-resolution flash time-todigital converter," in Proc. IEEE Int'l Symp. Circuits Syst., vol. 1, 2004, pp. 253­256. [3] ----, "High-resolution flash time-to-digital conversion and calibration for system-onchip testing," IEE Proc. Comput. Digit. Tech., vol. 152, no. 3, pp. 415­426, May 2005. [4] P. Dudek, S. Szczepanski, and J. Hatfield, "A high-resolution CMOS time-to-digital converter utilizing a Vernier delay line," IEEE J. Solid-State Circuits, vol. 35, no. 2, pp. 240­247, Feb. 2000. [5] K. Nose, M. Kajita, and M. Mizuno, "A 1-ps resolution jitter-measurment macro using interpolated jitter oversampling," IEEE J. Solid-State Circuits, vol. 41, no. 12, pp. 2911­2920, December 2006. [6] T. Rahkonen and J. Kostamovaara, "The use of stabilized CMOS delay lines in the digitization of short time intervals," IEEE J. Solid-State Circuits, vol. 28, no. 8, pp. 887­894, August 1993. [7] E.Raisanen-Ruotsalainen, T. Rahkonen, and J. Kostamovaara, "A low-power CMOS time-to-digital converter," IEEE J. Solid-State Circuits, vol. 30, no. 9, pp. 984­990, Sept. 1995. [8] M. Straayer and M. Perrott, "A multi-path gated ring oscillator TDC with first-order noise shaping," IEEE J. Solid-State Circuits, vol. 44, no. 4, pp. 1089­1098, Apr. 2009. [9] S. Kim, Time domain algebraic operation circuits for high performance mixed-mode system. MS Thesis, Korean Advanced Institute of Science and Technology, 2010. [10] J. Hong, S. Kim, J. Liu, N. Xing, T. Jang, J. Park, J. Kim, T. Kim, and H. Park, "A 0.004 mm2 250 µW  TDC with time-difference accumulator and a 0.012 mm2 2.5 mW bang-bang digital PLL using PRNG for low-power SoC applications," in IEEE Int'l Conf. Solid-State Circuits Dig. Tech. Papers, 2012, pp. 240­242. [11] S. Chung, K. Hwang, W. Lee, and L. Kim, "A high resolution metastability-independent two-step gated ring oscillator TDC with enhanced noise shaping," in Proc. IEEE Int'l Symp. Circuits Syst., 2010, pp. 1300­1303. 98
+
+[12] T. Yoshiaki and A. Takeshi, "Simple voltage-to-time converter with high linearity," IEEE Trans. Instrument. Meas., vol. 20, no. 2, pp. 120­122, May 1971. [13] M. Straayer and M. Perrott, "A 12-bit, 10-MHz bandwidth, continuous-time  ADC with a 5-bit, 950-MS/s VCO-based quantizer," IEEE J. Solid-State Circuits, vol. 43, no. 4, pp. 805­814, Apr. 2008. [14] M. Park and M. Perrott, "A single-slope 80 Ms/s ADC using two-step time-to-digital conversion," in IEEE Int'l Symp. Circuits Syst., 2009, pp. 1125­1128. [15] G. Li, Y. Tousi, A. Hassibi, and E. Afshari, "Delay-line-based analog-to-digital converters," IEEE Trans. Circuits Syst. II, vol. 56, no. 6, pp. 464­468, June 2009. [16] A. Sanyal, K. Ragab, L. Chen, T. Viswanathan, S. Yan, and N. Sun, "A hybrid sarvco  adc with first-order noise shaping," in Proc. IEEE Custom Integrated Circuits Conf., 2014, pp. 1­4. [17] C. Hsu, M. Straayer, and M. Perrott, "A low-noise wide-BW 3.6-GHz digital  fractional-N frequency synthesizer with a noise-shaping time-to-digital converter and quantization noise cancellation," IEEE J. Solid-State Circuits, vol. 43, no. 12, pp. 2776­ 2786, Dec. 2008. [18] T. Tokairin, M. Okada, M. Kitsunezuka, T. Maeda, and M. Fukaishi, "A 2.1-to-2.8-GHz low-phase-noise all-digital frequency synthesizer with a time-windowed time-to-digital converter," IEEE J. Solid-State Circuits, vol. 45, no. 12, pp. 2582­2590, Dec. 2010. [19] P. Chen, S. Liu, and J. Wu, "A CMOS pulse-shrinking delay element for time interval measurement," IEEE Trans. Circuits Syst. II., vol. 47, no. 9, pp. 954­958, Sept. 2000. [20] K. Hwang and L. Kim, "An area efficient asynchronous gated ring oscillator TDC with minimum GRO stages," in Proc. IEEE Int'l Symp. Circuits Syst., 2010, pp. 3973­3976. [21] A. Elshazly, S. Rao, B. Young, and P. Hanumolu, "A 13b 315 fs,rms 2 mW 500 MS/s 1 MHz bandwidth highly digital time-to-digital converter using switched ring oscillators," in Int'l Solid-State Circuits Conf. Dig. Tech. Papers, 2012, pp. 464­465. [22] C. Taillefer and G. Roberts, "Delta-sigma A/D converter via time-mode signal processing," IEEE Trans. Circuits Syst. I, vol. 56, no. 9, pp. 1908­1920, Sept. 2009. [23] K. Kim, Y. Kim, W. Yu, and S. Cho, "A 7b 3.75 ps resolution two-step time-to-digital converter in 65 nm CMOS using pulse-train time amplifier," IEEE J. Solid-State Circuits, vol. 48, no. 4, pp. 1009­1017, April 2013. [24] K. Kim, W. Yu, and S. Cho, "A 9 bit, 1.12 ps resolution 2.5 b/stage pipelined timeto-digital converter in 65nm CMOS using time-register," IEEE J. Solid-State Circuits, vol. 49, no. 4, pp. 1007­1016, April 2014. [25] YJ.Park and F.Yuan, "0.25-4 ns 185 ms/s 4-bit pulse-shrinking time-to-digital converter in 130 nm cmos using a 2-step conversion scheme," in 2015 IEEE 58th International Midwest Symposium on Circuits and Systems (MWSCAS), Aug 2015, pp. 1­4. 99
+
+[26] ----, "Two-step pulse-shrinking time-to-digital converter," Microelectronics Journal, vol. 60, pp. 45 ­ 54, Feb 2017. [27] ----, "A 12.88 ms/s 0.28 pj/conv.step 8-bit stage-interleaved pulse-shrinking time-todigital converter in 130 nm cmos," in 2015 IEEE 58th International Midwest Symposium on Circuits and Systems (MWSCAS), Aug 2015, pp. 1­4. [28] ----, "Time-interleaved pulse-shrinking time-to-digital converter with reduced conversion time," Analog Integrated Circuits and Signal Processing, vol. 91, no. 3, pp. 385­398, June 2017. [29] YJ.Park, D.Jarrett-Amor, and F.Yuan, "Time integrator for mixed-mode signal processing," in 2016 IEEE International Symposium on Circuits and Systems (ISCAS), May 2016, pp. 826­829. [30] YJ.Park and F.Yuan, "1-1 mash delta-sigma time-to-digital converter with differential cascode time integrator," in 2017 IEEE 58th International Midwest Symposium on Circuits and Systems (MWSCAS), Under review. [31] ----, "All-digital 1-1 mash delta-sigma time-to-digital converter with differential cascode time integrator," IEEE Trans. Circuits Syst. I, p. 10 pages, Under review. [32] ----, "Low-power all-digital delta-sigma tdc with bi-directional gated delay line time integrator," in 2017 IEEE 58th International Midwest Symposium on Circuits and Systems (MWSCAS), Under review. [33] A.A.Abidi, "Phase noise and jitter in CMOS ring oscillators," IEEE J. Solid-State Circuits, vol. 41, no. 8, pp. 1803­1816, Aug. 2006. [34] P. Gray, P. Hust, S. Lewis, and R. Meyer, Analysis and design of analog integrated circuits, 4th ed. New York: John Wiley & Sons, 2001. [35] J. McNeill, "Jitter in ring oscillators," IEEE J. Solid-State Circuits, vol. 32, no. 6, pp. 870­879, Jun. 1997. [36] A. Hajimiri and T. Lee, "Jitter and phase noise in ring oscillators," IEEE J. Solid-State Circuits, vol. 34, no. 6, pp. 790­804, Jun. 1999. [37] C. Chen, S. Lin, and C.Hwang, "An area-efficient CMOS time-to-digital converter based on a pulse-shrinking scheme," IEEE Trans. Circuits Syst. II., vol. 61, no. 3, pp. 163­167, March 2014. [38] K. Kim, W. Yu, and S. Cho, "A 9b 1.12 ps resolution 2.5b/stage pipelined time-todigital converter in 65 nm CMOS using time-register," in Symp. VLSI Circuits Dig. Tech. Papers, 2013, pp. 136­137. [39] S. Henzler, S. Koeppe, W. Kamp, and D. Schmitt-Landsiedel, "90 nm 4.7 ps-resolution 0.7-LSB single-shot precision and 19 pJ-per-shot local passive interpolation time-todigital converter with on-chip characterization," in IEEE Int'l Solid-State Circuits Conf. Dig. Tech. Papers, 2008, pp. 548­635. 100
+
+[40] M. Straayer, M.Z; Perrott, "An efficient high-resolution 11-bit noise-shaping multipath gated ring oscillator tdc," in IEEE Symposium on VLSI Circuits, 2008, pp. 82­83. [41] Y. Cao, P. Leroux, W. D. Cock, and M. Steyaert, "A 0.7 mW 11b 1-1-1 MASH  time-to-digital converter," in IEEE Int'l Solid-State Circuits Conf. Dig. Tech. Papers, 2011, pp. 480­481. [42] J. M. Rabaey, A. Chandrakasan, and B. Nikolic, Digital Integration Circuits, A Design Perspective. Englewood Cliffs, New Jersey: Prentice-Hall, 2003.
+
+101
+
+

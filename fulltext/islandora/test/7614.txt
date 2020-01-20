@@ -1,0 +1,1860 @@
+Aerodynamic Analysis of Multirotor Vehicles Using a Higher-Order Potential Flow Method
+
+by
+
+Devin F. Barcelos Bachelor of Engineering, Ryerson University, 2016
+
+A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Applied Science in the program of Aerospace Engineering
+
+Toronto, Ontario, Canada, 2018 c Devin F. Barcelos 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS
+
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my thesis may be made electronically available to the public.
+
+ii
+
+Aerodynamic Analysis of Multirotor Vehicles Using a Higher-Order Potential Flow Method Devin F. Barcelos Master of Applied Science, Aerospace Engineering, Ryerson University, Toronto (2018)
+
+ABSTRACT
+A higher-order potential flow method is adapted for the aerodynamic performance prediction of small rotors used in multirotor unmanned aerial vehicles. The method uses elements of distributed vorticity which results in numerical robustness with both a prescribed and relaxed wake representation. The radial loading and wake shapes of a rotor in hover were compared to experiment to show strong agreement for three disk loadings. The advancing flight performance prediction of a single rotor was compared to a blade element momentum theory based approach and to experiment. Comparison showed good thrust and power agreement with experiment across a range of advance ratios and angles of attack. Prediction in descending flights showed improvements in comparison to the blade element momentum theory approach. The model was extended to a quadrotor configuration showing the differences associated to vehicle orientation and rotor rotational direction.
+
+iii
+
+ACKNOWLEDGEMENTS
+First and foremost, I would like to thank my supervisor, G¨ otz Bramesfeld for the encouragement to pursue a master's degree and the guidance throughout the process. Thank you for your technical advice, endless patience and support through this research.
+
+I would like to gratefully acknowledge the material and technical support from Aeryon Labs Inc. in Waterloo, Ontario, in particular from Drs. Mike Peasgood, Michael Tribou and Dmytro Silin. Furthermore, this work was made possible through a Collaborative Research and Development Grant from the National Science and Engineering Research Council of Canada and the Ontario Centres of Excellence.
+
+I would like to thank the faculty and staff within the aerospace engineering department of Ryerson University. Special thanks goes to Jerry Karpynczyk for your hard work and expertise in wind tunnel testing. To my colleagues in the Ryerson Applied Aerodynamic Laboratory of Flight, thank you for the immense help with rotor testing and for the 24-hour technical support.
+
+iv
+
+DEDICATION
+This work is dedicated to my loving mother and father for the endless support and for the life-time encouragement. You continue to inspire me to work hard and you have become my biggest role models.
+
+v
+
+TABLE OF CONTENTS
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dedication . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii iii iv v
+
+List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . viii List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1 Introduction 1.1 1.2 1.3 Multirotor Vehicles . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Rotor Performance Analysis Methods Motivation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ix 1 1 2 7 8 8
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+2 Background Theory 2.1 2.2 2.3 Higher-Order Potential Flow Method . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Rotor Theory . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 Experimental Rotor Testing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 25
+
+3 Implementation of a Higher-Order Potential Flow Method 3.1 3.2 3.3 3.4 3.5 3.6
+
+General Execution Procedure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 25 User Specified Inputs . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26 Geometry Generation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27 Velocity Calculations and Moving Rotor . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28 Force Calculation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30 Viscous and Stall Models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+
+vi
+
+4 Performance Results and Validation 4.1
+
+35
+
+Hover Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35 4.1.1 4.1.2 4.1.3 Generation of Simulation Geometry . . . . . . . . . . . . . . . . . . . . . . . . . . 36 Blade Loading Comparison . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37 Computed Hovering Wake . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+
+4.2
+
+Advancing Flight Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42 4.2.1 4.2.2 4.2.3 4.2.4 Model Geometry . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42 Convergence Study . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44 Advancing Flight Results and Validation . . . . . . . . . . . . . . . . . . . . . . . . 45 Wake Model Comparison . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 49 52
+
+5 Applications 5.1 5.2
+
+Loading Decomposition and Cyclic Loading . . . . . . . . . . . . . . . . . . . . . . . . . . 52 Multirotor Configuration Comparison . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56 5.2.1 5.2.2 5.2.3 5.2.4 Configuration Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56 Diamond Configuration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58 Square Configuration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 62 Diamond and Square Orientation Comparison . . . . . . . . . . . . . . . . . . . . . 69 71
+
+6 Conclusions 6.1 6.2
+
+Conclusions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 71 Future Works . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72 73 74 77 84
+
+Appendices 1 Sample Input File 2 Airfoil Coordinates Bibliography
+
+vii
+
+LIST OF TABLES
+2.1 4.1 Components of Rotor Test Stand . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23 Rotor Blade Geometry [38, 23] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+
+viii
+
+LIST OF FIGURES
+1.1 1.2 1.3 1.4 1.5 2.1 2.2 Aeryon Labs Inc. SkyRanger [3] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2 3 4 5 6 9
+
+Typical Flow Environment Described by BEMT
+
+Vortex Lattice System of Series of Horseshoe Vorticies . . . . . . . . . . . . . . . . . . . . CFD Meshing of a Multirotor Vehicle [14] . . . . . . . . . . . . . . . . . . . . . . . . . . . Rotor Wind Tunnel Setup of the University of Li´ ege [10] . . . . . . . . . . . . . . . . . . . Creation of a Distributed Element from Two Semi-Infinite Vortex Sheets [18] . . . . . . . Wake Models Using a Higher-Order Potential Flow Method (Red Represents Surface
+
+DVEs & Blue Represents Wake DVEs) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.3 Wake Induced Velocities of a Vortex Lattice Method and Distributed Vorticity Elements (Courtesy of Bill Bissonnette) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.4 2.5 2.6 2.7 2.8 2.9 General Rotor Reference Frame For a Single Rotor . . . . . . . . . . . . . . . . . . . . . . 12 Reference Frame Conventions for Multirotor . . . . . . . . . . . . . . . . . . . . . . . . . . 13 Force and Moment Direction Definitions . . . . . . . . . . . . . . . . . . . . . . . . . . . . 14 Top View of Velocity Distribution for Advancing and Retreating Blades . . . . . . . . . . 16 Advancing and Retreating Blade Influence on Blade Section (Courtesy of Julia Tsaltas) . 17 Hover and Vertical Climb Wake Shapes [24] . . . . . . . . . . . . . . . . . . . . . . . . . . 18
+
+2.10 Skew Angle Wake Representation for Forward Flight [8] . . . . . . . . . . . . . . . . . . . 18 2.11 Vortex Ring State Wake [8] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 2.12 Turbulent Wake State [8] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 2.13 Windmill Brake State Wake [8] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 2.14 Top View of the Ryerson University Low Speed Wind Tunnel . . . . . . . . . . . . . . . . 21 2.15 Rotor Test Stand Mounted in Experimental Wind Tunnel . . . . . . . . . . . . . . . . . . 22 2.16 Photo of Rotor Test Stand Components Without the Fiberglas Cowling . . . . . . . . . . 23 2.17 Experimental Comparison for the MAE 11x7 Rotor ix . . . . . . . . . . . . . . . . . . . . . 24
+
+3.1 3.2 3.3 3.4 4.1 4.2 4.3 4.4 4.5 4.6 4.7 4.8 4.9
+
+Program Execution Procedure . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26 Velocity Components Acting On a Blade . . . . . . . . . . . . . . . . . . . . . . . . . . . . 28 Moving Rotor and Generating Wake Elements . . . . . . . . . . . . . . . . . . . . . . . . . 30 A Swept and Tapered DVE . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32 Experimental Setup of a Rotor in Hover [38] . . . . . . . . . . . . . . . . . . . . . . . . . . 36 Total Integrated Thrust Loading at Different Collective Pitch Angles . . . . . . . . . . . . 38 Radial Loading Distribution . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39 Computed Wake Shapes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41 Top View of the T-Motor 18x6.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 42 T-Motor 18x6.1 Blade Geometry . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43 Airfoil Geometry at Three Radial Location . . . . . . . . . . . . . . . . . . . . . . . . . . 43 T-Motor 18x6.1 DVE Discretization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43 Time Step Size Convergence [40] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+
+4.10 Number of Time Step to Convergence [40] . . . . . . . . . . . . . . . . . . . . . . . . . . . 45 4.11 Thrust Comparison for the T-Motor 18x6.1 . . . . . . . . . . . . . . . . . . . . . . . . . . 46 4.12 Power Comparison for the T-Motor 18x6.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . 47 4.13 Fixed Wake of the T-Motor 18x6.1 [40] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51 4.14 Relaxed Wake of the T-Motor 18x6.1 [40] . . . . . . . . . . . . . . . . . . . . . . . . . . . 51 5.1 5.2 5.3 5.4 5.5 5.6 5.7 5.8 5.9 Cyclic Thrust and Power Coefficients of a Two-Bladed Rotor . . . . . . . . . . . . . . . . 53 Thrust Force Contour . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 54 Power Contour . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 54 Force Decomposition at Various Azimuth Locations . . . . . . . . . . . . . . . . . . . . . 55
+
+T-Motor 18x6.1 quadrotor . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56 Diamond Quadrotor Rotation Configurations . . . . . . . . . . . . . . . . . . . . . . . . . 57 Square Quadrotor Rotation Configurations . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+
+Quadrotor Total Forces and Moments for the Diamond Configuration . . . . . . . . . . . 59 Individual Rotor Thrust for the Diamond Configuration . . . . . . . . . . . . . . . . . . . 60
+
+5.10 Individual Rotor Hub Moments for the Diamond Configuration . . . . . . . . . . . . . . . 60 5.11 Individual Rotor Circulation for the Diamond Configuration . . . . . . . . . . . . . . . . . 61 5.12 Induced Velocity of Lead Rotor on Mid-Rotor in the Diamond CW Configuration . . . . . 61 5.13 Rotor Wake Shape in Advancing Flight Showing Higher Advancing Wake "Density" . . . 62 5.14 Front and Rear Rotor Thrust Comparison for the Square Configuration . . . . . . . . . . 63 x
+
+5.15 Quadrotor Total Forces and Moments for the Square Configuration . . . . . . . . . . . . . 64 5.16 Vehicle Pitching Moment Attributions for the Square Configuration ( = 5 ) . . . . . . . 65 5.17 Radial Circulation Distribution for the Square Configuration . . . . . . . . . . . . . . . . 66 5.18 Computed Points for the Induced Velocities of the Leading Rotor of the Square Configuration 67 5.19 Radial Induced Velocity of the Square Quadrotor . . . . . . . . . . . . . . . . . . . . . . . 67 5.20 Induced Velocity in the Z-Direction of the Points described in Fig.5.18 . . . . . . . . . . . 68 5.21 Predicted Performance Comparison of Diamond and Square Orientations . . . . . . . . . 70
+
+xi
+
+Chapter 1
+
+Introduction
+1.1 Multirotor Vehicles
+
+Small unmanned multirotor vehicles have recently gain popularity with advancements in control systems, manufacturing capabilities and on-board computer systems [1]. A multirotor vehicle is simply defined as an aerial vehicle with more than one rotor. The most common multirotor vehicle has four rotors acting in close proximity to one another. Using their rotors for propulsion, these vehicles are capable of vertical takeoff and descent, tight maneuvering and hovering flight. Because of these aerial characteristics, they have seen various applications ranging from flight photography, search and rescue missions, surveillance and payload delivery [2]. Multirotor vehicles have the ability to accurately perform tasks that would be of risk to a human piloted flight vehicle.
+
+An example of a multirotor vehicle is the Aeryon Labs Skyranger as seen in Fig. 1.1. The SkyRanger is an advanced system used for both military and civilian applications that require a camera payload [3]. This vehicle has a 1m diameter when deployed and weighs 2.4kg without a payload. It uses four brushless DC motors powered by lithium polymer batteries to spin four rotors. This vehicle can reach an altitude of 4500m and a maximum endurance flight of 50min. The Aeryon SkyRanger is an example of the advancements made in multirotor vehicle technologies.
+
+1
+
+CHAPTER 1. INTRODUCTION
+
+1.2. ROTOR PERFORMANCE ANALYSIS METHODS
+
+Figure 1.1: Aeryon Labs Inc. SkyRanger [3] The design of multirotor vehicles have focused on the control laws, communication systems, sensory equipment, navigational algorithms, energy to weight storage and brushless electric motors [4]. As these technologies have become more refined, the investigation of the aerodynamic design of these vehicles has become relevant to achieve higher efficiency. Advanced control systems are used to provide more stable conditions for these vehicles by finely adjusting rotor rotation speed. This can be better improved with a thorough understanding of the rotor aerodynamic characteristics.
+
+These rotors proose a unique design problem across the flight envelope of these vehicles. This includes phenomenon such as advancing and retreating blade effects, closely interacting rotors, low Reynolds number rotors and lightly loaded rotors. Additionally, unique flight envelopes introduce effects such as vortex ring state in descending flight, highly edgewise flow and long endurance hovering. Such influences add to the complexity of these rotor designs as these draws significant power usage from the limited battery supply.
+
+1.2
+
+Rotor Performance Analysis Methods
+
+Various performance prediction and analysis methods are currently used for the rotor design of multirotor sUAVs, each with advantages and limitations. In order to better understand the motivation for exploring new prediction tools, current methods are first explored. Existing methods included blade element momentum theory, vortex lattice methods, computational fluid dynamics and experimental procedures.
+
+2
+
+CHAPTER 1. INTRODUCTION
+
+1.2. ROTOR PERFORMANCE ANALYSIS METHODS
+
+Blade element momentum theory (BEMT) computes aerodynamic rotor performance using both blade element and momentum theory solutions. The rotor blade is considered as a series of twodimensional airfoils as seen in Fig. 1.2. Each airfoil section produces aerodynamic forces that can be integrated across the blade radius to find the overall rotor loads. The forces produced by each two-dimensional airfoil are calculated using the effective angle of attack, which is computed from the calculated induced and freestream velocities. These wake induced velocities in the rotor plane are calculated using momentum theory [5].
+
+(a) Streamtube Assumed by BEMT with Strip Sec- (b) Forces Acting on One Cross-Sectional Strip tion Considered [6] from BEMT [7]
+
+Figure 1.2: Typical Flow Environment Described by BEMT Carrol et al. [7] demonstrated the capabilities of BEMT applied to multirotor sUAV design. This method includes prediction of forces and moments in all degrees of freedom, cyclic loading and radial load distribution for a range of inflow angles. This low computational expense tool was used with an optimizer to improve the overall rotor performance for a given flight vehicle.
+
+Using BEMT, computation time is minimized making this an ideal tool for quickly analyzing many design options. This low cost computational method results in some loss in fidelity due to both the blade element approach and momentum theory calculation. Blade element approach shows limitations in sections of the blade that have high disk loading or large changes in induced velocities [8]. Changes in induced velocity are often seen in either the blade tips or in sections that are interacting with a previously produced blade tip vortex. Also, in descending flights the momentum theory does not have a solution. More specifically, momentum theory assumes an incorrect wake direction for a large range of descent rates. Although these limitations can influence the accuracy of BEMT, it remains an efficient prediction tool for a large range of rotor designs.
+
+3
+
+CHAPTER 1. INTRODUCTION
+
+1.2. ROTOR PERFORMANCE ANALYSIS METHODS
+
+Another rotor performance prediction tool commonly used for lifting surfaces are vortex based potential flow methods; these include vortex lattice and using doublets lattice methods. Vortex lattice methods model a lifting surface using a series of discrete vorticies to compute the aerodynamic loads acting on the surface. These are inviscid solutions but can be coupled (knowing the cross-sectional area) with viscous models. An example of a vortex lattice applied to a simple rectangular wing is shown in Fig. 1.3. The unknown circulation strength is calculated by enforcing flow tangency at the control points. The induced velocities thorough the flow field can be calculated using Biot-Savart law [9].
+
+Figure 1.3: Vortex Lattice System of Series of Horseshoe Vorticies These potential flow methods have been applied to multirotor vehicles and have low computational expense with limited accuracy. One of the advantages of these methods is the ease of geometry generation. Little geometric information is required to model the blade; one only requires radial chord lengths and twist distribution. Theys et al. shows a comparison between modeling a rotor using a vortex lattice method and BEMT [10]. This showed that both methods have similar accuracy and as such, they have limited accuracy in parts of the flight envelope of a multirotor vehicle. Other modifications have been done base on the same fundamental concepts such as using a series of vortex rings to understand wake interference as demonstrated by Tsaltas and Bramesfeld [11]. In general these potential flow methods are often computationally inexpensive, however, come with a slight loss of accuracy due to some numerical instabilities and assumptions. 4
+
+CHAPTER 1. INTRODUCTION
+
+1.2. ROTOR PERFORMANCE ANALYSIS METHODS
+
+Computational fluid dynamics (CFD) has also been used to predict the aerodynamic performance of a rotor. CFD uses numerical methods to approximately solve the Navier-Stokes equations for a given control volume. Many CFD software are preexisting such as ANSYS Fluent [12] and FEniCS [13] which can be used to model rotor systems. To create a working model requires extensive understanding of CFD limitations and capabilities. A detailed geometry model must be created, an appropriately refined mesh must be assembled and corresponding fluid field characteristics must be defined before running any simulations. As consequence of this, extensive knowledge and time is required to develop an accurate rotor model within CFD.
+
+Figure 1.4: CFD Meshing of a Multirotor Vehicle [14] Figure 1.4 demonstrates a multirotor vehicle CFD mesh completed by Hwang et al. which consisted of 20.7 million cells with 6.05 million nodes. Significant computational effort is needed to solve these complex systems. The main advantage of CFD simulations are the improved solution resolution given enough resources. The disadvantages of this is the required computation time to simulate the many flight configurations seen by multirotor vehicles. Additionally, convergence issues are often seen with low Reynolds number systems that require special attention to detail in order to properly model. Furthermore, the CFD simulations of multirotor vehicles that were found in literature, were restricted to hovering flight [14, 15].
+
+In addition to the listed prediction methods, the aerodynamic performance of a rotor can also be obtained through experimental means. Rotor testing procedures are most commonly conducted in an wind tunnel or on a flight test vehicle. The aerodynamic performance can be measured through mounted load cells, flow visualization or strain gauges [10, 16, 17]. These are often mounted on a test stand that is 5
+
+CHAPTER 1. INTRODUCTION
+
+1.2. ROTOR PERFORMANCE ANALYSIS METHODS
+
+placed in a wind tunnel test section as done at the University of Li´ ege in Fig. 1.5. It should be noted that the test stand is mounted on a turn table to simulate different flight attitudes. Experimental procedures (when completed with precision), are a powerful tool to get insight into performance characteristics. Possible performance parameters include integrated loads, radial lift distributions and wake shapes.
+
+Figure 1.5: Rotor Wind Tunnel Setup of the University of Li´ ege [10] Although experimental procedures are a necessary tool in the development of aerodynamic components, there are several limitation during the design phase of a rotor. Experimental procedures require a design to be completed and manufactured to be tested, making it unsuitable for many design iterations without performance prediction. Testing does not give a breakdown of the performance contributions. For example, prediction methods can show a breakdown of force contributions, such as induced forces or viscous forces, which can be used to better understand and improve the performance of the rotor. Rotor testing can be financially expensive, due to costs associated with manufacturing rotors, test stands and test facilities. Aditionally, testings is often time consuming as many iterations and configuration are required to get reliable, repeatable and insightful test data.
+
+Each of the listed performance analysis tools has advantages and limitations throughout the rotor design process. BEMT methods are computationally inexpensive but have limitations in complex flow 6
+
+CHAPTER 1. INTRODUCTION
+
+1.3. MOTIVATION
+
+fields (often seen by multirotor vehicles) and limited wake representations. Potential flow methods are computationally inexpensive but can have numerical issues, especially when implementing complex wake configurations. Computational fluid dynamics can have high accuracy results, but are computationally very expensive and time consuming to construct a model. Experimental procedures can provide the reliable and accurate data but require a model to be manufactured which is financially expensive and time consuming. Each design and analysis method has suitable applications as multiple iterations are required throughout the design of multirotor vehicles.
+
+1.3
+
+Motivation
+
+With the recent development of multirotor vehicles, understanding the aerodynamic performance has become a necessity in improving the overall flight vehicle performance. Limitations of these vehicles are often seen with battery life and range capabilities, both of which can be improved through aerodynamic refinement. Current aerodynamic analysis methods exhibit limitations in understanding of the aerodynamics of multirotor configurations, especially under complex edgewise and descending flights. This study adapts a previously developed higher-order potential flow method for the aerodynamic prediction of rotors in multirotor flight configurations. This is proposed to have lower numerical issues than VLM and BEMT methods while maintaining simple geometry modeling and significantly fewer computational time compared to CFD. With this higher-order potential flow method, insight of rotor performance contributions can be assessed to better understand and improve the performance of the entire flight vehicle
+
+This thesis describes the implementation of the higher-order potential flow method for low Reynolds number rotor systems. This method does not experience singularity issues seen with many traditional potential flow methods. Primarily, this is because it models the wake as a continuous vortex sheet, resulting in finite induced velocities throughout the wake. The bound surface circulation is modeled using a second order spline in order to represent the spanwise bound circulation distribution. Additionally, this method does not required many surface elements to reach convergence. Integrated loads are calculated and validated against wind tunnel experiments to ensure integrity of single rotor performance across the full range of flight configurations. A stall model is implemented and a viscous correction applied to increase prediction accuracy. This robust system is equipped with both a relaxed and fixed wake simulation. Multiple rotors in close vicinity are modeled using this method to understand the interference between rotors.
+
+7
+
+Chapter 2
+
+Background Theory
+2.1 Higher-Order Potential Flow Method
+
+The higher-order potential flow method used in this thesis is based on the method by Bramesfeld and Maughmer [18]. Some of the main advantages of this method is its ability to model the wake of the lifting surface using a continuous vortex sheet and the consequential numerical robustness for both a fixed and relaxed wake representation. This potential flow method is considered higher-order as it models the bound circulation using a second order spline, whereas traditional vortex lattice methods use a first or zeroth order circulation distribution. This second order spline enables a continuous formulation of the bound circulation. The method was originally developed for fixed wing aircraft and has been extended for rotor analysis.
+
+Each lifting surface is discretized into a series of distributed vorticity elements (DVEs). Each surface DVE has a leading and trailing edge filament as shown in Fig. 2.1. The circulation strength, , across the leading and trailing edge vortex filaments are defined by parabolas. Additionally, the vorticity,  , is linearly varying across the vortex sheet. These DVEs are the fundamental components to this higherorder potential flow method.
+
+These DVEs are placed along the zero-lift plane of the lifting surfaces to compute their aerodynamic performance. A DVE is defined in the  -  plane in which  is in the spanwise direction and  is in the chordwise direction. The circulation equation of the leading edge vortex filament, is represented in terms of circulation coefficients, A, B and C . The local circulation strength at a span location,  , is:
+
+8
+
+CHAPTER 2. BACKGROUND THEORY 2.1. HIGHER-ORDER POTENTIAL FLOW METHOD
+
+ = A + B + C 2
+
+(2.1)
+
+Figure 2.1: Creation of a Distributed Element from Two Semi-Infinite Vortex Sheets [18] In order to calculate the circulation coefficients, A, B and C, a series of linear equations are solved based on several boundary conditions. The first boundary condition is flow tangency applied at each control point. This defines the normal velocity at these points to be zero, thus the flow is parallel to the surface. The other two boundary condition are applied to enforce continuous spanwise distribution of circulation and vorticity across neighbouring DVEs along the wingspan. In the case of no neighbouring DVEs, such as a blade tip, the circulation is zero. With the solution of these circulation coefficients, the circulation and vorticity distribution across a DVE can be found.
+
+The wake is developed using a time stepping procedure. A fixed and relaxed wake model can be used with this method as shown in Fig. 2.2. While the lifting surface progresses forward, wake elements are generated at the trailing edge. When using a fixed wake, the wake elements are aligned with the trace of the wing trailing edge. This is done by moving the lifting surface forward according the freesteam magnitude and direction, then using the new trailing edge points. These new points are used with the leading edge points of the wake developed in the previous time step to create the new row of wake elements. The wake elements have distributed vorticity with a strength that depends on the trailing edge strength of the wing. Under steady state conditions, the streamwise vorticity strength is considered constant and therefore the leading and trailing edge filaments of the wake elements can be omitted. The resulting wake is a continuous vortex sheet (with no filaments) eliminating wake singularity issues of traditional potential flow methods. In the case of a wake relaxation, the orientation and stretch of each wake element changes based on the the total induced velocity experienced by each wake element. The vorticity distribution is then adjusted in order to ensure the total circulation is constant with the change in wake element shape. The wake relaxation captures wake effects such as tip roll-up and nonuniform wake velocities as seen in Fig. 2.2. 9
+
+CHAPTER 2. BACKGROUND THEORY 2.1. HIGHER-ORDER POTENTIAL FLOW METHOD
+
+(a) Fixed Wake Representation
+
+(b) Relaxed Wake Representation
+
+Figure 2.2: Wake Models Using a Higher-Order Potential Flow Method (Red Represents Surface DVEs & Blue Represents Wake DVEs) Each time step, the forces that act on the surface DVE are calculated. Forces due to the freestream velocity are calculated using the analytical solution of the integrated circulation across each bound vortex. The forces due to induced effects have two contributions, induced lift and induced drag. The induced lift is computed by numerically integrating circulation due to induced velocities of both the surface and wake elements. The induced drag is calculated using the shed circulation from the trailing edge of the lifting surface and the wake induced velocities. Reference 18 show than an analytical solution exist for the induced velocities of a vortex sheet and a vortex filament. Some singularities do exist, such as the induced velocity at the center of a vortex filament, but are addressed in Ref. 18.
+
+As previously mentioned, one of the main advantages of this method is that the wake is modeled as a continuous vortex sheet. Specific advantages are seen when considering the induced velocities in the wake of a lifting surface. Figure 2.3 shows the induced velocities downstream of a lifting surface. The resulting induced downwash velocity is shown for both a wake DVE and a conventional vortex lattice method. The wake DVEs are shown as a solid red line and the VLM vortex core filaments are represented by black dots. It is evident that the induced velocities of the VLM become singular as they approach a vortex filament. With the wake DVEs, however, the induced velocities remain finite throughout the wake. This greatly increases the numerical robustness of the higher-order potential flow method. Specifically, advantages are seen when wake elements are near each other (as seen in a wake relaxation) and when a surface element is near a wake element (as seen with rotors or multiple wings) as numerical singularities can cause diverging solutions and higher discrepancies in performance prediction.
+
+10
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+Figure 2.3: Wake Induced Velocities of a Vortex Lattice Method and Distributed Vorticity Elements (Courtesy of Bill Bissonnette) Because of the advantages of this higher-order potential flow method, it has been adopted for many applications. Bissonnette and Bramesfeld [19] use this method to model high-lift devices. This is because the additional numerical robustness in comparison to traditional potential flow methods aids in modeling the interactions of closely located wakes and surface elements as seen with high-lift devices. Krebs and Bramesfeld [20] used this method for optimization of the design of sailplane winglets. Cole et al. [21] used the higher-order method to analyze propeller-wing systems, where propeller wakes closely interact with the wing. Maniaci and Maughmer [22] investigate wind turbine design using this higher-order method. Choephel [23] considered helicopter aerodynamic performance by coupling the higher-order method with blade flapping software. These are all examples were this method has been applied to various aerodynamic analysis.
+
+2.2
+
+Rotor Theory
+
+To better understand the rotors conventions and concepts used throughout this thesis, a general review of rotor theory is provided. This theory is in-line with concepts that dominate in multirotor UAV design. 11
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+Multirotor UAVs use fixed-pitch rotors with highly variable rotational velocities.
+
+Considering a single rotor, the angle of attack, , is defined as the angle between the freestream velocity, V , and the rotor plane as shown in Fig. 2.4 for positive angles of attack. As a result, a 0 angle of attack represents fully edgewise flow, 90 represents propeller configuration and -90 vertical descent. The rotation of the blade is considered positive in the counterclockwise direction. To define the rotation of a blade from an origin, azimuth angles,  , are used. In forward flight, advancing and retreating blades cause additional loadings. At an azimuth angle of 90 the blade is experiencing fully advancing effects and at an angle of 180 the blade is transitioning from advancing to retreating effects.
+
+(a) Angle of Attack Conventions
+
+(b) Forward Flight Conventions
+
+Figure 2.4: General Rotor Reference Frame For a Single Rotor
+
+12
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+(a) Vehicle Top View
+
+(b) Vehicle Side View
+
+Figure 2.5: Reference Frame Conventions for Multirotor Figure 2.5 demonstrates the global coordinate system used for a multirotor vehicle. When considering a multirotor system, the conventions used for a single rotor is also used for the vehicle. Angle of attack is measured between the freestream and the global vehicle plane, however, with the origin of the reference frame location at the center of the vehicle.
+
+A rotor numbering system, as shown in Fig. 2.5, is used to easily differentiate between specific rotors in the multirotor system. Numbering begins with the left most advancing rotor being considered the first rotor, with increasing rotor number in the counterclockwise direction. In the case of a single advancing rotor, the forward most rotor is considered one, with additional rotor numbers defined in the counterclockwise direction.
+
+To demonstrate forward flight for comparison purposes, the non-dimensionalized advance ratio (µ ) is used. This is defined as the ratio between the freestream velocity and the blade tip speed. The blade tip speed is computed as the product of the rotational velocity in radians per second, , and the rotor
+
+13
+
+CHAPTER 2. BACKGROUND THEORY radius, R. V R
+
+2.2. ROTOR THEORY
+
+µ =
+
+(2.2)
+
+Figure 2.6: Force and Moment Direction Definitions As shown in Fig. 2.6, a rotor produces three forces and three moments. The dominant force is the thrust force, T , which is defined as the total time integrated force acting normal to the rotor disk plane. The thrusting force is the main source of rotor propulsion. The torque moment, Q, is the total moment acting about the hub in the rotor disk plane. This torque is related to the power required to spin the rotor. In addition to thrust and torque, in forward flight there are two more forces and moments caused by advancing and retreating blade effects. The Py force, or rotor-side force, is defined as the total force acting in the rotor disk plane and normal to the freestream velocity. The Px force, or rotor drag, is the total force acting in the rotor disk plane and in the direction of freestream velocity. My and Mx are the total hub moments. My represents the pitching hub moment and Mx represents the rolling hub moment. Both of these moments are due to differential thrust due to advancing and retreating blade effects.
+
+Each of the forces and moments displayed in Fig. 2.6 are often presented as non-dimensionalized coefficients. There are some differences between conventions, specifically seen between rotors configurations and propeller configurations. Rotor configurations are typically designed to experience edgewise flow where propeller configurations are designed to experience fully axial flow. The subsequent coefficients are [8]: CT = T A(R)2 14 (2.3)
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+CPy =
+
+Py A(R)2 Px A(R)2 Q A2 R3 My A2 R3 Mx A2 R3
+
+(2.4)
+
+CPx =
+
+(2.5)
+
+CQ =
+
+(2.6)
+
+CMy =
+
+(2.7)
+
+CMx =
+
+(2.8)
+
+The values are non-dimensionalized using the freestream density, , the rotor disk area, A, the rotor speed in radians per second, , and the rotor radius, R. The rotor disk area is calculated as A = R2 . In addition to the presented coefficient values, rotor torque is often presented with respect to rotor power, P . Rotor power is calculated from rotor torque as P = Q. The power coefficient is: CP = P A(R)3 (2.9)
+
+Figure 2.7 shows the velocity distributions experienced by a blade at four azimuth locations in advancing flight, that is,  = 0 , 90 , 180 and 270 . The total local velocity of an advancing blade is the sum of the freestream and rotational velocity, R + V sin . A retreating blade experiences significantly lower total local velocities because the freestream is subtracted from the rotational velocity, R - V sin . The four azimuth locations in Fig. 2.7 show these changes in total local blade velocities. At 90 and 270 , the freestream has the largest impact, showing significantly higher velocities on the advancing blade than the retreating blade. In contrast to this, at 0 and 180 the freestream does not contribute to the local velocities.
+
+15
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+Figure 2.7: Top View of Velocity Distribution for Advancing and Retreating Blades The velocity differential experienced with advancing and retreating blades cause a significant change in load with respect to azimuth angle. Although the change in velocity magnitude does contribute to these cyclic loads, the driving factor is the change in effective angle of attack. As the influence of the forward velocity decreases, the effective angle of attack decreases and vice versa as shown in Fig. 2.8. With the change in effective angle of attack the resulting force acting on the local blade section drastically changes.
+
+Consider the rotor blade section on the advancing side of  = 90 and retreating side of  = 270 shown in Figs. 2.8a and 2.8b respectively. The advancing blade has a significantly larger tangential velocity for the same axial velocity. These velocity changes increases the magnitude of the resultant velocity, VR , on the advancing blade which results in a smaller angle between the resultant velocity vector and the rotor plane. Thus, the effective angle of attack is larger on the advancing blade. Because of the larger effective angle of attack and large velocity magnitude, the resultant force, dR, is significantly larger on the advancing blade.
+
+16
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+(a) Advancing Blade
+
+(b) Retreating Blade
+
+Figure 2.8: Advancing and Retreating Blade Influence on Blade Section (Courtesy of Julia Tsaltas) In addition to understanding the forces created by a rotor in forward flight, it is also important to understand the wake that a rotor produces and its impact. Landgrebe explained the wake shapes of a single rotor from both an experimental and analytical perspective in hover [24]. The wake geometries discussed by Landgrebe are shown in Fig. 2.9. Figure 2.9a shows the wake using of a vortex sheet model and Fig. 2.9b displays the wake using a smoke filament at the blade tip. During hover and vertical climb, the flow that moves across the rotor plane increases in velocity. This results in a contraction in the flow slipstream, which can also be shown using momentum theory. In addition to the slipstream contraction, the blade tip causes wake roll up. This and Fig. 2.9a show that the wake has a significantly higher vertical translation near the blade tip than the wake near the root because induced velocities are greater near the blade tip.
+
+17
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+(a) Slipstream Contraction using Vortex Sheet
+
+(b) Tip Vortex Using Smoke Filament
+
+Figure 2.9: Hover and Vertical Climb Wake Shapes [24] There is an additional wake consideration in forward flight, As demonstrated in Fig. 2.10, the wake propagates at a skew angle () . When using a prescribed wake representation, this angle is simply defined by the velocity component parallel to the rotor disk plane (µ) and the velocity component normal to the rotor disk () as  = tan-1 µ .
+
+Figure 2.10: Skew Angle Wake Representation for Forward Flight [8] Increased complexity is seen with descending flights as the wake direction is highly dependent on the freestream and induced velocities. Descending flight is considered in three possible states: vortex ring state, turbulent wake state and windmill brake state. A wake representation during vortex ring state is shown in Fig. 2.11 for both a low and higher descent rate. Vortex ring state occurs when the summation of freestream velocity and induced velocity, w, is greater than zero such that (V + w) > 0. Thus, vortex ring state occurs when the magnitude of the induced velocity is larger than the freestream causing the 18
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.2. ROTOR THEORY
+
+final resultant velocity to act downward through the rotor plane. Vortex ring state experiences high turbulence and causes a sudden drastic thrust reduction. Vortex ring state is difficult to predict, test and avoid the loss of control during descending multirotor vehicles [25, 26, 27, 28, 29].
+
+(a) Low Descent Rate
+
+(b) High Descent Rate
+
+Figure 2.11: Vortex Ring State Wake [8] The turbulent wake state is defined between the induced and negative freestream velocity being equal, V + w = 0, to the negative freestream velocity being double the magnitude of the induced velocity, V + 2w. The wake shape is shown in Fig. 2.12 for both the low descent rate boundary and a higher descent rate. In this state the rotor acts like a bluff body with similar wake patterns and drag contributions. Although the flow is unsteady in this state, the turbulence intensity is significantly lower than that seen in vortex ring state. The windmill brake state is defined when the freestream is more than double the induced velocity, V > 2w, as seen at high descent rates. In this state the flow is again smooth with a clearly defined slipstream that as shown in Fig. 2.13 for both the low descent boundary and a high descent rate.
+
+(a) At Low Descent Boundary
+
+(b) High Descent Rate
+
+Figure 2.12: Turbulent Wake State [8]
+
+19
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.3. EXPERIMENTAL ROTOR TESTING
+
+(a) At Low Descent Boundary
+
+(b) High Descent Rate
+
+Figure 2.13: Windmill Brake State Wake [8] It is important to understand these descending flight phenomena as this often reduces the endurance and range of multirotor vehicles. The endurance and range are limited as the slow descent rate requires a large power reserve. BEMT based methods are unable to predict the rotor performance during descent. This is because there is no solution to momentum theory for both the vortex ring or turbulent wake states as momentum theory assumes an incorrect wake direction. The herein presented higher-order potential flow method should not experience the same issues because a wake direction is not assumed in the same manner. Additionally, with the wake relaxation process, the descending wake structures should be captured.
+
+2.3
+
+Experimental Rotor Testing
+
+To help validate the presented method, wind tunnel experiments were conducted in the Ryerson University low speed wind tunnel. Rotor testing was done using a rotor test stand that is mounted in the test section of the wind tunnel that is shown in Fig. 2.14. The test section follows a 3.2 contraction sections and has corner fillets. Its cross sectional dimensions are 91.4cm by 91.4cm. In the test section, the maximum recorded tunnel velocity is approximately 60m/s, although most tests used for validation are at a maximum of approximately 30m/s. The tunnel is powered by a 200-hp externally mounted motors that drives a 123cm diameter fan.
+
+20
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.3. EXPERIMENTAL ROTOR TESTING
+
+Figure 2.14: Top View of the Ryerson University Low Speed Wind Tunnel Throughout the tunnel there are several turbulence reducing components to minimize fluctuation in tunnel velocity. At each of the four corners, there are turning vanes to help guide the flow. Directly after the fan blades are fixed counter-rotating vanes that help to derotate the swirling velocity caused by the fan blades themselves. Within the fan segment, there is a nacelle and streamline device aft of the fan blades to reduce flow separation off of the belt and motor shafts. Directly before the contraction, there is a series of three screens that help to reduced velocity fluctuations in the direction of flow. Using these devices, the turbulence intensity was measured in the test section using hot-wire anemometry. Turbulence intensity (T u) is measured as the ratio between the standard divination of flow velocity (Urms ) and the mean velocity (Umean ) as seen in Eq. 2.10. Tu = Urms Umean (2.10)
+
+The turbulence levels were measured using a hotwire anemometer [30]. The average turbulence intensity in the test section across 17 velocities from 12.5m/s to 42m/s was measured to be 0.286%.
+
+Shown in Fig. 2.15 is the rotor test stand that was used to measure the loads produced by rotors at various inflow conditions. The test stand itself it mounted on a turn table which can be rotated to simulated varying edgewise flows and forward flight configurations seen by multirotor vehicles. The rotor mount rotates about the center of the turn table to ensure the rotor remaines in the center of the test section. The test stand uses load cells to measures the integrated thrust force, torque and rolling 21
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.3. EXPERIMENTAL ROTOR TESTING
+
+moment that act on the rotor. These components are inside the fiberglass cowling. This cowling is used to limit the influence of the flow on the load cells as well as reduce the turbulence caused by the test stand. All wires are securely fastened to the test stand body and fed through the turn table for access outside of the wind tunnel. It was ensured that no force due to the wires drag in the flow would cause an artificial reading on the load cells. It should be noted that Ref. 31 includes detail on the specific test stand components.
+
+(a) Size View of Apparatus
+
+(b) Front View of Apparatus
+
+Figure 2.15: Rotor Test Stand Mounted in Experimental Wind Tunnel
+
+22
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.3. EXPERIMENTAL ROTOR TESTING
+
+Table 2.1: Components of Rotor Test Stand
+
+Part Number 1 2 3 4 5
+
+Associated Component Brushless Motor Infrared Sensor Rolling Moment Load Cell Torque Load Cell Thrust Load Cell
+
+Figure 2.16: Photo of Rotor Test Stand Components Without the Fiberglas Cowling Figure 2.16 shows the mounted components of the test stand with a definition of each component in Table 2.1. The rotor is spun with an electric brushless motor. An infrared sensor is mounted below the powertrain and used to measure the blade passes and thus the rotational velocity. Three load cells are used to measure rolling moment, torque and thrust loads produced by the rotor. The rolling moment is measured as a pitching moment in the wind tunnel, but is associated to a rolling moment for a multirotor vehicle. Both rolling moment and torque are measured using a frictionless bearings and moment arms. The thrust load is measured using the rear mounted load cell that measures the force acting on the main 23
+
+CHAPTER 2. BACKGROUND THEORY
+
+2.3. EXPERIMENTAL ROTOR TESTING
+
+shaft of the test stand. These forces are measured for a range of freestream wind tunnel velocities and angles of attack determined by the orientation of the turn table.
+
+Figure 2.17: Experimental Comparison for the MAE 11x7 Rotor In order to ensure the reliability of the rotor test stand, the master airscrew MAE11x7 rotor was tested and compared to experimental results of Brandt and Selig [17]. The current measured data and comparison propeller data for the thrust and power coefficients are shown in Fig. 2.17. These tests were conducted in propeller configuration with  = 90 at rotation speeds of 4000rpm and 5000rpm. The Ryerson University wind tunnel results show fair agreement with thrust coefficient measurements and show up to about 27% over-prediction in power coefficient. Nevertheless, the general trends of both thrust and power coefficients show good agreement.
+
+24
+
+Chapter 3
+
+Implementation of a Higher-Order Potential Flow Method
+3.1 General Execution Procedure
+
+A MATLAB code was written in order to adapt the higher-order potential flow method for the prediction of aerodynamic rotor loads. The general execution procedure is shown in Fig. 3.1. The program begins by reading the user created input file shown in the Appendix. The geometry of a single blade is duplicated for the multirotor vehicle and this blade geometry is discretized into distributed vorticity elements. After the elements of the single blade are duplicated and rotated for each blade within a single rotor and the initial boundary and kinematic conditions are used in order to solve for the circulation coefficients, A, B, and C, of the lifting surface DVEs. The initial inflow velocity is calculated at each control point and along the trailing edge of the blade. The circulation coefficients are computed for the initial rotor.
+
+The time stepping procedure is next initiated. This time stepping begins with moving the rotor and creating the new row of wake elements. The inflow velocity at the given time step is calculated to compute the circulation coefficients of the surface DVE. The wake relaxation process is applied depending on the user input specifications. The lift and drag forces acting on the rotors are computed and projected into rotor force conventions. If the time stepping procedure is on the last full rotation of the rotor, the viscous addition and the stall model is applied. The time stepping procedure continues to the next time step and increases until the user specified maximum number of time steps is reached. Once the maximum time 25
+
+CHAPTER 3. IMPLEMENTATION
+
+3.2. USER SPECIFIED INPUTS
+
+step is reached, the output variables are saved. Each component of this algorithm are next discussed in detail.
+
+Figure 3.1: Program Execution Procedure
+
+3.2
+
+User Specified Inputs
+
+To setup a computation using this method, some basic geometric and flow specifications are required; for example, fixed or relaxed wake model, a steady or unsteady model, the flow density and kinematic
+
+26
+
+CHAPTER 3. IMPLEMENTATION
+
+3.3. GEOMETRY GENERATION
+
+viscosity. The angle of attack and advance ratio are defined for the first rotor and propagated to the other rotors as suitable. The solution is setup by defining a maximum number of time steps. The time step size is defined by the number of azimuth locations considered per rotation (again defined for the first rotor).
+
+The rotor geometry is defined with the rotor area, diameter, the number of blades and the number of rotors. For each rotor, a rotation axis is defined, the direction of rotation and the rotational velocity. The blade geometry is simply defined by the leading edge distribution, the chord lengths and the blade zero-lift pitch angle at several radial locations. One of the advantages of this method is the little required geometric information to maintain an accurate solution in comparison to panel methods, CFD and experiments which required a very detailed geometric model. This is specifically advantageous as it greatly reduced the time to construct a working model and allows for modeling when only limited information is available.
+
+3.3
+
+Geometry Generation
+
+Upon construction of the geometry, the blade information for one rotor is duplicated to the total number of rotors in the specified vehicle. The rotors are moved in the global reference frame to rotate about the specified rotation axis and mirror depending on the direction of rotation. This geometry is then discretized into distributed vorticity elements with all required geometric information that is stored for later computations. After storing this information, the DVEs of each rotor are duplicated and rotated depending on the number of blades per rotor. The coordinates of each DVE are multiplied by the following rotation matrix:  cos() -sin() cos() 0    0 x       0 × y     1 z
+
+  Rotation M atrix = sin()  0
+
+(3.1)
+
+Where x, y & z are the DVE coordinates and  represents the angle by which the blade should be rotated (determined by 2/(number of blades)). Using this rotation matrix, the specified geometry of one blade can be duplicated and positioned according to the total number of blades per rotor.
+
+27
+
+CHAPTER 3. IMPLEMENTATION
+
+3.4. VELOCITY CALCULATIONS AND MOVING ROTOR
+
+3.4
+
+Velocity Calculations and Moving Rotor
+
+The velocity at each time step is calculated at the DVE control points and along the trailing edge of each blade. In the case of varying rotational velocities, the advance ratio of each blade is calculated based on the advance ratio of the first user defined rotor. The time step size is then calculated in terms of degrees of rotation per second dependent on the number of azimuth locations for a given blade (2/(N umber of Azimuth Locations)). Using this information, the current angle (from local origin) of each DVE is found for each time step.
+
+Figure 3.2: Velocity Components Acting On a Blade Figure 3.2 shows a blade in forward flight, experiencing both a rotational and transnational velocity at each control point. The rotational velocity is simply given by  = r but computed in three dimensions. The radial distance, r, is calculated as the between the control point and the rotational axis. The rotors rotate locally in the x-y global plane, the rotational velocity is:
+T
+
+ (x, y, z ) =  · r · cos() r · sin()
+
+0
+
+(3.2)
+
+In addition to the rotational velocity, in moving flight the translation velocity (Vt ) must be included at each control point. Given the angle of attack, advance ratio, rotor diameter and rotational speed, the translation velocity can be calculated.
+T
+
+Vt (x, y, z ) = (D/2) µ  · -cos()
+
+0
+
+sin()
+
+(3.3)
+
+28
+
+CHAPTER 3. IMPLEMENTATION The total velocity is given by:
+
+3.4. VELOCITY CALCULATIONS AND MOVING ROTOR
+
+VCP (x, y, z ) =  (x, y, z ) - Vt (x, y, z )
+
+(3.4)
+
+With the velocity calculated for each DVE control point (VCP ), this procedure is repeated to calculate the velocity along the trailing edge of the rotor blade. The velocity is calculated at the trailing edge center, 80% of the half-span to the left, and 80% of the half-span to the right, which is later used for the induced drag calculations.
+
+A similar execution is used for moving the rotor surface DVEs and initially creating wake elements. To move the surface DVEs, the control points and vertices of each are translated and rotated. The coordinates of these points are first put into the local reference frame of the rotor using the rotational axis of each rotor. The rotation matrix of Eq. 3.1 is used where  is the angle of rotation per time step. This angle is simply determined from the total number of azimuth locations per rotation as  = 2/(number of azimuth locations). The points to move are multiplied by this rotation matrix and brought back into the global reference frame. The translational displacement, Dt , of these points are applied: Dt (x, y, z ) = µD -cos()  (number of azimuth locations) 0 sin() (3.5)
+
+This translation is also applied to the rotation axis in the global reference frame to ensure that this axis is properly located, with respect to the rotor for each time step.
+
+The wake DVEs are created while moving the rotor by using the trailing edge points before and after moving the rotor. These points are connected to create the new row of wake elements. Figure 3.3 demonstrates the DVE surface elements rotating and translating and demonstrated in grey. With an overlay shown, the generation of wake elements (demonstrated in white) produced from the previous blade is trailing edge. The translation of the rotation axis is also shown with forward flight.
+
+29
+
+CHAPTER 3. IMPLEMENTATION
+
+3.5. FORCE CALCULATION
+
+Figure 3.3: Moving Rotor and Generating Wake Elements
+
+3.5
+
+Force Calculation
+
+After solving the circulation coefficients at a given time step, the forces acting of each surface DVE is calculated. There are five contributions to the total integrated forces: lift due to the freestream, induced lift, induced drag, crossflow due to the freestream and viscous forces. The lift due to the freestream, lift due to induced effects and induced drag calculations are completed using the methods presented by Bramesfeld and Maughmer [18]. After calculating each force contribution, the vector values are transformed to rotor loads.
+
+Freestream Lift The freestream lift, Lf ree contribution is calculated by analytically integrating the lift forces across the bound vortex in the spanwise direction: 3 Lf ree = (2A + C 3 )(V × s) 2 (3.6)
+
+Where s is a unit vector in direction of the leading edge for leading surface DVEs and in the spanwise direction at the mid-chord for downstream surface DVEs.
+
+30
+
+CHAPTER 3. IMPLEMENTATION Induced Lift
+
+3.5. FORCE CALCULATION
+
+The induced lift force is calculated using a numerical integration. This is done by considering the induced velocities at three spanwise locations along the leading filament of a surface DVE. This is done at +80% of half-chord, -80% of half-chord and at half-chord to find the bound circulation values:  = A + B (-0.8 ) + C ((0.8 )2 ) =A  = A + B (0.8 ) + C ((0.8 )2 ) From this bound circulation, Simpson's Rule integration is used to calculate the induced lift force. The resulting induced lift, Lind , after applying the Kutta-Joukowski theorem is computed as: Lind = (w × s) Induced Drag Similar to induced lift calculation, induced drag is calculated by applying Kutta-Joukowski along the trailing edge of the blades. Numerical integration using Simpson's Rule is similarly done to calculate the induced drag acting along the trailing edge as presented by Bramesfeld and Maughmer [18]. (3.8) (3.7)
+
+When analyzing induced drag of a swept trailing edge, special consideration must be accounted for, with unique attention for the rotor case. According to Munk [32] the induced drag of a swept wing is identical to that of an unswept wing as long as both have the same spanwise circulation distribution. When considering the induced drag of a swept trailing edge point, it is moved in the freestream direction to align with an inducer point to create a theoretical unswept wing. In the case of rotors, the flow direction at each trailing edge point is unique. For this, the induced point is moved in the direction flow it is experience to align in the spanwise direction of the inducing point. It was decided to use the induced points flow direction instead of the inducers flow direction because in forward flight there are time steps in which the inducers flow direction does not align with the induced point in the spanwise direction.
+
+Freestream Crossflow Unlike the previously discussed force calculations using this potential flow method, rotors in forward flight experience a unique crossflow component. Consider a rotor blade at an azimuth angle of  = 180 31
+
+CHAPTER 3. IMPLEMENTATION
+
+3.5. FORCE CALCULATION
+
+in forward flight. Due to the translation of the rotor, the rotor blade experiences a significant velocity component in the radial direction. In fast forward flight, it was determined that crossflow must be included to accurately capture the aerodynamic loads that act on the rotor. This is done by integrating the vorticity across the vortex sheet and is discussed in this section.
+
+Consider the DVE shown in Fig. 3.4 with a leading edge sweep angle (LE ), trailing angle (T E ) a half chord defined about the control point ( ) and a half span defined about the control point ( ). In order to determine the circulation due to the velocity acting in the spanwise direction (crossflow), the vorticity is integrated across the span of the DVE:
+
+Figure 3.4: A Swept and Tapered DVE
+
+
+
+=
+-
+
+ ( )d
+
+(3.9)
+
+The Kutta-Joukowski theorem is applied to calculate the lift force due to cross flow, LCF . It should be noted that only the velocity acting across the vortex sheet must be considered:
+
+
+LCF =
+-
+
+ ( )2 ( )(V ×  )d
+
+(3.10)
+
+Because half-chord,  , changes with spanwise location,  , the analytical relationship must be included
+
+32
+
+CHAPTER 3. IMPLEMENTATION
+
+3.6. VISCOUS AND STALL MODELS
+
+in the integral. Vorticity can also be represented in terms of half-chord using the calculated circulation coefficients. LCF = 2(V ×  )  (B + 2Ci ) i - (tanLE + tanT E ) d 2 -
+
+
+(3.11)
+
+After performing the analytical integration, the total lift force acting across a vortex sheet is given by: 2 3 LCF = 2(V ×  ) (i )(2Bi ) - (tanLE + tanT E )(Ci ) 3 (3.12)
+
+These computed lift and drag forces are transformed to rotor hub loads using standard methods [5].
+
+Because this method uses a time stepping procedure, the force and moment values must be timeaveraged. Time-averaging these values for one full rotation yields the total time-integrated force and moment predictions. The final force predictions can include a decomposition of the separate contributions, cyclic loading, time-averaged integrated force and radial loading distribution. This provides a tool for the design and analysis of rotor blades for multirotor vehicles.
+
+3.6
+
+Viscous and Stall Models
+
+The higher-order potential flow methods is solely based off of an inviscid method. Because rotors experience such a large range of radial flow velocities and different inflow angles, viscous effects and stall characteristics can be significant force contributions. The viscous model applied to this prediction tool is a strip theory based method that uses a lookup table for the section characteristics. This lookup table information is often gathered by considering the airfoil cross-sections at several radial locations. The 2D viscous performance is collected using XFOIL [33], but can be of experimental origin.
+
+To apply viscous effects, the total inflow velocity is calculated at each control point. These velocities are averaged across the chord for a radial location when multiple elements are used across the chord. The section lift coefficient that the potential flow method predicts for each section is divided by 2 to calculate the effective angle of attack. Using the local Reynolds number, which is computed using the local velocity and chord length, and the effective angle of attack, the local profile drag is determined using lookup tables. This lookup strategy proved to be most the reliable, which aligns with the viscous model observations of Maniaci [34].
+
+The section stall angle is found and compared to the predicted value in order to determine if a 33
+
+CHAPTER 3. IMPLEMENTATION
+
+3.6. VISCOUS AND STALL MODELS
+
+section has stalled. A stall model was implemented based on experimental data of a wind turbine airfoil section from Refs. 35 & 36. References 31 and 37 applied this stall model to small rotors. A set of empirical equations were created to provide the lift and drag acting on an airfoil at very high angles of attack (used post-stall). The normal, tangential, lift and drag force coeeficients are computed using the following equations [35]: cn = cd,90 sin(ef f ) 0.56 + 0.44sin(ef f ) cd,0 cos(ef f ) ct = 2 cl = cn cos(ef f ) - ct sin(ef f ) cd = cn sin(ef f ) + ct cos(ef f ) (3.13) (3.14) (3.15) (3.16)
+
+It should be noted that the 90 drag value is set to a constant value 2 because of the known flat plate solution at this angle. The resulting lift and drag coefficient values are transformed into rotor loads and added to the integrated rotor loads accordingly. Other basic stall models were considered, including reducing lift coefficient by a set factor but this model proved to be the most accurate. This is specifically important because of the large range of flight forward velocities and inflow angles seen by multirotor vehicles.
+
+34
+
+Chapter 4
+
+Performance Results and Validation
+The implementation of the higher-order potential flow method for rotor performance prediction are next investigated and validated. The hover performance is compared with experimental and a similar potential flow model for integrated and radial loadings. In addition, the thrust and power of the TMotor 18x6.1 rotor are computed and compared with experimental results for the full expected rotor flight regime. Different predictions tools, wake models and configurations are compared to evaluate the effectiveness of this performance prediction tool.
+
+4.1
+
+Hover Performance
+
+The predicted hover performance is compared with experimental tests by Caradonna and Tung [38] for a simple rectangular helicopter blade. The experimental setup is shown in Fig. 4.1. These tests measured the blade pressure distribution and the total thrust loading acting on a rotor blade. The blades were set at different collective pitch angles in order to simulate different disk loadings. The rotor test stand was setup above a wake exhaust duct in order to eliminate recirculation within the room. Pressure distributions were found using 60 pressure tubes per blade that measured the pressure distributions at three radial locations. Two points per blade were unique, with one common pressure distribution location to ensure identical results from both blades. The result is section lift forces at a total of 5 radial locations. Additional wake information was collected using a traversing hot wire anemometer probe below the rotor blade. These tests provide reliable results for comparison purposes with prediction values.
+
+35
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.1. HOVER PERFORMANCE
+
+Figure 4.1: Experimental Setup of a Rotor in Hover [38] In addition to comparing to experimental measurements, predictions will also be compared to Choephel's hover predictions [23], who used a similar higher-order potential flow method. This research focused on the performance of flapping helicopter rotors in forward flight, but provided a hover performance prediction of the aerodynamic model.
+
+4.1.1
+
+Generation of Simulation Geometry
+
+The experimental blade is a simple rectangular planform shape with no twist, no taper and a constant NACA 0012 airfoil. The basic geometric information is shown in Table 4.1. The experiments were conducted at a rotational velocity of 1250rpm. Three collective pitch angles were conducted experimentally to simulate three disk loadings. In order to closely imitate the predictions of Choephel [23], one row of 11 spanwise DVEs per blade were used to model the rotor surface.
+
+36
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.1. HOVER PERFORMANCE
+
+Table 4.1: Rotor Blade Geometry [38, 23]
+
+Geometric Characteristic Planform Shape Blade Twist Airfoil Number of Blade Rotor Radius (R) Blade Aspect Ratio (AR) Root Cut-Out (e/R) Collective Pitch (c )
+
+Associated Value Rectangular Untwisted NACA 0012 2 1.143m 6 0.1905m 5 , 8 & 12
+
+A relaxed wake simulation was required for a converged solution. A total of 40 azimuth locations were used, which is a 9 azimuthal rotation per time step, similar to the work of Choephel. The number of rotations until convergence was found around 6 full rotations depending on the loading. For the lightly loaded case with a collective pitch of 5 the solution did not converge by simply rotating the rotor in a held position like the other loading cases. For this loading case, it was found that the initial wake vortex sheet would pile up under the rotor and cause the solution to oscillate and diverge. This is caused by the first few wake rows experiencing near zero initial velocity due to the impulsive start of a time stepping procedure. In order to resolve this issue, the blade was moved vertically upwards from the initial location. The rotor would move at a linearly decreasing velocity before resolving at one hovering location. This resulted in discrepancies due to the blade itself producing drastically different forces when vertically ascending. A more successful technique was to apply a vertical velocity to the wake alone, while holding the rotor hovering in a set location. For the lightly loaded rotor, linearly decreasing vertical velocity was applied at an initial 10m/s velocity for the first three full rotations, at which point the rotor hovered in spot until convergence.
+
+4.1.2
+
+Blade Loading Comparison
+
+The total integrated thrust loading was computed using the herein presented potential flow method and compared to experimental results. This was done for the three previously mentioned collective blade pitch angles with the results presented in Fig. 4.2. The thrust values show very good agreement across all pitch angles, with the largest discrepancy found at the lightly loaded 5 rotor, although not significant.
+
+37
+
+CHAPTER 4. PERFORMANCE RESULTS
+10-3
+Potential Flow Experiment
+
+4.1. HOVER PERFORMANCE
+
+8 6
+
+CT
+4 2 5 6 7 8 9 10 11 12
+
+Collective Pitch Angle (
+
+) c
+
+Figure 4.2: Total Integrated Thrust Loading at Different Collective Pitch Angles The radial loading comparison for the three collective pitch angles are shown in Fig. 4.3. A radial loading comparison is a more sensitive parameter than to the integrated loads and shows a finer accuracy of the prediction method. Although limited to five data points from the referenced experiment, the general trends and magnitudes are evident in Fig. 4.3.
+
+The radial loadings show strong agreement to the experimental data for each of the collective pitch angles. There are some differences between the presented prediction and the reference results from Choephel [23]. This is believed to be cause by some notable differences between the two approaches. Choephel moves the wake for each of the loading case where the presented prediction only moved the wake in the lowest loading case. Furthermore, in the herein used model, the DVEs are modeled from leading edge to trailing edge where as Choephel models the blade using DVEs that run from the quarter chord line of the blade to a quarter chord distance past the trailing edge. The largest discrepancy contribution is believed to be caused by the intermediate wake element model Choephel used. This extended model was not implemented as the performance prediction with the original wake model provided strong agreement for multirotor analysis. Nevertheless, the compared results do show strong agreement between the three sources.
+
+38
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.1. HOVER PERFORMANCE
+
+0.2 0.15
+Potential Flow Choephel [23] Experiment [38]
+
+cl
+0.1 0.05 0.4
+
+0.5
+
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+1
+
+r/R
+(a) Collective Pitch of c = 5
+
+0.4 0.3
+
+cl
+
+0.2 0.1 0 0.4
+
+0.5
+
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+1
+
+r/R
+(b) Collective Pitch of c = 8
+
+0.4 0.3
+
+cl
+
+0.2 0.1 0 0.4
+
+0.5
+
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+1
+
+r/R
+(c) Collective Pitch of c = 12
+
+Figure 4.3: Radial Loading Distribution
+
+4.1.3
+
+Computed Hovering Wake
+
+For more insight on the wake relaxation of the hover performance, the wake representations are shown in Fig. 4.4 for the three blade loading cases. Some general observations show that the wake is convecting downwards and contracting directly below the blade surface. This aligns with the expected wake shape during hover that has been described previously in section 2.2. Also noted is the older wake elements
+
+39
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.1. HOVER PERFORMANCE
+
+begin to roll out and upwards after convecting downwards. The wake elements from these early time steps remain within this region for the entire time computed. The wake elements at the root of the rotor blades show large upward spikes due to the upwash that is present at the rotor hub. This shoot-up at the root aligns with observations in rotor operations and computed CFD results [39]. The outboard blade-tip shows a quick roll-up for all of the presented cases.
+
+Comparing the wake geometry of the 8 and 12 collective pitch angle cases, the wake moves downwards more quickly than in the low loading case of 5 collective pitch. The wake contraction is larger with the higher loadings and the collection of older wake elements is farther displaced. Tangent to this wake contraction relationship to loading, there are larger root upwash with the higher loadings. The 5 collective pitch angle case is unique because the startup wake is propagated downward by applying a wake induced velocity, as previously described. The resulting wake has a larger distance between the rotor surface and the old wake roll-up.
+
+(a) Collective Pitch of c = 5
+
+40
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.1. HOVER PERFORMANCE
+
+(b) Collective Pitch of c = 8
+
+(c) Collective Pitch of c = 12
+
+Figure 4.4: Computed Wake Shapes
+
+41
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+4.2
+
+Advancing Flight Performance
+
+The forward flight performance of a single rotor is computed for a large flight envelope, that is, a series of inflow angles and advance ratios. The prediction is compared to both experiment and BEMT to determine the merit of using the herein presented method. A convergence study is completed to ensure the prediction is setup with sufficient total number of time steps and time step sizes. The fixed wake and relaxed wake models are compared to demonstrate their limitations and strengths.
+
+4.2.1
+
+Model Geometry
+
+This study analyzed the advancing flight performance of the commercially available T-Motor 18x6.1 rotor, which is a two bladed rotor with a 0.457m diameter that was designed for multirotor UAVs. Figure 4.5 shows a top view of this rotor. A 3D digital scan was used to obtain the geometry of this rotor. From the 3D model, the chord length, zero lift pitch angle and midchord location at 17 radial stations were found. These measured parameters are shown in Fig. 4.6. Airfoil geometry at three radial locations (r/R = 0.25, 0.5 & 0.75) were extracted from the 3D model and are shown in Fig. 4.7. The airfoil coordinates are included in the appendix. These airfoil geometries were used for the viscous strip method by generating a 2D performance database using XFOIL. Figure 4.8 shows the T-Motor 18x6.1 blade geometry discretized into one row of 17 DVEs per blade. Additional spanwise or chordwise surface elements showed little to no change in the predictions.
+
+Figure 4.5: Top View of the T-Motor 18x6.1
+
+42
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+Figure 4.6: T-Motor 18x6.1 Blade Geometry
+
+0.1 0.05 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1
+
+r/R = 0.25 r/R = 0.5 r/R = 0.75
+
+Figure 4.7: Airfoil Geometry at Three Radial Location
+
+Z-Dir
+
+-0.01
+
+0.2 0.15 0.1 0.05 0 -0.05 -0.1
+
+Y-Dir
+
+-0.15 0.02 -0.2 0 -0.02
+
+X-Dir
+
+0 -0.02 0.2 0.15 0.1 0.05 0 -0.05 -0.1 -0.15 -0.2
+
+Y-Dir
+
+Figure 4.8: T-Motor 18x6.1 DVE Discretization 43
+
+X-Dir
+
+0.02
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+4.2.2
+
+Convergence Study
+
+A convergence study was conducted in order to determine the appropriate time step sizes and total number of required time steps. This convergence study considers the T-Motor 18x6.1 rotor at an angle of attack of 15 and a low advance ratio of 0.0637. This configuration was chosen as it was found to be difficult to converge, demonstrating a conservative study.
+
+Figure 4.9 shows the time step size convergence study. The time step size is set by specifying the total number of azimuth locations considered per full rotation. The thrust coefficient was calculated for a total number of azimuth locations ranging from 2 to 30. Convergence is reached with 20 azimuth locations. A further increase in number of azimuth locations has no more effect on the thrust coefficient. 20 azimuth locations are associated to an 18 rotation each time step.
+0.1
+
+Thrust Coefficient (C T)
+
+0.08
+
+0.06
+
+0.04 0 5 10 15 20 25 30
+
+Number of Azimuth Locations
+
+Figure 4.9: Time Step Size Convergence [40] Figure 4.10 shows the number of time steps that are required for convergence. The thrust coefficients are computed for 1000 time steps for each of the previously discussed time step sizes. As expected, more time steps are required for smaller time step sizes. This is because more time steps are required to simulate the same total time. When considering 20 azimuth locations, by 200 time steps (10 full rotations) the thrust coefficient is within 1% of the converged value and by 300 time steps (15 full rotation) the solution is fully converged. Based on the results of this convergence study 20 azimuth locations and 200 time steps were used for the following simulations.
+
+44
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+Figure 4.10: Number of Time Step to Convergence [40]
+
+4.2.3
+
+Advancing Flight Results and Validation
+
+Figure 4.11 shows predicted and measured thrust coefficients at various inflow angles and advance ratios. The predictions results are derived using the herein introduced potential flow method and a BEMT-based method. The experimental results were taken in the Ryerson University wind tunnel using the experimental setup that is described in Section 2.3. Figure 4.12 shows the corresponding of power coefficients. Overall, the herein presented potential flow model shows good agreement across the full range of available data.
+
+A full range of angles of attack were considered that represent the flow conditions of ascending, descending and edgewise flow of multirotor vehicles. Different forward advance ratios were considered, from hover up to an advance ratio of 3.18. Predictions were done using a steady state assumption. Computed results from both the fixed and relaxed wake models are also compared. It should be noted that the hover case was done using a relaxed wake without forced wake convection. Additionally, all computations include the viscous and stall models.
+
+Considering the thrust results shown in Figure 4.11, results show good agreement with the experiment with most predictions within 2%. The hover predictions are slightly lower than that measured from experiments. A slight under-prediction is seen with large edgewise flow components between angles of 15 and -15 . Although this under-prediction exists for these angles, the computed trends are nearly identical to those seen in the experiments. The slight offset is believed to be due to limitations of geom45
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+0.04
+
+Angle of Attack: -90
+
+CT
+
+0.02 0 0.04 Angle of Attack: -30
+
+CT
+
+0.02 0 0.04
+
+Angle of Attack: -15
+
+CT
+
+0.02 0 0.04
+
+Angle of Attack: -5
+
+CT
+
+0.02 0 0.04
+
+Angle of Attack: 0
+
+CT CT
+
+0.02 0 0.02 0 -0.02 0.02 Angle of Attack: 5
+
+CT
+
+0 -0.02 0.015
+
+Angle of Attack: 15
+
+CT
+
+-0.005 -0.025 0.015
+
+Angle of Attack: 30
+
+CT
+
+-0.005 -0.025 0.015
+
+Angle of Attack: 60
+Fixed Wake Relax Wake
+
+CT
+
+-0.005 -0.025 0
+
+Angle of Attack: 90 0.05 0.1 0.15 0.2 0.25
+
+BEMT Wind Tunnel
+
+0.3
+
+Freestream Advance Ratio,
+
+Figure 4.11: Thrust Comparison for the T-Motor 18x6.1 46
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+0.004
+
+Angle of Attack: -90
+
+CP
+
+0.002 0 0.004 Angle of Attack: -30
+
+CP
+
+0.002 0 0.004 Angle of Attack: -15
+
+CP CP
+
+0.002 0 0.001 0 -0.001 0.001 Angle of Attack: -5
+
+CP
+
+0 -0.001 0.001
+
+Angle of Attack: 0
+
+CP
+
+0 -0.001 0.001
+
+Angle of Attack: 5
+
+CP
+
+0 -0.001 0.002
+
+Angle of Attack: 15
+
+CP
+
+0 -0.002 0.002
+
+Angle of Attack: 30
+
+CP
+
+0 -0.002 0.002
+
+Angle of Attack: 60
+Fixed Wake Relax Wake BEMT Wind Tunnel
+
+CP
+
+0 -0.002 0
+
+Angle of Attack: 90 0.05 0.1 0.15 0.2 0.25
+
+0.3
+
+Freestream Advance Ratio,
+
+Figure 4.12: Power Comparison for the T-Motor 18x6.1 47
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+etry collection from the 3D model. Additional offsets may be associated to the steady-state assumption, as with more edgewise flow the unsteady effects increase. For vertically descending flight at  = -90 , the predictions show small differences. Any slight discrepancies are believed to be from the assumed viscous model, stall model and the difficulties associated to vortex ring state. During descending flight the effective angles of attack are large and thus, the viscous and stall model are important. Additionally, vortex ring state is a highly unsteady phenomena that is difficult to predict and experimentally to test. Nevertheless, even the largest predicted descending flight discrepancies are within 5% of the experiment.
+
+The computed thrust values show slight differences when compared to the results from the BEMTbased method. The BEMT-based method does not show the same under-prediction that the herein presented potential flow method does for highly edgewise flow. This is because a collective pitch of the blade was adjusted for the BEMT analysis to match hover results. For descending flight, that is  < 0 , the BEMT method struggles to capture the correct thrust trends. In vertical descent, BEMT is unable to predict rotor performance as the assumed wake direction from momentum theory is incorrect. In general, the herein presented model show good agreement to the BEMT results for ascending flight and shows improved prediction for descending flight angles.
+
+Figure 4.12 compares the single rotor power prediction to the experiments to show good agreement within 8% of experiment for most computed values. The computed hover power shows a slight over prediction than that seen from experiments. Across the full range of angles of attack, similar trends are seen between the prediction and experiment. Similar to the differences in thrust, the highly edgewise flow show some small offsets from experiment. These offsets in power can be attributed to the of geometry extraction from the 3-D scanner and the steady-state flow property assumption. During vertical descent the experimental data has larger scatter due to the unsteady nature of vortex ring state. The computed power shows good results at higher advance ratios but shows some differences for low advance ratios ranging from 0.05 to 0.175. It should be noted that an inviscid prediction does not show any resemblance to the experiment, which indicates the importance of the viscous addition and that applied stall model. With viscous and stall models applied, the overall power prediction shows good agreement for the full flight range experienced by rotors.
+
+The computed power results show significant differences to the BEMT predictions. BEMT and the presented method show good agreement between the angles of 5 and 30 . For ascending angles of 60 and 90 , power results are similar until high advance ratios in which the BEMT begins to show discrep-
+
+48
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+ancies with the experiment. The most notable difference between BEMT and the computed results are again for flight angles between fully edgewise flow to vertical descent, that is, angles between 0 and -90 . Within this flight range, the potential flow method shows significantly better agreement with the experiment than the BEMT-based method. The power discrepancies in descending flight clearly demonstrates the limitations of the BEMT model.
+
+The performance validations show strong agreement between computed and experimental results. Only slight power and thrust offsets are seen for highly edgewise flow and vertically descending flight. This is likely due to the inaccuracy of replicating the blade geometry from the 3D scanned model and the challenges associated with vortex ring state. The computed results show improvements over the BEMT prediction under several conditions. Specifically, for all descending flight angles and fast ascending flight, the presented model shows slight thrust improvements and significantly better power predictions.
+
+4.2.4
+
+Wake Model Comparison
+
+The presented method has two wake models, fixed wake and relaxed wake. Both wake types have strengths and disadvantages that are outlined here. The general results show that a wake relaxation depicts a more realistic wake but at the cost of an increase in computational expense. There are also differences in the prediction of integrated loads depending on the rotor configurations.
+
+Referring to the thrust comparison in Fig. 4.11, the results are very similar between the fixed and relaxed wake models. For angles of attack of -15 to 90 , the results of the wake models are nearly identical at all but low advance ratios. Some differences between wake models exist at low 0.025 advance ratio, at which a relaxed wake shows slightly better agreement with experiment. At this advance ratio, it is difficult to obtain a fully converge fixed wake solution as the wake elements are very close between rotations. In wake relaxation, the wake elements propagate downward due to the downwash effects of the rotor. For the same reason, the hover solution can only be obtained when using a relaxed wake. The most significant thrust difference between wake models is seen with vertical descent at an angle of attack of -90 . The relaxed wake shows results which agree well with the experimental observations. The relatively poor agreement of the fixed wake representation is because it moves upwards during descending flight. A relaxed wake, however, helps propagate the wake downward due to the downwash of the rotor before moving upwards.
+
+Comparing the relaxed and fixed wake power predictions in Fig. 4.12 exhibits observations that are 49
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+similar to the thrust comparisons. Near identical results are seen for angles of attack of -15 to 90 with the exception of very low advance ratios. The most notable difference is with the vertical descending flight power results. The fixed wake does not accurately capture the trend or magnitude of power in comparison to the experiments. The relaxed wake, however, show significantly better agreement. The general trend and magnitude are matched. At low advance ratios between 0.05 and 0.175, a slight over prediction can be observed. This improvement in power prediction during vertical descent is again associated to the more accurate wake depiction with a relaxed wake solution.
+
+Figures 4.13 & 4.14 show a fixed and relaxed wake of the T-Motor potential flow model, respectively. The blade is shown in red and the wake represented in grey. The wake shapes of the two methods show significant differences. Both were computed at a angle of attack of 30 , a rotational velocity of 3000rpm and an advance ratio of 0.159. Two full rotations were calculated with 40 azimuth locations per rotation, resulting in a 9 rotation per time step.
+
+The fixed wake shown in Fig. 4.13 is aligned along the trace of the blade's trailing edge. The resulting wake remains constant for each rotation. The relaxed wake shown in Fig. 4.14 allows each element to change shape and direction depending on the locally induced velocities. The wake relaxation visual shows the blade tip vorticies, with the radius growing as the blade continues advancing. Additionally, the upwash at the root cause the root wake elements to roll upwards. This relaxed wake better represents the expected wake shape as seen by experiments [24] and CFD [39].
+
+The fixed wake calculations total 56 seconds and the relaxed wake computation time was 580 seconds. These solution times were completed on a personal computer with an Intel R Core i7TM processor capable of running at 2.60GHz and with 16GB of available random-access memory (RAM). This 10 times increase in computation time due to wake relaxation was found to be fairly consistent regardless of total number of the time steps. The vortex sheet represents the shear layer behind a lifting surface and a relaxed wake seems to better represent the roll up that is observed with the shear layer at this increase in computational expense.
+
+50
+
+CHAPTER 4. PERFORMANCE RESULTS
+
+4.2. ADVANCING FLIGHT PERFORMANCE
+
+Figure 4.13: Fixed Wake of the T-Motor 18x6.1 [40]
+
+Figure 4.14: Relaxed Wake of the T-Motor 18x6.1 [40]
+
+51
+
+Chapter 5
+
+Applications
+The higher-order potential flow method is extended to two main applications, that is, for single rotor and multirotor design. These examples demonstrate some of the capabilities of this potential flow method as it is applied to rotors. For example, understanding what contributes to the integrated forces can help to improve rotor design. Understanding cyclic loading can help to understand advancing and retreating blade effects that rotors experience. The extension to multiple rotors that act in close proximity is also considered in order to model a multirotor vehicle. Closely located rotors interacting with one another can cause different overall vehicle effects that are only understood by simulating multiple rotors. For example, different rotational directions are considered in order to understand how to improve the design of multirotor vehicles. The interest and focus are less aerodynamic improvement, but better understanding of aerodynamic loads as they pertain to control laws.
+
+5.1
+
+Loading Decomposition and Cyclic Loading
+
+A rotor in advancing flight has affects that are related to advancing and retreating blades. As the blade advances into the flight direction, the loads experienced differ compared to when the blade is retreats. Because of this, the blade loading change cyclically. Cyclic loadings of the T-Motor 18x6.1 rotor are shown in Figs 5.1, 5.2 & 5.3. This was done for the same forward flight flow conditions used for wake comparison (Section 4.2.4).
+
+Figure 5.1 shows the total thrust and power coefficients for half of a rotation of a two bladed rotor. It is evident that both the power and thrust coefficients change cyclically with the rotation of the blade.
+
+52
+
+CHAPTER 5. APPLICATIONS
+
+5.1. LOADING DECOMPOSITION AND CYCLIC LOADING
+
+The maximum power is seen near an azimuth angle of about 90 and the maximum thrust is seen slightly forward of this at an azimuth angle of approximately 100 .
+
+0.042
+Thrust Coefficient Power Coefficient
+
+0.0155
+
+0.038
+
+0.0145
+
+0.036
+
+0.014
+
+0.034
+
+0.0135
+
+0.032 0 20 40 60 80 100 120 140 160
+
+0.013 180
+
+Azimuth Angle of One Blade (deg)
+Figure 5.1: Cyclic Thrust and Power Coefficients of a Two-Bladed Rotor Figure 5.2 further impacts the cyclic loading understanding using a thrust force contour of the rotor disk. This also displays the radial thrust force distribution. Here it is shown that the largest forces occur near the 75% radius location. It is very clear that the advancing blade produces significantly higher thrust than the retreating blade. Figure 5.3 shows a power-contour plot. This shows similar radial and cyclic loading as the thrust contour. The maximum power requirement occurs on the advancing side.
+
+53
+
+Power Coefficient (C P )
+
+Thrust Coefficient (C T)
+
+0.04
+
+0.015
+
+CHAPTER 5. APPLICATIONS
+
+5.1. LOADING DECOMPOSITION AND CYCLIC LOADING
+
+Figure 5.2: Thrust Force Contour
+
+Figure 5.3: Power Contour These thrust results help to understand the rolling and pitching moments that act on a single rotor in forward flight. A rotor that advances with edgewise flow components produces a pitch up moment and a roll moment with the advancing side being forced up. The pitching moment is due to the thrust differential across the y-axis and rolling moment across the x-axis. This pitching and rolling moment is shown by the cyclic thrust shown in Figs. 5.1 & 5.2. The power results help to understand the lateral 54
+
+CHAPTER 5. APPLICATIONS
+
+5.1. LOADING DECOMPOSITION AND CYCLIC LOADING
+
+and longitudinal side forces. Here it is clear that a counter-clockwise rotor produced a longitudinal force, Px , in the direction of flow and a lateral side force, Py , to the right. This is again described by the cyclic power loading in Figs. 5.1 & 5.3.
+
+Figure 5.4: Force Decomposition at Various Azimuth Locations Figure 5.4 shows three significant thrust parameters: cyclic thrust, radial thrust loading and a loading decomposition. Clearly, the advancing blade produces significantly higher thrust loadings than the retreating blade. This aligns with the cyclic loading previously discussed. The radial thrust distribution is shown to see the advancing blade producing significantly higher thrust loading than the retreating side. Negative thrust is produced near the root of the retreating blade. The radial loading demonstrates that highest loading occurs near 75% of the radius. Additionally, the thrust loading is zero at both the root and the tip it is as expected by the boundary condition definitions.
+
+The loading decompositions in Figure 5.4 show each of the thrust contributions. The thrust due to lift that results solely from the blade motion, has the highest thrust contribution for the given flow condition. The thrust due to crossflow has some contributions when at an azimuth location with a highly 55
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+edgewise flow component. At the azimuth locations of 90 and 270 , the thrust due to crossflow lift has no contribution as expected. The induced lift, induced drag and viscous drag do not have significant contributions to the total thrust. Understanding this loading decomposition can help with improving the design of a rotor.
+
+5.2
+
+Multirotor Configuration Comparison
+
+The design capabilities of this higher-order method applied to multirotor vehicle configurations is next demonstrated. The effects of the rotational direction of the rotors is investigated for a diamond and square configuration quardrotor. The results show that simply changing rotational direction has influences on the entire vehicle response as a results of wake interactions. The presented results are also discussed in Ref. 41.
+
+5.2.1
+
+Configuration Setup
+
+A multirotor vehicle was modeled using four T-Motor 18x6.1 rotors as shown in figure 5.5. The rotor hubs were located at fictitious support arms length of 0.2m from the center of the vehicle. The analysis was performed for 5 , 15 and 30 angles of attack, which are typical angles within the flight envelope of multirotor vehicles. The rotational speed of the rotors were fixed to 3000rpm. Both the performance predictions for both the diamond and square quadrotor configurations are presented.
+
+Figure 5.5: T-Motor 18x6.1 quadrotor 56
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+(a) Clockwise Lead Rotor
+
+(b) Counterclockwise Lead Rotor
+
+Figure 5.6: Diamond Quadrotor Rotation Configurations
+
+(a) `Bear Hug' Configuration
+
+(b) `Breaststroke' Configuration
+
+Figure 5.7: Square Quadrotor Rotation Configurations Two quadrotor orientations are investigated, the diamond configurations shown in Fig. 5.6 and the square configurations shown in Fig. 5.7. In the diamond configuration, the rotation configurations are differentiated by the rotation direction of the leading rotor. The clockwise and counterclockwise diamond configurations are shown in Figs. 5.6a and 5.6b respectively. In the square vehicle orientation, 57
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+the rotation configuration is defined as either `bear hug' or `breaststroke'. Figure 5.7a shows the `bear hug' configuration in which the retreating side of the leading rotors are nearest the centerline. Figure 5.7b shows the `breaststroke' configuration where the advancing side of the leading rotors are nearest the centerline.
+
+5.2.2
+
+Diamond Configuration
+
+The computed performance of the CW diamond configuration is presented in Fig. 5.8 across a range of forward flight advance ratios. The values presented in Fig. 5.8 are the total vehicle loads that result from summing the loads of all four rotors. As expected, the computed thrust and power decrease with the increase in vehicle angle of attack in comparison to the single rotor performance. The pitching moment shows an increase with increase forward speed. Additionally, there is a significant vehicle rolling moment with the increase in angle of attack. It should be noted that the CCW configuration computed the same thrust, power and pitching moment as the CW configuration, with the rolling moment being equal in magnitude but opposite in direction.
+
+To investigate the vehicle rolling and pitching moments, the individual rotor thrust contributions are shown in Fig. 5.9 for both the CW and CCW configurations. These results are for 5 angle of attack. The rear rotor (rotor 3) has the lowest thrust contribution as it is experiencing a strong downwash from the leading rotor. The thrust differential between the rear and front rotor contribute to the pitching up moment of the vehicle. The two mid-rotors produced the largest thrust as they are experiencing an upwash from the leading rotor. In the CW configuration, rotor 2 has a significantly higher thrust than rotor 4 which causes a roll moment to the right. The CCW configuration show the opposite mid-rotor thrust relationship, which indicates that this thrust difference is due to the rotation direction of each individual rotor.
+
+58
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+0.05 0.04 0.03
+
+CT
+0.02 0.01 0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+CW, AoA = 5 CW, AoA = 15 CW, AoA = 30
+
+Advance Ratio
+
+(a) Diamond Quadrotor Thrust Coefficient
+8 10
+-3
+
+6
+
+CP
+
+4
+
+2
+
+0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(b) Diamond Quadrotor Power Coefficient
+3
+
+Pitching Moment (Nm)
+
+2.5 2 1.5 1 0.5 0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(c) Diamond Quadrotor Vehicle Pitching Moment
+0
+
+Roll Moment (Nm)
+
+-0.2
+
+-0.4
+
+-0.6 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(d) Diamond Quadrotor Vehicle Rolling Moment
+
+Figure 5.8: Quadrotor Total Forces and Moments for the Diamond Configuration
+
+59
+
+CHAPTER 5. APPLICATIONS
+10-3
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+12 11 10
+
+Mid-rotors
+
+9 8
+Lead Rotor
+
+7 6 0.08 0.1 0.12 0.14
+
+Rear Rotor
+
+CW 1 CW 2 CW 3 CW 4 CCW 1 CCW 2 CCW 3 CCW 4
+
+CT
+
+0.16
+
+0.18
+
+0.2
+
+0.22
+
+0.24
+
+Advance Ratio
+
+Figure 5.9: Individual Rotor Thrust for the Diamond Configuration To investigate the vehicle rolling moment further, the rotor hub moments are shown in Fig. 5.10. The CW and CCW produced opposite in direction, but equal in magnitude rotor hub roll moments. Considering the CW configuration, it is shown that rotors 2 and 4 produced a rolling moment to the right, and rotors 1 and 3 produce a roll to the left due to advancing and retreating blade effects. The magnitude of the mid-rotors produced a larger magnitude of rolling than the lead and rear rotors, resulting in a rolling to the left. The rolling moment due to differential thrust, although opposite in direction, is lower than the rotor hub moments, resulting in the overall vehicle rolling to the left for the CW diamond configuration.
+
+4
+
+10-3
+
+2
+
+0
+
+-2
+
+CW 1 CW 2 CW 3 CW 4 CCW 1 CCW 2 CCW 3 CCW 4
+
+CMx
+
+-4 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+Figure 5.10: Individual Rotor Hub Moments for the Diamond Configuration To better understand what causes these differences due to different rotational orientations, the radial circulation distribution is shown for both the front and rear rotors in Fig. 5.11. This plot is computed for the advance ratio of 0.25. It should be noted that for ease of comparison the plotted results are of 60
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+rotors 2 and 4 are mirrored about the center hub. From Fig. 5.11 it is apparent that the circulation is directly related to the thrust shown in Fig. 5.9, with rotor 2 having the highest circulation and thus highest thrust. The advancing blades produce significantly higher circulations than the retreating blade. These differences in circulation must be the result of different effects of the lead rotor wake.
+
+1.2 1
+Rotor 1 Rotor 2 Rotor 3 Rotor 4
+
+Circulation
+
+0.8 0.6 0.4 0.2 0 -0.25
+Advancing Blade Retreating Blade
+
+-0.2
+
+-0.15
+
+-0.1
+
+-0.05
+
+0
+
+0.05
+
+0.1
+
+0.15
+
+0.2
+
+0.25
+
+Radial Location
+
+Figure 5.11: Individual Rotor Circulation for the Diamond Configuration In order to evaluate the hypothesis that the differences in mid-rotor thrust is related to lead-rotor wake induced effects, the velocity that the lead induced on the mid-rotors is shown in Fig. 5.12. Clearly, rotor 2 is experiencing a higher upwash than rotor 4 which explains the increase in thrust shown in Fig. 5.9. Specifically, the advancing side of rotor 2, which is attributed to the larger thrust contribution, experiences a significantly higher upwash than the advancing side of rotor 4.
+
+3
+
+Z-Dir Induced Velocity (m/s)
+
+2
+
+1
+
+0
+Rotor 2 Rotor 4
+
+-1
+
+-2 -3
+
+-2
+
+-1
+
+0
+
+1
+
+2
+
+3
+
+Y Location (r/R)
+
+Figure 5.12: Induced Velocity of Lead Rotor on Mid-Rotor in the Diamond CW Configuration 61
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+Figure 5.13: Rotor Wake Shape in Advancing Flight Showing Higher Advancing Wake "Density" The differences in induced velocities shown in Fig. 5.12 are related to the different wake structures that come off the lead rotor depending on its rotation direction. In general, based on the radial circulation distributions of Fig. 5.11 the advancing side produces more circulation and subsequently, sheds more vorticity shed into the wake on the advancing side. In addition, Fig. 5.13 shows the wake on the advancing side is more "compressed" than the retreating side. Thus, the CW configuration has a higher vorticity "density" in the wake near rotor 2 than to rotor 4. Having higher vorticity results in higher induced velocities on rotor 2, and therefore explains the rotor thrust difference and vehicle rolling moment.
+
+The final results are the CW diamond configuration produced a rolling moment to the right and the CCW diamond configuration produced a rolling moment to the left. These rolling moments align with those observed in multirotor vehicle flight tests.
+
+5.2.3
+
+Square Configuration
+
+Aerodynamic performance was computed for both the `bear hug' and `breaststroke' configurations across a range of forward flight advance ratios and is presented in Fig. 5.15. It should be noted that the rolling and yaw moments as well as the total force acting in the y-direction was not included as these values 62
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+are zero for the entire vehicle due to the symmetry about the longitudinal plane of this configuration.
+
+All of the total rotor coefficients show similar results between the two configurations for the larger angles of 15 and 30 . At 5 , the highly edgewise flow of the `breaststroke' configuration shows slightly lower thrust, power and drag force at advance ratios of approximately 0.16 and larger. When considering the power to thrust ratio between the two configurations, at an angle of attack of 5 , the thrust to power ratio is lower for the `breaststroke' configuration until an advance ratio of approximately 0.16, at which point the `breaststroke' has a significant increase in thrust to power ratio. The vehicle pitching moments show that there is a larger pitching up moment in the `bear hug' configuration which aligns with results from quadrotor flight testing.
+
+To investigate the effects of these configuration differences, the thrust of the front and rear rotors are compared in Fig. 5.14. These results are for 5 angle of attack. For both rotational orientation, that is, `bear hug 'and `breaststroke', the rear rotors produced less thrust than the leading rotors. This thrust imbalance between front and rear is clearly due to the effects that the lead rotor wakes have on the rear rotors. It is noted that the two front rotors of either rotational configuration produced the same thrust values while the rear rotors produced different thrust values between the rotational configurations, namely the `breaststroke' configuration producing the lesser thrust.
+
+11 10 9
+
+10
+
+-3
+
+Bear Hug Rear Rotors Bear Hug Front Rotors Breaststroke Rear Rotors Breaststroke Front Rotors
+
+CT
+
+8 7 6 5 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+Figure 5.14: Front and Rear Rotor Thrust Comparison for the Square Configuration
+
+63
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+0.04
+
+0.03
+
+CT
+
+0.02
+
+0.01 0.08 0.1 0.12 0.14 0.16 0.18 0.2
+
+Bear Hug, AoA = 5 Bear Hug, AoA = 15 Bear Hug, AoA = 30 Breaststroke, AoA = 5 Breaststroke, AoA = 15 Breaststroke, AoA = 30
+
+0.22
+
+0.24
+
+Advance Ratio
+
+(a) Square Quadrotor Thrust Coefficient
+7 6 5 10
+-3
+
+CP
+
+4 3 2 1 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(b) Square Quadrotor Power Coefficient
+3 2.5
+
+My (Nm)
+
+2 1.5 1 0.5 0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(c) Square Quadrotor Vehicle Pitching Moment
+0 -0.5 -1 10
+-3
+
+CPx
+
+-1.5 -2 -2.5 -3 -3.5 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(d) Square Quadrotor Moment
+
+Figure 5.15: Quadrotor Total Forces and Moments for the Square Configuration
+
+64
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+3
+Vehicle Moment Attributes Bear Hug Differential Thrust Moment Breaststroke Differential Thrust Moment Bear Hug Rotor Hub Moment Breaststroke Rotor Hub Moment Bear Hug Total Vehicle Moment Breaststroke Total Vehicle Moment
+
+2.5
+
+Pitching Moment (Nm)
+
+2
+
+1.5
+
+1
+
+0.5
+
+0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advanced Ratio
+
+Figure 5.16: Vehicle Pitching Moment Attributions for the Square Configuration ( = 5 ) As a results of this thrust difference, the pitching moment of the entire vehicle shows a bias depending on the lead rotor rotational orientation. Figure 5.16 shows that the pitching moment of the differential front and rear rotor thrust causes a larger pitching up moment for the `breaststroke' configuration than the `bear hug' configuration. Yet the pitching moment of Fig. 5.15 indicates a lesser pitching up tendency of the `breaststroke' configuration compared to the `bear hug'. This being said, Fig. 5.16 clearly shows that the rotor hub pitching moments dominate the overall vehicle pitching moment. Indeed, a vehicle with lead rotors rotating in a `breaststroke' manner has a lesser tendency to pitch up with increasing advance ratio than a `bear hug' configuration. As a consequence, a `breaststroke' configuration has to expend less effort to trim the vehicle in pitch.
+
+To better understand what causes these differences due to different rotational orientations, the radial circulation distribution is shown for both the front and rear rotors in Fig. 5.17. This plot is computed for the advance ratio of 0.25. It should be noted that for ease of comparison the plotted results are of rotors 4 and 2 for the `bear hug' and rotors 1 and 3 for the breaststroke configuration. From Fig. 5.17 it is apparent that the rear rotors produce less circulation, specifically in the retreating blade, which
+
+65
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+aligns with the thrust differential discussed in Fig. 5.14. Additionally, the advancing blades produce significantly higher circulations, although the rear rotors slightly less. Of the two rear rotors shown in Fig. 5.17, `breaststroke' rotor 3 produces significantly less circulation than the rear rotor of the `bear hug' configuration, which is line with the thrust differences shown for the rear rotors in Fig. 5.14. These differences in circulation must be the result of different effects of the lead rotor wakes as previously shown for the diamond configuration.
+
+1 0.8 0.6 0.4 0.2 0 -0.2 -0.55
+Bear Hug Rear Rotors Bear Hug Front Rotors Breaststroke Rear Rotors Breaststroke Front Rotors
+
+Circulation
+
+Retreating Blade
+
+Advancing Blade
+
+-0.5
+
+-0.45
+
+-0.4
+
+-0.35
+
+-0.3
+
+-0.25
+
+-0.2
+
+-0.15
+
+-0.1
+
+-0.05
+
+Radial Location (m)
+
+Figure 5.17: Radial Circulation Distribution for the Square Configuration The induced velocities due to a single leading rotor are computed at the trailing rotors of both configurations as shown in Fig. 5.18. Figure 5.19 shows that the trailing rotor is in the downwash of leading rotor, and the two diagonal rotors are experiencing an upwash from the leading rotor. The trailing rotor sees higher induced downwash on the advancing wake side (due to previously described advancing blade wake properties).
+
+66
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+Figure 5.18: Computed Points for the Induced Velocities of the Leading Rotor of the Square Configuration
+
+1 0
+`Bear Hug' `Breaststroke'
+
+Z-Dir Induced Velocity (m/s)
+
+-1 -2 -3 -4 -5
+Trailing Rotor
+
+-6 -4
+
+-3
+
+-2
+
+-1
+
+0
+
+1
+
+2
+
+3
+
+4
+
+Y Location (r/R)
+
+Figure 5.19: Radial Induced Velocity of the Square Quadrotor
+
+67
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+Z-Direction Induced Velocity (m/s)
+
+0.4 0.3
+
+0.4 0.3
+
+1
+
+0.2 0.1 0 -0.1
+
+3
+
+0.2 0.1 0 -0.1
+
+(a) `Bear hug' Configuration
+
+(b) `Breaststroke' Configuration
+
+1 0 -1
+
+2
+
+-2 -3 -4 -5
+
+(c) Trailing Rotor
+
+Figure 5.20: Induced Velocity in the Z-Direction of the Points described in Fig.5.18 In order to further investigate this difference in downwash that the rear rotors experience, the induced velocity contour is plotted in Fig. 5.20 for each of the three rotor locations described in Fig. 5.18. Specific interest is with the diagonal rotor interactions, that is, rotors 1 with 3 and 4 with 2, as these cause the performance differences seen between rotation configurations. In the `bear hug' configuration, the advancing blade of the rear rotor is experiencing higher upwash from the lead rotor than the advancing blade of the `breaststroke' configuration. Although the `breaststroke' experiences higher upwash on the retreating blade, this has a significantly low contribution to overall thrust, as previously shown in Fig. 5.17. The distribution of induced velocities in the pitching moment direction for `bear hug' configuration demonstrate a larger pitching up moment due to upwash differential indicated by the slightly diagonally running constant induced velocity lines in Fig. 5.20a. This is not seen with `breaststroke', 68
+
+Z-Direction Induced Velocity (m/s)
+
+2
+
+Z-Direction Induced Velocity (m/s)
+
+0.5
+
+0.5
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+whose constant induced velocity lines are more aligned with the longitudinal axis. The difference in constant induced velocity lines between configurations is due to the complex wake geometries.
+
+In general, the configuration that has less trim needs, for example in order to compensate for pitching up moment, has the lesser power and control demands of a multirotor vehicles. Producing higher pitching moment results in more differential thrust to trim the vehicle. With higher thrust differentials and thus higher non-uniform thrust distributions, the power requirements of the entire vehicle increases. Therefore, the `breaststroke' configuration seems to be more desirable. This comparison study between `bear hug' and `breaststroke' demonstrates the application of the herein presented higher-order potential flow method for the design of multirotor vehicles.
+
+5.2.4
+
+Diamond and Square Orientation Comparison
+
+A comparison of the computed thrust and power coefficients of the diamond and square quadrotor orientations are shown Fig. 5.21. This is for the same advance ratio and angle of attack range discussed in detail in the previous sections. Both orientations show that thrust and power decreases with the increase of angle of attack. The thrust and power coefficients are larger for the diamond configuration than the square configuration. As the advance ratio and angle of attack increase, the square and diamond configurations approach the same thrust and power results.
+
+Figure 5.21c shows that the diamond orientation has up to 3.5% increase in power to thrust ratio at 5 and 15 angles of attack. There is an exception to this increase in performance within the advance ratio range of 0.08 to 0.16 for an angle of attack of 5 . For this range, the diamond configuration has a slight decrease in thrust to power ratio in comparison to the square configuration because of the diamond configuration power peak shown in Fig. 5.21b. At an angle of attack of 30 , the two configurations show less power to thrust differences. At maximum, the thrust to power ratio is 1.5% larger for the diamond configuration at an advance ratio of 0.14. The comparison of thrust and power coefficients of these two orientations show that the diamond quadrotor configuration is favorable for most flight regimes.
+
+69
+
+CHAPTER 5. APPLICATIONS
+
+5.2. MULTIROTOR CONFIGURATION COMPARISON
+
+0.05 0.04 0.03
+
+CT
+
+0.02 0.01 0 0.08 0.1 0.12 0.14 0.16 0.18 0.2
+
+Diamond, AoA = 5 Diamond, AoA = 15 Diamond, AoA = 30 Square, AoA = 5 Square, AoA = 15 Square, AoA = 30
+
+0.22
+
+0.24
+
+Advance Ratio
+
+(a) Thrust Coefficient of Diamond and Square Orientations
+8 10
+-3
+
+6
+
+CP
+
+4
+
+2
+
+0 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(b) Power Coefficient of Diamond and Square Orientations
+6 5.5
+
+CT/CP
+
+5 4.5 4 3.5 0.08 0.1 0.12 0.14 0.16 0.18 0.2 0.22 0.24
+
+Advance Ratio
+
+(c) Thrust to Power Ratio of Diamond and Square Orientations
+
+Figure 5.21: Predicted Performance Comparison of Diamond and Square Orientations
+
+70
+
+Chapter 6
+
+Conclusions
+6.1 Conclusions
+
+A higher-order potential flow method was adapted for the aerodynamic performance prediction of fixedpitch rotors used in multirotor UAV configurations. The aerodynamic loading acting on these rotors were investigated for both hovering and advancing flights. A multirotor vehicle was modeled in different orientations and rotor rotation directions to investigate the overall vehicle performance. A fixed and relaxed wake representation were used to further investigate the wake geometry and interactions.
+
+The higher-order potential flow method models the wing using distributed vorticity and models the wake as a continuous vortex sheet. The continuous vortex sheet increases the numerical robustness compared to traditional potential flow methods that have singularity issues when modeling lifting surfaces near wake elements. A relaxed wake representation can be used at an increase in computational expense, in which wake elements change shape and strength depending on the induced velocity they experience. The circulation distribution along the wing is modeled using a second order spline, resulting in a continuous loading distribution. This allows for fewer surface elements to be used than seen with traditional vortex-based methods. Additionally, only simple geometric information is required to model the blade including the radial distributions of chord, pitch and mid-chord location. This greatly reduces modeling time in comparison to CFD approaches. A strip-theory based viscous and stall model were applied.
+
+The potential flow method was implemented to predict the performance of rotors. Hovering perfor-
+
+71
+
+CHAPTER 6. CONCLUSIONS
+
+6.2. FUTURE WORKS
+
+mance was compared for three different disk loadings. The radial lifting load and total integrate thrust showed good agreement with experiment with special attention required at low loadings. The hovering wake shapes were investigated to show wake contraction, blade tip vorticies and root upwash.
+
+Advancing flight thrust and power predictions were compared to experiment and a BEMT based method. Thrust showed strong agreement across the full range flow conditions with most computed thrust coefficients within 2% of experiment. The predicted power showed good agreement for forward and hovering flight with most computed power coefficients within 8% of experiment. Specific advantages were seen in using a relaxed wake representation during descending flight. The descending flight prediction showed great improvements in comparison to the BEMT based method.
+
+The effects of rotor rotations on diamond and square orientated multirotor vehicles were investigated. Results showed that a diamond configuration quadrotor with a clockwise spinning lead rotor had a right side down rolling moment, opposite to the counterclockwise lead rotor configurations. It was shown that the wake of advancing blade has a higher strength and is more "compressed" than the retreating blade wake. These wake differences causes the unbalanced loading about the vehicle centerline and thus the rolling moment in the diamond configuration. The square quadrotor showed that the rotational direction of the leading rotors impacted the performance of the trailing rotors due to complex wake geometries. Specifically, having the retreating side of the lead rotors nearest the vehicle centerline caused a higher vehicle pitching up moment. Additionally, the diamond orientation showed up to a 3.5% increase in power to thrust ratio in comparison to the square orientation. With the exception of low angle of attack, low advance ratio flight conditions, the diamond orientation had improved thrust to power ratio performance.
+
+6.2
+
+Future Works
+
+Throughout this thesis, different discussions on multirotor vehicle performance prediction provided insights on possible improvements and additions to the presented method, such as: · The validation of a single rotor performance should be extended to incorporate additional forces and moments produced during advancing flight. This is specifically important when considering the loads on multirotor vehicle, where the rotor hub loads have large contributions to vehicle trim. This additional validation can be done experimentally, with a rotor test stand that uses a 6-degree of freedom load cell. 72
+
+CHAPTER 6. CONCLUSIONS
+
+6.2. FUTURE WORKS
+
+· To improve the accuracy of the herein presented method, further investigation on an unsteady model can be done. In both forward and descending flights, unsteady aerodynamic phenomena contribute to the rotor loading and wake shapes. The addition of apparent mass and an improved unsteady wake model may increase the accuracy of the performance prediction. · There is also a need for validation of the entire multirotor vehicle. This can be done by comparing to steady-state flight testing. This would help to further prove the predicted multirotor performance results that were investigated in this research. · This method can be extended to model the entire multirotor vehicle. This includes the body, payload and arms as these contribute to the overall performance of the vehicle. This could be done by modeling each component as simple cylinder and sphere shapes, in which the potential flow solution can be computed. This could provide further insight on the forces and moments that act on a multirotor vehicle. · A trimming routine can be applied to this method to better represent the flight conditions of a given multirotor vehicle. That can be done by iterating through solutions until both a force and moment equilibrium is found. With the trimmed solution, different orientations and configuration can easily be compared to improve the design of these vehicles. · The flight of multirotor vehicles in practice is largely dynamic. Although steady-state flight analysis does provide insight on how the vehicle will perform, a dynamic model can help to analyze specific maneuvering. Predicting the aerodynamic properties of a dynamically moving vehicle can better help to improve the control laws of these multirotor UAV vehicles.
+
+73
+
+Appendix 1
+
+Sample Input File
+The following is an example input file used for the T-motor multirotor vehicle. Each variable is described then defined by the user. This begins by specifying general initialization information including the wake type (fixed or relaxed), the steady or unsteady aerodynamic model, the maximum number of timesteps and the number of timesteps per rotation. This is followed by defining the rotor flow properties including the angle of attack, advance ratio, density and kinematic viscosity. It should be noted that multiple angles of attack and advance ratios can be specified and will run using parallel computing.
+
+The rotor geometric information is next defined by specifying the diameter, number of blades in a single rotor and the total number of rotors in the vehicle. For each rotor in the multirotor vehicle, the rotation axis, rotation direction and rotational velocity are defined. The geometry of a single rotor blade is next defined, beginning with the total number of defined panels (per blade) and the local rotational axis. For each panel, the number of spanwise and chordwise DVEs are defined as well as specifying the airfoil lookup table. For each panel, the x,y and z coordinates of the left and right leading edge point are defined for each panel. Additionally, the chord length and pitch angle of the left and right edge are defined and for each panel.
+
+Input file in m/N/sec Please note that the program uses equal, number and : signs as special recognizers Relaxed wake (yes 1, no 0): Steady (1) or unsteady (2): Max. number of time steps: Number of azmith locations: flagRELAX = 0 flagSTEADY = 1 valMAXTIME = 20 valAZNUM = 40 74
+
+APPENDIX 1. SAMPLE INPUT FILE
+
+AOA sequence: Advance ratio: Density: Kinematic viscosity: Reference diameter: Number of blades: No. of rotors: Rotor # 1 Rotation axis (x y z): Rotation dir (CCW -1,CW 1): Rotor RPM: Rotor # 2 Rotation axis (x y z): Rotation dir (CCW -1,CW 1): Rotor RPM: Rotor # 3 Rotation axis (x y z): Rotation dir (CCW -1,CW 1): Rotor RPM: Rotor # 4 Rotation axis (x y z): Rotation dir (CCW -1,CW 1): Rotor RPM:
+
+seqALPHAR = 30 seqJ = 0.8 valDENSITY = 1.2250 valKINV = 1.460000e-05 valDIA = 0.4572 valNUMB = 2 valNUMRO = 4
+
+matROTAX = 0.2828 0.2828 0.0 vecRODIR = 1 valRPM = 3000
+
+matROTAX = 0.2828 -0.2828 0.0 vecRODIR = -1 valRPM = 3000
+
+matROTAX = -0.2828 -0.2828 0.0 vecRODIR = 1 valRPM = 3000
+
+matROTAX = -0.2828 0.2828 0.0 vecRODIR = -1 valRPM = 3000
+
+No. of panels:
+
+valPANELS = 17
+
+Defines leading edge of blades, all measured in meters: Keep vecM the same for all panels on a blade Local rotation axis Panel # :1 Number of spanwise elembers: Number of chordwise elements: Airfoil number: vecROTAXLOC = 0 0 0
+
+vecN = 1 vecM = 1 vecAIRFOIL = 1
+
+x -0.011244 -0.013329
+
+y 0.034290 0.045720
+
+z 0.000000 0.000000
+
+chord 0.025314 0.033232 75
+
+pitch 16.570000 24.199900
+
+APPENDIX 1. SAMPLE INPUT FILE · · ·
+
+Panel # :17 Number of spanwise elembers: Number of chordwise elements: Airfoil number:
+
+vecN = 1 vecM = 1 vecAIRFOIL = 3
+
+x -0.007915 0.002194
+
+y 0.217170 0.228600
+
+z 0.000000 0.000000
+
+chord 0.021075 0.009098
+
+pitch 7.517000 7.526000
+
+76
+
+Appendix 2
+
+Airfoil Coordinates
+The following table is the airfoil coordinates used for the T-Motor 18x6.1 rotor. Three airfoils were gathered from the 3D scanned model at 25%, 50% and 75% radial locations. 25% r/R x 1 0.992265 0.979579 0.965463 0.949886 0.932887 0.914545 0.895143 0.874985 0.854264 0.833385 0.812574 0.791928 0.771333 0.750601 0.729848 0.708947 0.687969 0.667163 0.646543 0.626004 0.605616 0.585437 0.565369 0.545334 0.525416 50% r/R x 1 0.993451 0.982235 0.969388 0.955102 0.939763 0.92375 0.907356 0.890769 0.874106 0.857414 0.840741 0.824116 0.807548 0.791036 0.774576 0.75815 0.741745 0.725352 0.708973 0.692599 0.676241 0.659903 0.643595 0.627312 0.611035 77 75% r/R x 1 0.992265 0.979579 0.965463 0.949886 0.932887 0.914545 0.895143 0.874985 0.854264 0.833385 0.812574 0.791928 0.771333 0.750601 0.729848 0.708947 0.687969 0.667163 0.646543 0.626004 0.605616 0.585437 0.565369 0.545334 0.525416
+
+y 0 0.001856 0.004971 0.008506 0.012446 0.016814 0.021572 0.026616 0.031782 0.037015 0.042328 0.047734 0.053015 0.058021 0.062854 0.067504 0.071982 0.076353 0.080557 0.084515 0.088251 0.091781 0.09506 0.098056 0.100819 0.103379
+
+y -0.000059 0.001274 0.003517 0.006025 0.008772 0.011705 0.014748 0.017842 0.020958 0.024066 0.027154 0.030212 0.033223 0.036175 0.039057 0.04186 0.044577 0.047209 0.049754 0.05221 0.054575 0.056848 0.059024 0.061096 0.063058 0.064903
+
+y 0 0.001856 0.004971 0.008506 0.012446 0.016814 0.021572 0.026616 0.031782 0.037015 0.042328 0.047734 0.053015 0.058021 0.062854 0.067504 0.071982 0.076353 0.080557 0.084515 0.088251 0.091781 0.09506 0.098056 0.100819 0.103379
+
+APPENDIX 2. AIRFOIL COORDINATES 0.505732 0.486346 0.467242 0.448339 0.429598 0.411024 0.392628 0.374443 0.356474 0.338732 0.321228 0.30391 0.286759 0.269818 0.253183 0.236972 0.22128 0.206157 0.191593 0.177618 0.164299 0.151665 0.13972 0.128477 0.117952 0.108148 0.099044 0.090602 0.082776 0.075518 0.068791 0.062554 0.056767 0.051394 0.046396 0.041742 0.037403 0.033354 0.029576 0.026052 0.022771 0.019727 0.016913 0.014319 0.011941 0.009775 0.007809 0.006046 0.004531 0.10571 0.107779 0.109542 0.110997 0.11216 0.113041 0.11364 0.113958 0.11398 0.113712 0.113135 0.112224 0.111013 0.109542 0.107844 0.105942 0.10383 0.101489 0.098918 0.096188 0.093322 0.090329 0.087244 0.08412 0.081003 0.077914 0.074861 0.07185 0.0689 0.066035 0.063266 0.060589 0.058 0.055486 0.053039 0.05065 0.048309 0.046002 0.043716 0.041436 0.039148 0.036833 0.034481 0.032089 0.029656 0.027179 0.024667 0.02212 0.019514 0.594745 0.57844 0.562115 0.545783 0.529455 0.51315 0.496862 0.480597 0.464358 0.448139 0.431947 0.415781 0.399652 0.383575 0.367549 0.351577 0.335645 0.319742 0.303861 0.287997 0.272169 0.256389 0.240676 0.225044 0.209511 0.194095 0.178816 0.163728 0.148905 0.134466 0.120561 0.107364 0.095025 0.08367 0.073369 0.064147 0.055991 0.048843 0.042606 0.037169 0.032423 0.028269 0.024622 0.021411 0.018583 0.016093 0.013908 0.012005 0.010364 78 0.066636 0.068261 0.069779 0.071194 0.072503 0.073701 0.074782 0.075745 0.076585 0.077298 0.077883 0.078335 0.078655 0.078835 0.078866 0.078742 0.078456 0.078005 0.077388 0.076607 0.075664 0.074557 0.073282 0.071835 0.070211 0.068403 0.066412 0.06424 0.061895 0.059392 0.056748 0.053982 0.05111 0.048162 0.045169 0.042187 0.039276 0.03648 0.033815 0.031284 0.028873 0.026567 0.024346 0.022195 0.020097 0.018037 0.016003 0.013987 0.011983 0.505732 0.486346 0.467242 0.448339 0.429598 0.411024 0.392628 0.374443 0.356474 0.338732 0.321228 0.30391 0.286759 0.269818 0.253183 0.236972 0.22128 0.206157 0.191593 0.177618 0.164299 0.151665 0.13972 0.128477 0.117952 0.108148 0.099044 0.090602 0.082776 0.075518 0.068791 0.062554 0.056767 0.051394 0.046396 0.041742 0.037403 0.033354 0.029576 0.026052 0.022771 0.019727 0.016913 0.014319 0.011941 0.009775 0.007809 0.006046 0.004531 0.10571 0.107779 0.109542 0.110997 0.11216 0.113041 0.11364 0.113958 0.11398 0.113712 0.113135 0.112224 0.111013 0.109542 0.107844 0.105942 0.10383 0.101489 0.098918 0.096188 0.093322 0.090329 0.087244 0.08412 0.081003 0.077914 0.074861 0.07185 0.0689 0.066035 0.063266 0.060589 0.058 0.055486 0.053039 0.05065 0.048309 0.046002 0.043716 0.041436 0.039148 0.036833 0.034481 0.032089 0.029656 0.027179 0.024667 0.02212 0.019514
+
+APPENDIX 2. AIRFOIL COORDINATES 0.003264 0.002222 0.001388 0.000755 0.000316 0.00007 0.000004 0.000058 0.000494 0.001466 0.002715 0.004065 0.005574 0.00724 0.009063 0.011072 0.013279 0.015666 0.018231 0.020969 0.023879 0.026958 0.030203 0.033617 0.037203 0.040968 0.04492 0.049075 0.053451 0.058074 0.062973 0.068189 0.073767 0.079763 0.086241 0.093274 0.100941 0.109332 0.118543 0.128672 0.139799 0.151938 0.16502 0.178945 0.193893 0.210276 0.22797 0.246802 0.266655 0.016856 0.014168 0.011467 0.008764 0.006069 0.003392 0.00074 -0.001901 -0.004466 -0.006921 -0.009317 -0.011674 -0.013978 -0.01622 -0.01839 -0.020452 -0.022381 -0.024178 -0.025833 -0.027342 -0.028691 -0.02988 -0.030903 -0.031758 -0.032444 -0.032959 -0.033304 -0.033481 -0.03349 -0.033336 -0.03302 -0.032546 -0.03192 -0.031142 -0.030211 -0.029126 -0.027871 -0.026425 -0.024769 -0.022882 -0.020766 -0.018458 -0.016052 -0.013707 -0.011586 -0.0095 -0.007276 -0.005018 -0.002729 0.008974 0.007839 0.006952 0.006296 0.005844 0.005571 0.005536 0.005708 0.006401 0.007738 0.009203 0.010834 0.012686 0.014759 0.017055 0.019593 0.022396 0.025491 0.028916 0.032715 0.036944 0.041676 0.047 0.053031 0.059917 0.067845 0.077027 0.087643 0.099783 0.113363 0.12813 0.14378 0.160048 0.176695 0.193529 0.210452 0.227413 0.244369 0.261285 0.278149 0.294949 0.311677 0.328332 0.344947 0.361575 0.378252 0.394973 0.411721 0.428473 79 0.009987 0.007993 0.006005 0.00404 0.002113 0.000237 -0.001589 -0.003424 -0.005139 -0.006607 -0.008077 -0.00954 -0.010932 -0.01226 -0.013535 -0.01475 -0.015899 -0.016976 -0.017971 -0.01887 -0.019657 -0.020312 -0.020808 -0.021116 -0.021204 -0.021038 -0.020598 -0.019879 -0.018893 -0.01767 -0.016243 -0.014655 -0.012958 -0.011204 -0.009432 -0.007667 -0.005914 -0.004177 -0.002469 -0.000797 0.000826 0.002393 0.003886 0.00529 0.00661 0.007859 0.009048 0.010183 0.011264 0.003264 0.002222 0.001388 0.000755 0.000316 0.00007 0.000004 0.000058 0.000494 0.001466 0.002715 0.004065 0.005574 0.00724 0.009063 0.011072 0.013279 0.015666 0.018231 0.020969 0.023879 0.026958 0.030203 0.033617 0.037203 0.040968 0.04492 0.049075 0.053451 0.058074 0.062973 0.068189 0.073767 0.079763 0.086241 0.093274 0.100941 0.109332 0.118543 0.128672 0.139799 0.151938 0.16502 0.178945 0.193893 0.210276 0.22797 0.246802 0.266655 0.016856 0.014168 0.011467 0.008764 0.006069 0.003392 0.00074 -0.001901 -0.004466 -0.006921 -0.009317 -0.011674 -0.013978 -0.01622 -0.01839 -0.020452 -0.022381 -0.024178 -0.025833 -0.027342 -0.028691 -0.02988 -0.030903 -0.031758 -0.032444 -0.032959 -0.033304 -0.033481 -0.03349 -0.033336 -0.03302 -0.032546 -0.03192 -0.031142 -0.030211 -0.029126 -0.027871 -0.026425 -0.024769 -0.022882 -0.020766 -0.018458 -0.016052 -0.013707 -0.011586 -0.0095 -0.007276 -0.005018 -0.002729
+
+APPENDIX 2. AIRFOIL COORDINATES 0.287212 0.30821 0.329615 0.351425 0.373314 0.395045 0.416791 0.438636 0.460528 0.482361 0.504177 0.525962 0.54763 0.569331 0.591277 0.613171 0.634871 0.656632 0.678662 0.700801 0.722817 0.744721 0.766773 0.789118 0.8115 0.833632 0.855218 0.875999 0.8959 0.914864 0.932787 0.949533 0.965022 0.979214 0.992103 1 -0.000435 0.001782 0.003867 0.005882 0.007856 0.009662 0.011266 0.012711 0.014031 0.015205 0.016212 0.017079 0.017782 0.018241 0.018562 0.018796 0.018848 0.018661 0.018306 0.017868 0.01732 0.016578 0.01561 0.01451 0.013411 0.012362 0.011316 0.010209 0.009001 0.007698 0.006332 0.004934 0.003531 0.002161 0.000843 0 0.445212 0.461958 0.478712 0.495462 0.512205 0.528943 0.54569 0.562427 0.579134 0.595792 0.612394 0.628927 0.645416 0.661915 0.67846 0.695038 0.711626 0.728206 0.744761 0.761261 0.777688 0.794053 0.810387 0.826726 0.843085 0.859475 0.875861 0.892206 0.908432 0.924419 0.940067 0.955185 0.969326 0.982135 0.993388 1 0.012283 0.013238 0.014133 0.014968 0.015741 0.016448 0.017092 0.017677 0.018199 0.018652 0.019028 0.019315 0.019496 0.019569 0.019546 0.019442 0.019257 0.018992 0.018648 0.018221 0.017699 0.017066 0.016314 0.015441 0.014454 0.013359 0.012174 0.010901 0.009552 0.008129 0.006608 0.00507 0.003567 0.002125 0.000778 -0.000059 0.287212 0.30821 0.329615 0.351425 0.373314 0.395045 0.416791 0.438636 0.460528 0.482361 0.504177 0.525962 0.54763 0.569331 0.591277 0.613171 0.634871 0.656632 0.678662 0.700801 0.722817 0.744721 0.766773 0.789118 0.8115 0.833632 0.855218 0.875999 0.8959 0.914864 0.932787 0.949533 0.965022 0.979214 0.992103 1 -0.000435 0.001782 0.003867 0.005882 0.007856 0.009662 0.011266 0.012711 0.014031 0.015205 0.016212 0.017079 0.017782 0.018241 0.018562 0.018796 0.018848 0.018661 0.018306 0.017868 0.01732 0.016578 0.01561 0.01451 0.013411 0.012362 0.011316 0.010209 0.009001 0.007698 0.006332 0.004934 0.003531 0.002161 0.000843 0
+
+80
+
+Bibliography
+[1] Norouzi Ghazbi, S., Aghli, Y., Alimohammadi, M., and Akbari, A. A., "Quadrotors unmanned aerial vehicles: A review," International Journal on Smart Sensing and Intelligent Systems , Vol. 9, 2016, pp. 309­333. [2] Gupte, S., Mohandas, P. I. T., and Conrad, J. M., "A Survey of Quadrotor Unmanned Aerial Vehicles," 2012 Proceedings of IEEE Southeastcon , Orlando, FL, March 2012. [3] Aeryon, Labs, and Inc, "Aeryon Labs Inc. SkyRanger Manual," Tech. rep., Waterloo, ON, 2014. [4] Logan, M., Chu, J., Motter, M., Carter, D., Ol, M., and Zeune, C., "Small UAV Research and Evolution in Long Endurance Electric Powered Vehicles," AIAA Infotech@Aerospace 2007 Conference and Exhibit , No. 2007-2730, Rohnert Park, CA, May 2007. [5] Leishman, J. G., Principles of Helicopter Aerodynamics , Cambridge University Press, 2nd ed., 2006. [6] McCrink, M. H. and Gregory, J. W., "Blade Element Momentum Modeling of Low-Reynolds Electric Propulsion Systems," Journal of Aircraft , Vol. 54, No. 163-176, 2016. [7] Carroll, T., George, I., and Bramesfeld, G., "Design Optimization of Small Rotors in Quad-Rotor Configuration," 54th AIAA Aerospace Sciences Meeting, AIAA SciTech Forum , No. AIAA 20161788, 2016. [8] Johnson, W., Rotorcraft Aeromechanics , Cambridge University Press, 1st ed., 2013. [9] Anderson, J., Fundamentals of Aerodynamics , McGraw Hill, 5th ed., 2011. [10] Theys, B., Dimitriadis, G., Hendrick, P., and De Schutter, J., "Experimental and Numerical Study of Mini-UAV Propeller Performance in Oblique Flow," Journal of Aircraft , Vol. 54, No. 1076-1074, 2017.
+
+81
+
+BIBLIOGRAPHY
+
+BIBLIOGRAPHY
+
+[11] Tsaltas, J. and Bramesfeld, G., "Multirotor Vehicle Performance Prediction Model," 35th AIAA Applied Aerodynamics Conference, AIAA AVIATION Forum , No. AIAA 2017-3054, Denver CO, 2017. [12] ANSYS Inc., ANSYS Fluent 12.0 User Manual , April 2009. [13] FEniCS Project Team, FEniCS Project Reference Guide , 2017. [14] Hwang, J. Y., Jung, M. K., and Kwon, O. J., "Numerical Study of Aerodynamic Performance of a Multirotor Unmanned-Aerial-Vehicle Configuration," Journal of Aircraft , Vol. 52, No. 839­846, 2015. [15] Luo, J., Zhu, L., and Yan, G., "Novel Quadrotor Forward-Flight Model Based on Wake Interference," AIAA Journal , Vol. 53, No. 3522-3533, 2015. [16] Washizu, K., Azuma, A., Koo, J., and Oka, T., "Experimental Study on the Unsteady Aerodynamics of a Model Helicopter Rotor Operating in the Vortex Ring State," Symposium on Structural Dynamics and Aeroelasticity , , No. 2432-3039, 1965, pp. 137­143. [17] Brandt, J. and Selig, M., "Propeller Performance Data at Low Reynolds Numbers," 49th Aerospace Sciences Meeting and Exhibition , No. AIAA-2011-1255, Orlando, FL, 2011. [18] Bramesfeld, G. and Maughmer, M. D., "Relaxed-Wake Vortex-Lattice Method Using Distributed Vorticity Elements," Journal of Aircraft , Vol. 45, No. 2, 2008, pp. 560­568. [19] Bissonnette, W. and Bramesfeld, G., "Demonstration of a Conceptual Design Tool for Multiple Lifting Elements," 53rd AIAA Aerospace Sciences Meeting, AIAA SciTech Forum , AIAA 20151031, Kissimmee FL, 2015. [20] Krebs, T. and Bramesfeld, G., "An Optimization Approach to Split-Winglet Design for Sailplanes," 53rd AIAA Aerospace Sciences Meeting, AIAA SciTech Forum , AIAA 2016-0297, Kissimmee FL, 2015. [21] Cole, J., Maughmer, M., Bramesfeld, G., and Kinzel, M., "A Higher-Order Free-Wake Method for Propeller-Wing Systems," 35th AIAA Applied Aerodynamics Conference, AIAA AVIATION Forum , AIAA 2017-3414, Denver, CO, 2017. [22] Maniaci, D. and Maughmer, M., "Winglet Design for Wind Turbines Using a Free-Wake Vortex Analysis Method," 50th AIAA Aerospace Sciences Meeting including the New Horizons Forum and Aerospace Exposition, Aerospace Sciences Meetings , AIAA 2012-1157, Nashville, TN, 2012. 82
+
+BIBLIOGRAPHY
+
+BIBLIOGRAPHY
+
+[23] Choephel, T., Aerodynamic Analysis of Helicopter Rotors Using A Higher-Order, Free-Wake Method , Ph.D. thesis, The Pennsylvania State University, 2016. [24] Landgrebe, A., An Analytical and Experimental Investigation of Helicopter Rotor Hover Performance and Wake Geometry Characteristics , United Aircraft Corporation Research Laboratories, June 1971. [25] Li, C., Fang, Z., Wang, J., and Zhang, X., "A Vortex Ring State Avoiding Descending Control Strategy for Multi-rotor UAVs," Chinese Control Conference, CCC , , No. 4465­4471, 2015. [26] Inoue, O., Hattori, Y., Akiyama, K., Inoue, O., Hattori, Y., and Akiyama, K., "Calculations of Vortex Ring States and Autorotation in Helicopter Rotor Flow Fields," 28th Fluid Dynamics Conference, Fluid Dynamics and Co-located Conferences , AIAA 1997-1847, Snowmass Village, CO, 1997. [27] Chen, C. and Prasad, J. V. R., "Theoretical Investigations of a Helicopter Rotor in Steep Descent," AIAA Modeling and Simulation Technologies Conference and Exhibit, Guidance, Navigation, and Control and Co-located Conferences , AIAA 2005-6292, San Francisco, CA, 2005. [28] Ribera, M. and Celi, R., "Simulation Modeling in Climbing and Descending Flight with Refined Aerodynamics," American Helicopter Society , 2006. [29] Stack, J., "Experimental Investigation of Rotor Vortex Wakes in Descent," 42nd AIAA Aerospace Sciences Meeting and Exhibit, Aerospace Sciences Meetings , AIAA 2004-297, Reno, NV, 2004. [30] Barcelos, D., Flow Quality Testing and Improvement of the Ryerson University Low Speed Wind Tunnel , Undergraduate thesis, Ryerson University, April 2016. [31] Carroll, T. B., A Design Methodology for Rotors of Small Multirotor Vehicles , Master's thesis, Ryerson University, 2017. [32] Munk, M., "The Minimum Induced Drag of Aerofoils," NACA Technical Report 121, 0028-0836, 1979. [33] Drela, M. and Youngren, H., XFOIL 6.9 User Primer , November 2001. [34] Mniaci, D., Wind Turbine Design Using a Free-Wake Vortex Method With Winglet Application , Ph.D. thesis, The Pannsylvania State University, 2003. [35] Lindenburg, C., "Stall Coefficient: Aerodynamic Airfoil Coefficients at Large Angles of Attack," Annual IEA Symposyum on the Aerodynamics of Wind Turbines , , No. ECN-RX-01-004, 2000. 83
+
+BIBLIOGRAPHY
+
+BIBLIOGRAPHY
+
+[36] Lindenburg, C., "Investigation into Rotor Blade Aerodynamics," Netherlands Society for Energy and the Environment , Vol. ECN - 7418, No. July, 2003, pp. 114. [37] Khan, W. and Nahon, M., "A Propeller Model for General Forward Flight Conditions," International Journal of Intelligent Unmanned Systems , Vol. 3, 2015, pp. 72­92. [38] Caradonna, F. X. and Tung, C., "Experimental and Analytical Studies of a Model Helicopter Rotor in Hover," Tech. Rep. NASA Technical Memorandum 81232, 1981. [39] Egolf, T., Wake, B., and Berezin, C., "Recent Rotor Wake Simulation and Modeling Studies at United Technologies Corportation," 38th Aerospace Sciences Meeting and Exhibition , AIAA-20000115, Reno, NV, 2000. [40] Barcelos, D., Kolaei, A., and Bramesfeld, G., "Higher Order Potential Flow Analysis of Rotor Performance for Unmanned Aircraft Systems," 63rd International Aeronautics Conference , edited by CASI, 2017. [41] Barcelos, D., Kolaei, A., and Bramesfeld, G., "Performance Predictions of Multirotor Vehicles using a Higher-Order Potential Flow Method," AIAA Aerospace Sciences Meetings, AIAA SciTech Forum , Kissimmee, FL, 2018.
+
+84
+
+BIBLIOGRAPHY
+
+BIBLIOGRAPHY
+
+85
+
+BIBLIOGRAPHY
+
+BIBLIOGRAPHY
+
+86
+
+

@@ -1,0 +1,947 @@
+STAR TRACKER AND LIDAR BASED NIGHT-TIME PLANETARY NAVIGATION by Ilija Jovanovic, B.Eng. Aerospace Engineering Ryerson University, 2013
+
+A Thesis presented to Ryerson University in partial fulfillment of the requirements for the degree of Master of Applied Science
+in the program of
+
+Aerospace Engineering
+
+Toronto, Ontario, Canada, 2015 © Ilija Jovanovic 2015
+
+Author's Declaration
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my thesis may be made electronically available to the public.
+
+ii
+
+STAR TRACKER AND LIDAR BASED NIGHT-TIME PLANETARY NAVIGATION
+Ilija Jovanovic, Master of Applied Science, Aerospace Engineering Ryerson University, Toronto, September 2015
+
+Abstract
+Planetary navigation on planets with no global positioning infrastructure is a challenge which has been overcome in the past by using day-light dependent sensors. This thesis develops a platform to test a star tracker and LIDAR based night-time navigation system. Testing of the system confirmed its feasibility despite not meeting target performance. Global position was acquired to within five kilometres using the star tracker and refined to within 23% of true motion for a 13 m path using the LIDAR.
+
+Thesis Supervisor: Dr. John Enright Associate Professor, Ryerson University, Department of Aerospace Engineering
+
+Acknowledgements
+I would like to thank my supervisor, John Enright, for his guidance and support throughout this project. My lab peers for their continued supply entertainment and stress relief. Thomas Dzamba for the tremendous help, guidance, and friendship he has given me over the past two years. My Family and friends. Suzanna Vader for providing support and companionship which has been the greatest source of encouragement and motivation.
+
+iv
+
+Contents
+Authors Declaration Abstract . . . . . . . Acknowledgments . . List of Tables . . . . List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii iii iv vii ix 1 1 1 3 3 4 5 6 6 7 7 8 8 10 11 11 12 13 14 15 17 17 19 20 21 22 23 26 32 34 34 35 35
+
+1 Introduction 1.1 Scope and Approach . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1.2 Motivation and Goals . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2 Background 2.1 Visual Odometry . . . . . . . . . . . . . . . . . . . 2.1.1 Methods . . . . . . . . . . . . . . . . . . . . 2.1.2 Existing Implementations . . . . . . . . . . 2.1.3 Proposed Night-Time Implementation . . . 2.2 Absolute Position and Attitude Measurements . . . 2.2.1 Methods . . . . . . . . . . . . . . . . . . . . 2.2.2 Proposed and Night-Time Implementations . 2.3 Mathematical Framework . . . . . . . . . . . . . . 2.3.1 Major Measurements . . . . . . . . . . . . . 2.3.2 Minor Measurements . . . . . . . . . . . . . 3 Rover Development 3.1 Construction . . . 3.2 Frame of Reference 3.3 Inclinometer . . . . 3.4 LIDAR . . . . . . . 3.5 Star Tracker . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . . . . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+. . . . .
+
+4 Visual Odometry 4.1 Ambient Light Sensitivity . . . . . . . . . . . . . . . . . . . 4.2 Visual Odometry Algorithms . . . . . . . . . . . . . . . . . . 4.2.1 Filtering . . . . . . . . . . . . . . . . . . . . . . . . . 4.2.2 Motion Thresholding . . . . . . . . . . . . . . . . . . 4.2.3 Inclinometer Correction . . . . . . . . . . . . . . . . 4.2.4 3-D Point Cloud Minimization . . . . . . . . . . . . . 4.2.5 Discrete Fourier Transform Method . . . . . . . . . . 4.2.6 Feature Tracking . . . . . . . . . . . . . . . . . . . . 4.3 Visual Odometry Testing . . . . . . . . . . . . . . . . . . . . 4.3.1 Thresholding for Discrete Fourier Transform Method 4.3.2 LIDAR with Inclinometer Validation . . . . . . . . . 4.3.3 Performance Testing . . . . . . . . . . . . . . . . . . v
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+5 Geolocation 6 System Integration 6.1 Minor Measurement Sensor Fusion 6.2 Major Measurement Sensor Fusion 6.3 Complete System Test . . . . . . . 6.3.1 Global Navigation Test . . . 7 Conclusion and Future Work References
+
+39 43 43 44 46 46 49 51
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+vi
+
+List of Tables
+2.1 2.2 3.1 3.2 3.3 6.1 Major measurement state variables, their descriptions, and the sensors(s) necessary to obtain them. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Minor measurement state variables, their descriptions, and the sensors(s) necessary to obtain them. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Inclinometer specifications. . . . . . . . . . . . . . . . . . . . . . . . . . . . . LIDAR camera specifications. . . . . . . . . . . . . . . . . . . . . . . . . . . Star tracker specifications. . . . . . . . . . . . . . . . . . . . . . . . . . . . . Integrated system test. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 9 9 14 16 16 48
+
+vii
+
+viii
+
+List of Figures
+
+3.1 3.2 3.3 3.4 3.5 4.1
+
+The rover which was assembled to serve as a test platform. . . . . . . . . . . Schematic of rover power distribution system. Black and red lines represent power lines and yellow lines represent communication. . . . . . . . . . . . . . Frames of reference used for navigation and the information needed to convert between them. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Projection of gravity vector onto the inclinometer's yz -plane and the angle X measured by the inclinometer. . . . . . . . . . . . . . . . . . . . . . . . . . . An example of the LIDAR's brightness map return, 3.5a, and the corresponding point cloud with proportional axis, 3.5b . . . . . . . . . . . . . . . . . .
+
+11 12 13 14 15 17
+
+MESA Imaging SR4000 LIDAR camera and its coordinate frame [MESA Imaging ]. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.2 Example of an image taken of a region exposed to direct sunlight: (4.2a) equalized histogram of brightness map for exposure with sunlight, (4.2b) equalized histogram of brightness map for exposure with clouds casting shade, and (4.2c) a photograph of the scene. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.3 Flow chart depicting the process for acquiring a motion solution through visual odometry. In real-time operation, only one of the blue blocks is executed. . . 4.4 Effect of different types of LIDAR filtering on the z-component maps with blue indicating the closest part of the scene and yellow the furthest: (4.4a) unfiltered, (4.4b) low-pass filtered, (4.4c) outlier filtered, and (4.4d) photograph of the scene. Distortions in images 4.4a, 4.4b, and 4.4c are due to the plotting of the data as the point cloud is properly rectified. . . . . . . . . . . 4.5 Illustration of a truncation example. . . . . . . . . . . . . . . . . . . . . . . 4.6 Histogram of per row shift estimations using raw depth maps, 4.6a, and using the finite difference of the depth map, 4.6b. Nominal shift was positive ten pixels. Majority of points in 4.6a were exactly zero. . . . . . . . . . . . . . . 4.7 Depth map of image and model for a single row with zero-padding necessary for a FFT, (4.7a), and the numerical derivative of the depth map with zeropadding, (4.7b). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.8 Absolute values of transfer functions corresponding to and x direction translation. Image (4.8a) is an example of a single row's LTI transfer function. Image (4.8b) is the averaged LTI transfer function of all rows. . . . . . . . . 4.9 Demonstration of contrast enhancement from a raw image, (4.9a), and an image passed through a histogram equalization filter, (4.8b). Since both images are brightness plots in the infra-red spectrum, certain objects will emit their own light and appear brighter, such as the box in the lower region of the image. 4.10 Scatter plot of row crest factor for two subsequent exposures with no motion between them. The nominal shift for this case would be zero. . . . . . . . . . ix
+
+18 19
+
+21 26
+
+27
+
+28
+
+30
+
+33 35
+
+4.11 Forward motion estimate from VO when using inclinometer corrections under acceleration. The image count is proportional to time. The curve consists of no rover motion at the beginning followed by constant velocity travel. . . . . 4.12 Preliminary results of VO testing for all four motions tracked by the camera. This data set consists of 1000 exposures and a 40 m driven distance. . . . . . 5.1 6.1 6.2 Simplified schematic of frame transformations. . . . . . . . . . . . . . . . . . Diagram illustrating the spacing of LIDAR and star tracker readings. . . . . Global position estimate of the rover using the star tracker, inclinometer, and LIDAR together. The performance of each of the three LIDAR methods is displayed. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . (Surface position estimates through sensor fusion using no initial position and a five kilometre measurement noise for the star tracker's global position estimates. The start point of the path is at the origin.) . . . . . . . . . . . .
+
+36 37 39 44
+
+47
+
+6.3
+
+48
+
+x
+
+Chapter 1
+
+Introduction
+
+This project develops a platform to test a surface navigation system which does not rely on navigation infrastructure or daylight. On other planets in our solar system where there is no orbiting navigation infrastructure, such as GPS, systems which do not require such infrastructure are the only way surface vehicles can navigate in real time. Every such system which has been implemented relies on daylight, prohibiting night-time travel. A group of navigation methods which do not rely on infrastructure are those which integrate local measurements. These systems do not provide absolute information by directly measuring a vehicles position or attitude but instead provide relative information by measuring changes in the state. Inevitably, noise in the measurements leads to drift in the state estimate. The addition of systems capable of directly measuring some or all of the state attenuates drift.
+
+1.1
+
+Scope and Approach
+
+Three sensors were used to create a navigation system for this thesis. A star tracker and inclinometer are used to provide a coarse but absolute global position and a light detecting and ranging (LIDAR) camera performs visual odometry, providing precision relative measurements. The goal is to combine these sensors into a systems capable of night-time planetary navigation. To test the system, a rover platform was constructed for this thesis.
+
+1.2
+
+Motivation and Goals
+
+When a rover's primary objective requires travelling, it is undesirable to stop every night due to an inability to navigate. There are several obstacles which need to be overcome for a 1
+
+Chapter 1. Introduction rover to be able to travel at night, one of them being a system of sensors which can navigate at night. Curiosity is the first non-solar powered Mars rover, having the power capability to continue moving at night. This demonstrates that one of the biggest design limitations to night-time travelling, power availability, can be overcome. The second major limitation is that the lubricant used on all rover missions, Castrol Braycote 601 EF, becomes ineffective at Martian night time temperatures [Tillman 2009]. This can be overcome by switching to a solid lubricant which does not lose effectiveness at lower temperatures. This thesis aims to address the third major limitation: developing a sensor system capable of navigating in the absence of light.
+
+2
+
+Chapter 2
+
+Background
+
+For this thesis, planetary navigation is broken down into two major constituents: relative and absolute navigation. The former is based on systems which integrate relative changes in position and attitude, referred to as state, to determine the total change in the state. Absolute navigation relies on systems which can directly measure all or some part of the state. This chapter will provide a brief background of relative and absolute navigation systems relevant to this thesis. After this, the mathematical framework for interpreting sensor measurements into a navigation solution will be presented.
+
+2.1
+
+Visual Odometry
+
+Visual odometry (VO) is a method of local motion determination from successive images of an optical system. Assuming a static environment, the successive images reveal the motion of the environment with respect to the optics. Inverting this result gives the optics's motion relative to the scene, typically referred to as egomotion. However, in order to determine motion of a camera, equivalent spatial scaling of the image is required. The quantity and type of spatial information available depends on the optics system configuration. A typical configuration for obtaining this information is a stereo camera system which employs two cameras with known cross bore-sight separation. The disparity of objects between the perspectives of the two cameras, coupled with a camera model, provides a 3-D vector to a given object in the camera's frame of reference. The focus in this thesis is on a LIDAR configuration which only uses a single camera. A MESA Imaging SR4000 LIDAR camera is used for this thesis. It works by actively emitting bursts of modulate light and measuring the returning phase of the modulated signal for each pixel. By knowing the speed of light, it is able to determine the distance to the sampled part of the scene for each pixel; this method is also referred to as time-of-flight (TOF). Passing 3
+
+Chapter 2. Background this information through a camera model provides position vectors, in the LIDAR's frame of reference, for each pixel. Comparing VO to two more common types of odometry, wheel odometry and inertial odometry, VO has notable advantages. Wheel odometry uses encoders on the wheels to measure revolutions made and relates that to motion. Inertial odometry uses measurements of an inertial navigation system (INS), typically comprised of a accelerometer and gyroscope, and integrates the higher order measurements to arrive at displacement. The advantage of VO over wheel odometry is that no errors are incurred from the wheels sliding on soft or loose ground. In comparison to inertial odometry, VO can better limit solution drift at low speeds. It does this by relating the current image to images older than the immediately prior one, greatly reducing solution drift at low speeds and absolutely bounding error when stationary; an INS will continuously accumulate errors, even when stationary.
+
+2.1.1
+
+Methods
+
+Visual odometry requires solving for the 3-D motion of a camera, referred to as the egomotion problem, between successive images for the purpose of navigation [Irani et al. 1994,Maimone et al. 2007]. Estimation of egomotion manifests itself in a wide range of 3-D visual problems including visual odometry, mapping, object registration, and camera stabilization. Although each of these applications have different end goals, they all share the need to determine the camera(s) motion by referencing the environment. With this in mind, a simple breakdown of any visual odometry problem becomes: 1. Register regions and/or features between two images. 2. Calculate egomotion between registered data. 3. Integrate egomotion to determine total motion. Step three is common for all visual odometry methods since it separates visual odometry from other egomotion applications. Feature detection is a method of image registration, the identification of common regions or features between images. It works by repeatable identification of high frequency structures in an image. Features are referred to as structures since feature detectors look for patterns in high frequency changes, otherwise they would identify noise. Repeatable identification is the property which enables registration of features between images. Two common algorithms for feature detection are Harris corners and speeded-up robust features (SURF). Harris corners detectors look for regions with high perpendicular gradients typical of object corners [Harris & Stephens 1988]. The gradients are based on the partial derivatives of the image across 4
+
+2.1 Visual Odometry the rows and columns. Harris features can also identify edges if they are prominent or there is a lack of corner features. The SURF algorithm uses the properties of the determinant of the Hessian matrix to detect features. In order to improve on speed, the second order Gaussian derivative filter is approximated by a box filter [Bay et al. 2008]. This method detects corners and blobs but not edges. In a stereo camera system, visual features common to both cameras are mapped to feature vectors and used for egomotion calculation. This approach can be extended to a LIDAR system, making use of the algorithms developed for stereo systems. From Scaramuzza's and Fraundorfer's review of VO [Scaramuzza & Fraundorfer 2011], the most common approach for determining the egomotion between two feature sets is optimizing a weighted leastsquares where the weighting is proportional to the inverse length of the feature vectors. One improvement to the least-squares formulation, proposed by Nister [Nister et al. 2004], is to first reject outlier vectors using a random sample consensus (RANSAC) filter [Fischler & Bolles 1981]. Milella and Siegwart [Milella & Siegwart 2006] propose using an iterative closest point (ICP) [Besl & McKay 1992] algorithm to further refine the motion solution obtained from the least-squares optimization. ICP differs from other formulation by not requiring the features to be registered and instead assumes that the feature sets contain enough common features. At each iteration, the ICP algorithm registers feature vectors to their closest neighbours and re-optimizes the least-squares problem to determine egomotion [Besl & McKay 1992]. This process is repeated until alignment of the vector sets stops improving. It is important to note that, although an ICP implementation is useful for aligning feature vectors that are effectively randomly scattered, alignment of consistently spaced vectors would not benefit registration being repeated. This thesis also spends time looking at a non-feature based registration methods which makes use of the Fourier transform's properties. The theory for this was first developed by De Castro and Morandi [De Castro & Morandi 1987] who demonstrated the ability of a Fourier transform to register two images which have been translated and rotated within a plane. This theory was applied to VO by Goecke et al. [Goecke et al. 2007] who used a Fourier-Mellin transform to recover rotation, translation, and scale parameters between two images. This method does not require any iterative solving and is global, meaning it uses all of the pixels in both images to arrive at a solution unlike feature based methods which only use parts of an image. The limitation their method is its inability to deal with occlusion and parallax effects.
+
+2.1.2
+
+Existing Implementations
+
+In recent missions, surface navigation on other planets has been performed using a stereo VO system during the day time. This is due to two reasons: the first being that solar powered rovers, such as Opportunity, have no power at night [Biesiadecki et al. 2005]; the second reason is that the passive cameras of the stereo VO system require sunlight. As an example, the Mars Curiosity rover performs visual odometry and obstacle avoidance by combining 5
+
+Chapter 2. Background information from three stereo camera systems. At night, wheel encoders and INS systems can perform odometry but cannot substitute the camera's obstacle avoidance, such as that implemented on Curiosity [Grotzinger et al. 2012]. Being unable to avoid obstacles at night renders wheel odometry and INS equally unusable. The Mars Exploration Rovers (MER) uses a similar system, but with fewer stereo pairs, and have a target position accuracy of no more than 10% error for a 100 m drive [Maimone et al. 2007]. As a method for long distance navigation, the MERs VO system is insufficient. The system can be supplement with wheel encoders and INS systems to increase accuracy and mitigate drift but without absolute measurements, this will also accumulate error.
+
+2.1.3
+
+Proposed Night-Time Implementation
+
+The ability to navigate at night could be beneficial to planetary rover missions which need to travel to a destination. Every moment a rover spends on the surface it risks being disabled by environmental factors or random equipment failures. Therefore, the faster a rover can, the higher the chances of mission success will be. This thesis uses a LIDAR camera to overcome the need for illuminated surroundings of a passive camera system. With active lighting, the LIDAR camera can perform VO and obstacle avoidance at night, enabling night-time navigation, and by extension, night-time travel. Use of an active lighting system does come with some drawbacks:
+
+· Consumes more power than a passive system without illumination. · Range is limited by light emitter brightness. · Performance degrades during the day [Piatti & Rinaudo 2012].
+
+2.2
+
+Absolute Position and Attitude Measurements
+
+Absolute state measuring refers to a sensor's ability to directly measure a vehicles position or attitude. The addition of any such measurement can absolutely limit drift in at least one dimension of the state estimate. This discussion will focus on methods which reference against celestial objects, omitting potential systems which rely on Earth-based infrastructure. To date, no mission to other planets was been equipped with anything other than local measurement-based navigation systems. 6
+
+2.2 Absolute Position and Attitude Measurements
+
+2.2.1
+
+Methods
+
+Celestial objects are fixed in an inertial frame, making them useful to reference against. Knowing the location of these object in the body frame of a spacecraft, along with inertial position and orientation of a planet, can provide state information relative to the planet. Two sensors which provide absolute measurements by referencing celestial objects are sun sensors and star trackers. A Sun sensor measures the vector pointing towards the sun. From predictions of the inertial position of the Sun and an estimate of the sensor's position with respect to the Sun, the Sun vector can be related to the inertial frame. This can then be used to obtain a partial attitude solution. Similarly, a star tracker is a camera which detects and identifies stars in its field of view. By identifying at least three stars, sufficient information is available for a complete attitude solution.
+
+2.2.2
+
+Proposed and Night-Time Implementations
+
+A proposed planetary navigation system adds a sun sensor and inclinometer to a stereo camera system, such as those described above. Knowing the sidereal orientation of the planet and an estimate of the vehicle's position on the surface, the sun sensor and inclinometer can determine the vehicle's absolute heading. With multiple measurements, this system can also provide global position. A sun sensor measures the vector pointing to the sun while the inclinometer corrects the sun sensor's orientation to the local geoid. The addition of this information mitigates drift in the position solution introduced by integration [Enright et al. 2009]. Similar to how sun sensors can provide an absolute measurement of one dimension of attitude (heading) during the day, a star tracker, given an inclinometer correction to the local geoid, can provide a position and heading solution at night [Enright et al. 2012]. Star trackers provide the following benefits for geolocation: · Star trackers provide absolute position and heading as opposed to just heading from a single measurement. · A star tracker has higher accuracy, giving a better heading solution [Wertz et al. 2011]. · The star tracker system does needs fewer measurements to determine position. The Sinclair Interplanetary ST-16 star tracker is used for this project. Based on it pointing accuracy and Earth radius, it is capable of determining global position to approximately 200 m on Earth with adequate inclinometer accuracy (typical inclinometer accuracy is not a limiting factor [Jewell Instruments LLC ]). While this is an accurate solution in the global 7
+
+Chapter 2. Background context, more refined motion estimates need supplementary measurements. Since an absolute position solution is available when using a star tracker, fusing integrated local measurements absolutely limits their drift, making long distance navigation feasible. For this reason, a LIDAR based VO system is used for high precision positioning.
+
+2.3
+
+Mathematical Framework
+
+Throughout this thesis, variables with an under-bar will denote arrays of scalars while boldface variable will represent physical vectors or rotation matrices. Variables that are both boldface and have an under-bar will denote arrays of physical vectors or matrices. Where appropriate context is given, lower-case indices will index dimensions where the corresponding upper-case letter is the size of the dimension. Lastly, again with appropriate context, uppercase subscripts X , Y , and Z will denote the x, y , or z components of the un-subscripted vector. The frames of references used throughout this thesis provide the grounding for the mathematical framework. Because the navigation system was developed for testing on Earth, the frames of reference are with respect to Earth as well. For this framework, the topocentric has its origin at the rover and is defined as North-East-Up: the y -axis is pointed north, the x-axis is pointed East, and the z -axis is pointed up. The measurements are broken down into two data tiers: major measurements and minor measurements. Major measurements are concerned with absolute position and orientation on the planet while minor measurements are relative to a prior state. Major measurements are indexed by j and minor measurements are indexed by k such that there a K minor measurements between successive major measurements. The major measurements use geolocation provided by the star tracker to determine absolute position and treats VO motion provided by the LIDAR as velocity. Table 2.1 shows state information for the major measurements. For the Minor measurements, table 2.2 shows the state variables.
+
+2.3.1
+
+Major Measurements
+
+For the major measurements, the star tracker and inclinometer directly directly provide absolute position and attitude with the exception of altitude. Altitude is determined by integrating the upwards velocities, as calculated by the LIDAR. Equation 2.1 is a mathematical representation of this. zp = Cj (j -1) zV O,j -1 + Cj (j -2) zV O,j -2 + ... + Cj 1 zV O,1 8 (2.1)
+
+2.3 Mathematical Framework
+Table 2.1: Major measurement state variables, their descriptions, and the sensors(s) necessary to obtain them.
+
+Variable j j zj incl,X,j incl,Y,j j xV O,j yV O,j zV O,j
+
+Description Longitude on the Earth, measured in radians. Latitude on the Earth, measured in radians. Altitude on the Earth, measured in meters. This only relatively known. Body pitch relative to the surface in radians. This is the inclinometer model corrected pitch. Body roll relative to the surface in radians. This is the inclinometer model corrected roll. Heading from north, in radians. Longitudinal velocity, in radians per second. Latitudinal velocity, in radians per second. Upwards velocity, in meters per second.
+
+Sensor(s) Star tracker, Inclinometer Star tracker, Inclinometer LIDAR, Inclinometer Inclinometer Inclinometer Star tracker, Inclinometer LIDAR, Inclinometer LIDAR, Inclinometer LIDAR, Inclinometer
+
+Table 2.2: Minor measurement state variables, their descriptions, and the sensors(s) necessary to obtain them.
+
+Variable xV O,k yV O,k zV O,k incl,X,k incl,Y,k k
+
+Description x-displacement relative to initial body frame, in meters. y -displacement relative to initial body frame, in meters. z -displacement relative to initial body frame, in meters. Body pitch relative to the surface in radians. This is the inclinometer model corrected pitch. Body roll relative to the surface in radians. This is the inclinometer model corrected roll. Heading from north, in radians.
+
+Sensor(s) LIDAR, Inclinometer LIDAR, Inclinometer LIDAR, Inclinometer Inclinometer Inclinometer LIDAR, Star tracker, Inclinometer
+
+where Cj (j -1) is the rotation matrix from measurement j - 1 to j . Based on Eq. 2.1, at j = 0, the altitude would always be 0 m. For this reason, the altitude is said to be relative to the starting altitude. The velocities for the major measurement j are the net displacements of the K minor mea9
+
+Chapter 2. Background surements between j and j - 1. In equation form:     xV O,j xV O,K 1  yV O,j  =  yV O,K  tj (j -1) zV O,j zV O,K where tj (j -1) is the time between j and j - 1.
+
+(2.2)
+
+2.3.2
+
+Minor Measurements
+
+The minor measurements are taken in-between major major measurements with K minor measurements for each major measurement. Position in the minor measurements is obtained using visual odometry and is relative to the previous major measurement's navigation frame. In equation form, the change in position from the previous major measurement to the current minor one is: qT,k = Ck(k-1) qT,k-1 + Ck(k-1) C(k-1)(k-2) qT,k-2 + ... + Ck1 qT,1 where qT is the translation vector. Part of the rotation between successive frame is a relative measurement provided by the LIDAR. As a result, a rotation from the current measurement k to the reference major measurement j is not available. The rotation between minor measurements is then constructed using Eq. 2.4 which combines relative and absolute sensor measurements. Ck(k-1) = RZ (k - k-1 ) RY incl,Y,k - incl,Y,k-1 RX incl,X,k - incl,X,k-1 (2.4) (2.3)
+
+10
+
+Chapter 3
+
+Rover Development
+
+For this project a rover was assembled to act as a test bed, seen in Fig. 3.1. The rover has a computer, a Tuff Tilt Digital inclinometer, an ST-16 star tracker, and an SR4000 LIDAR camera.
+
+Figure 3.1: The rover which was assembled to serve as a test platform.
+
+3.1
+
+Construction
+
+The rover was constructed using a commercial-off-the-shelf chassis. The motors and steering servo were separately specified based on the chassis mounting interfaces for such components. 11
+
+Chapter 3. Rover Development The primary method of control for the rover is a hobby radio controller and receiver. The rover also has an on-board computer, router, and instrument box called the "Green Box". The instrument box contains a port server through which the star tracker and inclinometer communicate and powers the two sensors. The power system is based on a 12 volt battery supply which feeds to all systems and a 12 volt step-up battery for the Green Box. Figure 3.2 gives a schematic of the power distribution system and communication chains.
+
+Figure 3.2: Schematic of rover power distribution system. Black and red lines represent power lines and yellow lines represent communication.
+
+3.2
+
+Frame of Reference
+
+The development of the rover and its navigation system requires a consistent set of reference frames. These come from the rover's sensors and the planetary body. Figure 3.3 shows the frames of reference used and the information needed to convert between linked ones. 12
+
+3.3 Inclinometer
+
+Figure 3.3: Frames of reference used for navigation and the information needed to convert between them.
+
+The mounting angles of the LIDAR and inclinometer in Fig. 3.3 are the nominal rotations between the body frame and the sensor frame. The star tracker's mounting angle is calibrated for and is discussed later in the thesis.
+
+3.3
+
+Inclinometer
+
+The Inclinometer used for this thesis is the Jewell Instruments Tuff Tilt Digital inclinometer. It works by measuring the angle of two pendulums which are each only free to rotate about one axis. The pendulums are align perpendicular to one another such that one measures to x-rotation of the rover and the other measures y -rotation. Mathematically, the angle of the pendulums is the projection of the gravity vector onto two perpendicular planes, the inclinometer's xz and yz planes. The angles between the projections and z -axis are the returns of the inclinometer. An example of this is shown in Fig. 3.4. The measurements taken by the inclinometer, incl,X and incl,Y cannot directly be used to construct a rotation matrix because there is coupling of the two values. An inclinometer, just as the one given by Enright et al. [Enright et al. 2012] is needed to convert the measurements into a rotation matrix. Assuming a nominal inclinometer geometry, the rotation matrix is: CCN = RX incl,X Ry incl,y RZ 13  2 (3.1)
+
+Chapter 3. Rover Development
+
+Figure 3.4: Projection of gravity vector onto the inclinometer's yz -plane and the angle X measured by the inclinometer.
+
+where incl,X and incl,Y are given by: incl,Y = asin (sin (-incl,Y ) cos (incl,X )) incl,X = -asin cos (-incl,Y ) sin (incl,X ) incl,Y (3.2)
+
+Some useful specifications of the inclinometer are given in table 3.1.
+Table 3.1: Inclinometer specifications.
+
+Angular Range Resolution Static Repeatability Data Rate
+
+±50 degrees 0.0001 degree 0.0003 degree (1 arc second) 10 samples/s
+
+3.4
+
+LIDAR
+
+The LIDAR camera used is a MESA Imaging SR4000 LIDAR camera. It returns a rectangularly indexed M by N 3-D point cloud representation of the imaged environment, represented 14
+
+3.5 Star Tracker by Ik , and brightness map, Ak , where the superscript k indicates the index of the image. k A single point's vector from the point cloud is given by Ik mn , and Amn for a single pixel's brightness. In the context of visual odometry, the prior data, k - 1, will be referred to as the model, and the current will be referred to as the image. Figure 3.5 gives an example of a point cloud return with its corresponding brightness map.
+
+(a)
+
+(b)
+
+Figure 3.5: An example of the LIDAR's brightness map return, 3.5a, and the corresponding point cloud with proportional axis, 3.5b
+
+To help resolve y -rotation from x-translation in the LIDAR's frame, the camera is pointed down (x-rotation) by ten degrees. This introduces more parallax between the upper and lower parts of the image when looking a flat terrain. Rotating the Camera down also helps limit its field of view to the unambiguous range. The LIDAR mounting angle is assumed to be nominal and is not calibrated for. Some useful specifications of the LIDAR are given in table 3.2.
+
+3.5
+
+Star Tracker
+
+The star tracker used is an Sinclair interplanetary ST-16 star tracker. It identifies observed star patterns to those in a catalogue and uses that information to return its orientation 15
+
+Chapter 3. Rover Development
+Table 3.2: LIDAR camera specifications.
+
+Accuracy Wavelength Unambiguous Range Data Rate
+
+1 cm 850 nm 5m 30 frames/s
+
+relative to the Earth-centred inertial (ECI) frame. Some useful specifications of the star tracker are given in table 3.3.
+Table 3.3: Star tracker specifications.
+
+Accuracy (cross bore-sight) Accuracy (bore-sight) Data Rate
+
+7 arc seconds 56 arc seconds 0.5 frames/s
+
+16
+
+Chapter 4
+
+Visual Odometry
+
+Visual odometry was done using the MESA Imaging SR4000 LIDAR camera. This camera returns a three dimensional point cloud representation of the photographed environment and an brightness map. Figure 4.1 provides a better view of the camera's coordinate frame in which the point cloud is given. The LIDAR uses time-of-flight (TOF) to determine the length of each pixel's vector with the vector direction being pre-defined by the optics' geometry [MESA Imaging ]. Invalid returns are typically caused by the either the scene being too far away to be effectively illuminated or light rays returning to the camera after multiple reflections [MESA Imaging ].
+
+Figure 4.1: MESA Imaging SR4000 LIDAR camera and its coordinate frame [MESA Imaging ].
+
+For the visual odometry section of this thesis, the LIDAR camera's frame of reference will be used.
+
+4.1
+
+Ambient Light Sensitivity
+
+Time-of-flight LIDARs rely on being able to detect to the phase of the reflected light emitted by the camera. However, the reflections become less prominent with increasing ambient 17
+
+Chapter 4. Visual Odometry brightness, eventually causing points furthest away in the image to return invalid values. The camera is incapable of resolving parts of the image exposed to direct sunlight, as see in Fig. 4.2. The saturated yellow regions in Fig. 4.2a have a straight border across the middle of the images consistent with the building's shadow seen in Fig. 4.2c, suggesting that the saturated regions correspond to parts of the scene exposed to direct sunlight.
+
+While the shadow borders may offer good features in the brightness map, the distance to the saturated regions in Fig. 4.2a cannot be calculated, making it difficult to measure motion relative to those features. The result is that this LIDAR camera is not usable in direct sunlight.
+
+(a)
+
+(b)
+
+(c)
+
+Figure 4.2: Example of an image taken of a region exposed to direct sunlight: (4.2a) equalized histogram of brightness map for exposure with sunlight, (4.2b) equalized histogram of brightness map for exposure with clouds casting shade, and (4.2c) a photograph of the scene.
+
+18
+
+4.2 Visual Odometry Algorithms
+
+4.2
+
+Visual Odometry Algorithms
+
+Figure 4.3 is a graphical representation of the implemented process for getting a solution from successive exposures. The three parallel algorithms, shown in blue, each serve the function of estimating motion between the image (latter exposure) and the model (former exposure) but use different methods to do so. Each exposure consists of x, y , z , and brightness maps. The following sections will discuss the functions and justification of each step in Fig. 4.3.
+
+Figure 4.3: Flow chart depicting the process for acquiring a motion solution through visual odometry. In real-time operation, only one of the blue blocks is executed.
+
+The VO algorithms looked at are a point cloud minimization, and Fourier transform based method, and a feature based method. They focus on determining forward motion of the rover (x-translation), turning of the body due to steering inputs (y -rotation), side slipping of the wheels (z -translation), and vertical motion (y -translation). De-coupling of x-translation and y -rotation is the more challenging task as they have very similar effects on the captured image. Changes in pitch (z -rotation) and roll (x-rotation) are calculated using the incli19
+
+Chapter 4. Visual Odometry nometer and not the VO system. The reasoning is that the inclinometer provides a solution that is orders of magnitude more accurate. Thus, when fusing VO estimates with those of the inclinometer, the appropriate measurement noise makes the VO contribution negligible.
+
+4.2.1
+
+Filtering
+
+The raw image returned by the LIDAR is too noisy to be reliably used in motion estimation. After each image is taken, the process starts by filtering the image to improve VO reliability. Two candidate methods, a simple low-pass filter and an outlier detection and replacement filter, are considered. The effects of these two filters are shown in Fig. 4.4. The low-pass filter is a three by three Gaussian filter. It has the advantage of being more than ten times faster than the alternative. However, where the outlier filter completely removes erroneous information from the solution, the low-pass simply attenuates it. The outlier filter was developed for this thesis and uses three types of information to flag outliers. Once an outlier is flagged, that point is removed and replaced by the average of the eight neighbouring points which were not flagged. The methods and order for the flagging process are: 1. Pixels whose brightness is beyond an accepted range are flagged. Erroneous brightnesses have shown to be strongly associated with noise pixels. 2. Pixels that have solutions very close to the detector are flagged. Not only will the rover be actively avoiding obstacles, an obstacle would require a particular geometry to come within 5 cm of the camera while not colliding with any part of the rover. Therefore, points closer than this are likely invalid. 3. The image is convolved with a point filter. High brightness returns from this filtering process indicate the point is a local outlier and is flagged. The greatest advantage of the outlier filter is its ability to re-construct missing parts of a scene. In Fig. 4.4a, the closest part of the scene is the dark blue region in the middle, however, from Fig. 4.4d, it is obvious that the centre of the image is actually furthest away. This is due to the centre being too far to be sufficiently illuminated by the LIDAR. The yellow specks in the middle of Fig. 4.4a are the points which had valid returns. Knowing this, the low-pass filter (fig. 4.4b) attenuates the valid specks while the outlier filter uses their information to re-construct part of that scene, as seen in Fig. 4.4c. In practice, reconstruction of parts of the scene that are out of range of the LIDAR is undesirable as the validity of those results is questionable. However, for the purpose of demonstrating the ability of the outlier filter to perform this function, Fig. 4.4c uses such a scenario. The low-pass was selected for its computational speed. In practice, the low-pass filter accomplishes the goal of filtering LIDAR images but at a lower computational expense. 20
+
+4.2 Visual Odometry Algorithms
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+Figure 4.4: Effect of different types of LIDAR filtering on the z-component maps with blue indicating the closest part of the scene and yellow the furthest: (4.4a) unfiltered, (4.4b) low-pass filtered, (4.4c) outlier filtered, and (4.4d) photograph of the scene. Distortions in images 4.4a, 4.4b, and 4.4c are due to the plotting of the data as the point cloud is properly rectified.
+
+4.2.2
+
+Motion Thresholding
+
+Motion thresholding simply refers to the decision block in Fig. 4.3. Each motion estimator has some tolerance as to how much the scene can change between images and still be able to arrive at a solution. The selected bounds are 1 cm and ten 15 cm. The lower bound is selected to avoid small estimates with a large noise fraction and the upper bound is the empirically determined tolerance of motion for the VO algorithms. Equation 4.1 mathematically shows the criteria for acceptable motion. 0.01 m < xV O,k < 0.15 m 21 (4.1)
+
+Chapter 4. Visual Odometry If the criteria of Eq. 4.1 are not met, then the current image is discarded and the model is kept. This is repeated p time to a maximum of four more times: Ik-1 = Ik-1-p , p = 1, 2, 3, 4, 5 (4.2)
+
+The maximum for p was chosen based on the VO algorithm's motion tolerance. Given the rover's speed and the frame rate of the camera, the change between five images is expected to be just under the 15 cm upper bound such that the sixth image will over. As a result, using up to a five image difference to calculate motion allows for potential full use of the upper motion bound. If the maximum image difference was reached without an acceptable solution, the motion estimate across that period of time is defaulted to no motion and the error that introduces is attributed to poor algorithm robustness.
+
+4.2.3
+
+Inclinometer Correction
+
+As mentioned previously, the inclinometer can provide a more accurate solution for x-rotation and z -rotation in comparison to VO. Images captured by the LIDAR camera during minor measurements are therefore corrected using the inclinometer measurements prior to processing. This section will describe the inclinometer correction process in detail. The goal of minor measurements is to produce a relative translation in prior major measurements navigation frame. Based on Eq. 2.3, the rotation matrix from reference navigation frame to the LIDAR frame is needed to achieve this goal. However, from Eq. 2.4, this rotation is indeterminate using only the two inclinometer measurements. VO could provide rover heading, k , and give a complete rotation but the goal is to use the inclinometer prior to performing VO on the current image. This means that, at the time the inclinometer correction is applied, at most the VO model's heading, k-1 , is known but the heading of the image, k , is not. Since the goal of the inclinometer corrections is to improve LIDAR accuracy and not give motion in the reference navigation, the effect of heading changes is neglected:   1 0 0 RZ (k - k-1 )  0 1 0 (4.3) 0 0 1 In addition to the assumption of Eq. 4.3, the inclinometer model is not used for the correction and the rotation used is instead: Ck(k-1) = RX (incl,X,k-1 - incl,X,k ) RY (incl,Y,k-1 - incl,Y,k ) 22 (4.4)
+
+4.2 Visual Odometry Algorithms This assumption helps simplify the implementation. The error introduced by not using the inclinometer model is negligible in comparison the LIDAR accuracy, the sensor being corrected using this rotation. These assumption are valid since the goal of the inclinometer correction is to improve the performance of the VO algorithms by improving alignment LIDAR images. The residual alignment errors are small in comparison to the starting error. The implementation of the correction starts by translating the image maps in the vertical direction to correct for the y -rotation in Eq. 4.4; this aligns the rows of the image and model. k For this part of the discussion, I will denote the uncorrected point cloud. Imn = I(m-o)n incl,Y,k-1 - incl,Y,k o= µN
+k k
+
+(4.5)
+
+where µN is the apparent angular height of a row. The maps are then truncated to only include paired rows. m = o + 1, o + 2, ..., M (4.6) So far, the rows of the image and model are registered but the geometric rotation between their point clouds is still present. To align the point clouds, a 13-rotation in the camera's frame is applied to the point clouds. Ik = RZ (incl,X,k-1 - incl,X,k ) RX (incl,Y,k-1 - incl,Y,k ) I
+k
+
+(4.7)
+
+Lastly, the image maps are rotated about the bore-sight (z -rotation) and cropped. The centre of rotation of the maps is offset to correct for the ten degree mounting offset of the LIDAR relative to the inclinometer.
+
+4.2.4
+
+3-D Point Cloud Minimization
+
+Minimization of two 3-D point clouds is the minimization of the least-squares errors between registered point pairs. Registration of 3-D point clouds is commonly solved using global iterative methods such as iterative closest point (ICP) [Besl & McKay 1992] or feature based methods such as fast point feature histogram (FPFH) [Rusu et al. 2009]. In this study, registration of point clouds of two subsequent LIDAR exposures was done by exploiting the consistently space point cloud. The first property is that all the points are arranged in a grid corresponding to the camera's detector. This property leads to the assumption that if a pixel in the image is registered to one in the model, that pixel's neighbour corresponds to the respective neighbour in the model. 23
+
+Chapter 4. Visual Odometry This greatly reduces the computational cost of registration in comparison to registering every pixel individually as is done in ICP. The second property is that the update rate of the LIDAR is fast enough relative to the travel speed so that we assume negligible parallax is introduced between images. In this case, the 2-D z -map (considering only the z -components of the points) of the image and the model are panned versions of one another with some value biasing caused by y -rotation. The biasing comes from the objects decreasing in z -distance as they are rotated towards the borders of the detector. Using the properties of consistently spaced points and negligible parallax, registration is done in four steps, as outlined below: 1. Convert image and model into 2-D z -maps. 2. Calculate Harris corner energy map of each z -map. 3. Cross-correlate Harris energy maps [Harris & Stephens 1988]. 4. Use the offset of the correlation maximum to register the pixels. The Harris corner energies are used in the correlation to emphasizes features alignment, attenuating the influence of featureless regions of the image. Empirical comparisons between the cross-correlations of the z -maps and Harris energy maps showed that the Harris maps produced a smaller and higher brightness maximum value. Given a rectangularly indexed point cloud Ik which consist M by N points Ik mn , the 2-D k k z -map is given by I Z and consists of points IZ,mn . The transformation of an image to its Harris energy map, I k H , is described by:
+k Ik H = H(I Z )
+
+(4.8)
+
+where H denotes the Harris corners transformation [Harris & Stephens 1988]. Using this convention, the maximum of the of the Harris energy map cross correlation of the image, Ik , with the model, Ik-1 , is given by:
+
+-1 S = Ik Ik H H Suv = max(S )
+
+(4.9)
+
+Provided that both Ik and Ik-1 are of size M by N , the point Ik-1 (M/2, N/2) is registered to Ik (M - u, N - v ). 24
+
+4.2 Visual Odometry Algorithms In the same fashion as ICP, once registration of the two point clouds is complete, the problem turns to minimizing error between point pairs, earlier defined as egomotion. In the LIDAR's frame of reference, objective function for this minimization is the least squares problem:
+E k-1 - qT ik e - R(qR ) ie e=1 2
+
+1 f= E
+
+(4.10)
+
+where, E is the total number of points, ie is the vector of the eth point in I, qR is the rotation quaternion, and qT is the translation vector, such that:
+
+E = M N and q =
+
+qR qT
+
+To solve the least squares problem, a non-linear formulation of the trust-region-reflective optimizer (TRRO) was used [f. Coleman & Li 1996]. This method was quickest and simplest to implement as it is the default optimizer for bounded non-linear least squares solver in MATLAB. Since image pixels are matched to the model's pixels rather than the interpolating model's data, sub-pixel residuals of motion are not accounted for. Not addressing these error reduces the computational cost by removing the need for multiple iterations of registration and interpolation. A quick argument will demonstrate that these residuals are absolutely bounded for any series of images. So, although there is always residual error, over longer distances, it account for a smaller percentage of the displacement. To demonstrate the error bounding, assume an initial image, I1 , and model, I0 , with a relationship given by: I1 = R(qR,calc + qR,res )I0 - (qT,calc + qT,res ) (4.11)
+
+In equations 4.11, qcalc represents the motion calculated by the estimator and qres is the sub-pixel motion truncated by the estimator. To explain the truncation, suppose the LIDAR undergoes linear motion, starting at point A and moving through B and on to C . At each point, an exposure is taken such that I0 is the exposure at A, I1 is the exposure at B , and I2 is the exposure at C . Suppose qcalc|A,B , the estimated motion from A to B , underestimates by truncating a quarter of a pixel and qcalc|A,C estimates with no error. This scenario is illustrated in Fig. 4.5. In this case, the distance from A to B is not an integer number of pixels, resulting in I1 being biased towards A by a quarter pixel (note the distinction between the position of the estimate 25
+
+Chapter 4. Visual Odometry
+
+Figure 4.5: Illustration of a truncation example.
+
+I1 and the physical position B ). Since C is assumed to be a whole number of pixels away from I0 , when qcalc|B,C is calculated, it has a value of D + 0.75 pixels, where D is the rounded down integer number of pixels between B and C . Therefore, qcalc|B,C is rounded up, causing qcalc|B,C to over estimate by a quarter pixel. The result is then qcalc|A,B + qcalc|B,C = qcalc|A,C . This logic can be extended for any number of intermediate points P - 1:
+P -1
+
+qcalc|1,P =
+p=1
+
+qcalc|p,p+1
+
+(4.12)
+
+According to eq. 4.12, the total truncation error of P - 1 motions is the same as that for a single motion, which is at most half a pixel. A summarized version of the algorithm:
+
+1. Use Harris corners energy maps of the image and model to register them. 2. Using a least-squares formulation determine the motion which minimizes the distance between the registered point clouds.
+
+4.2.5
+
+Discrete Fourier Transform Method
+
+This approach is similar to the Fourier domain deconvolution methods used for image registration such as that of De Castro and Morandi [De Castro & Morandi 1987]. However, instead of using a 2-D Fourier transform to extract in-plane translation and rotation, a novel approach which uses a series of 1-D transforms is used to determine translation and rotation in 3-D. This method does image registration and egomotion together, as opposed to using the Fourier transform to only register the image. The LIDAR output is a 3-D point cloud where row and column indexing vary along the y and x directions, respectively, as defined by Fig. 4.1. To determine motion in the x-direction, 26
+
+4.2 Visual Odometry Algorithms 1-D Fourier transforms of the euclidean norms of the rows are used. The mth row of the k-1 image and model are represented by Ik m and Im , respectively, and their euclidean norms k k -1 are I m and I m , respectively. In order to deconvolve the image and model in the Fourier domain, the issue of the spatial domain row norms having a DC bias needs to be addressed. The problem arises from a necessity to append zero-padding to each row to prevent circular wrapping when using the fast Fourier transform (FFT) algorithm. The sudden change to all zero values creates a sharp drop, seen in Fig. 4.7a, which resembles a prominent feature shared by both image and model rows. However, knowing that the drop, near point 150 in Fig. 4.7a, is the result of the data ending, the true offset between the red and blue curves becomes apparent. Various methods for removing the drop were tested with two showing the most promise: · Subtract the end value of the row from the whole row, eliminating the jump in value prior to the zero-padding. While this would be a very effective method for the example in Fig. 4.7a, cases where the model and image have substantially different end values would result in different offsets, potentially altering the majority of the row (in the context of DFT deconvolution, a sign change to part of one signal due to DC and not the other makes deconvolving unreliable). · Taking the finite difference of the rows and deconvolving those. This works since the derivative tends to have no bias while still preserving unique characteristics of the row. As see in Fig. 4.7b, the shift between the red and blue rows is still perceivable but without the jump in value near index 150. Figure 4.6 also provides a histogram showing the effectiveness of this method.
+
+(a)
+
+(b)
+
+Figure 4.6: Histogram of per row shift estimations using raw depth maps, 4.6a, and using the finite difference of the depth map, 4.6b. Nominal shift was positive ten pixels. Majority of points in 4.6a were exactly zero.
+
+27
+
+Chapter 4. Visual Odometry
+
+(a)
+
+(b)
+
+Figure 4.7: Depth map of image and model for a single row with zero-padding necessary for a FFT, (4.7a), and the numerical derivative of the depth map with zero-padding, (4.7b).
+
+The finite difference method was selected for its reliability. The discrete Fourier transform of a given row of the image and model is then given by:
+
+-1 X m = F dI k m , 2N - 3 Y m = F dI k m , 2N - 3
+
+(4.13)
+
+k where F denotes the Fourier transform, and dI k m is the derivative of I m . The second argument of F is the size of the resulting Fourier transform. In order to prevent circular wrapping of the Fourier transform, the size must be the size of the two rows minus one. Since taking the derivative reduced the size of each row to N - 1, the required size of the DFT is hence 2N - 3. The linear time-invariant (LTI) transfer function relating each row of the image to the corresponding row of the model is then:
+
+Hm =
+
+Ym Xm
+
+(4.14)
+
+The impulse response function of each row is found by taking the inverse Fourier transform of the transfer function. hm = F -1 (H m ) (4.15) 28
+
+4.2 Visual Odometry Algorithms The maximum of the impulse response function hm is then: hM,m = max (|hm |) (4.16)
+
+where the subscript M is the index of the maximum point in the mth row. Since the M is not necessarily the same for each row, the correct form would be M(m), however, M is used for conciseness. The maximums of the individual rows contain enough noise that simply averaging their values would not produce a reliable result. Instead, all the hm transfer functions are averaged together into h . This is then passed through a five point Gaussian low-pass filter to obtain h. The filter helps remove high frequency noise making the peak more defined. Figure 4.8 gives two examples which emphasizes the difference between the transfer function of a single row, hm , an the averaged one, h. The maximum of the averaged transfer function of all the rows, h, is then: hN = max(|h|) (4.17)
+
+The subscript N is used since, unlike M, the index of the maximum value of h is unrelated to the row index m. A motion estimate is calculated using the value of the index N : TX,est = N wx (4.18)
+
+where wx is the average spatial sampling frequency of the LIDAR in the x-direction. The calculation of the average spatial sampling is:
+M
+
+wx 
+1
+
+k-1 k-1 IX, 1 - IX,N N
+
+(4.19)
+
+where the subscript X denotes the x-component. Equation 4.19 is an approximation because the pixel angularly evenly space, not spatially. The motion estimate, Test , is used as a first guess in a final step which is uncoupling the translation in the x-direction from any rotation in the y -direction. For small translations and rotations, the two motion are indistinguishable, however, as the magnitude of the motion increases, the effects of parallax become more prominent. This arises from the 2-D map used to obtain the Fourier transforms being the distance map, xmn . In this context, a y -rotation would introduce no parallax, causing each row to shift by the same number of pixels. Alternatively, translation would cause a greater shift in features closer to the camera and a smaller shift in features further away. The magnitude of these effects can be measured by comparing the relationship between the shifts of each row and their effective distance from the camera. To get the effective distance to the camera, the row features need to be considered since they have the greatest influence on the calculated shift. In this case, the foreground objects 29
+
+Chapter 4. Visual Odometry
+
+(a)
+
+(b)
+
+Figure 4.8: Absolute values of transfer functions corresponding to and x direction translation. Image (4.8a) is an example of a single row's LTI transfer function. Image (4.8b) is the averaged LTI transfer function of all rows.
+
+against the background form the most discernible features and govern the calculated shift. Therefore, the effective distance to the camera, def f , is taken to be the average distance of the closest 10% of points in a row; this is chosen based on empirical testing. 30
+
+4.2 Visual Odometry Algorithms Analytically, the pixel shift of a row resulting from translation and rotation is: R,Y + atan N = µ
+TX def f
+
+(4.20)
+
+where µ is the apparent angular width of a pixel, R,Y is the y -rotation of the camera, and TX is the x-translation. From Eq. 4.20, for small translations, the pixel shift is inversely proportional to the effective distance of the row. Prior to a RANSAC filter being used to determine inliers, some rows are eliminated as valid data points based on their crest factors. All rows whose |hm | had a crest factor greater than four are passed into a RANSAC filter to determine the inlier from among them. The RANSAC filter used Eq. 4.21 as a test model. N = R,Y + µ
+TX def f
+
+(4.21)
+
+Using the inliers and Test as a first guess, the least-square problem given by Eq. 4.22 is solved using a TRRO [f. Coleman & Li 1996]. R,Y + f= µ
+TX def f
+
+-N
+
+(4.22)
+
+where N and def f are arrays containing the respective values for the inliers. To determine y -translation, the above process is repeated except a RANSAC algorithm is not used to decouple y -translation from x-rotation. Decoupling is not necessary since x-rotation is corrected for by the inclinometer prior to this. The y -translation is therefore calculated by the column-wise equivalent of Eq. 4.18. Next, the image and model distance maps are aligned using the calculated offset N . The z -maps of the overlapping portions of the image and model are differenced and the average, this is taken as the z -translation in the body frame. Since the camera is tilted down by approximately ten degrees, the DFT approach differs from the other two in that, even with the inclinometer correction, its results are still relative to the detector plane. As a result, a last step is to undo the ten degree tilt of the camera to obtain rotation and translation in the body frame. With the detailed algorithm presented, a summarized version is as follows:
+
+1. Calculate the Euclidean norm of the point cloud to generate distance maps I k and I k-1 . 2. Take the numerical derivative of the distance maps's rows. 31
+
+Chapter 4. Visual Odometry
+k-1 3. Take the Fourier transform of the rows I k m and I m .
+
+4. Divide the Fourier transform of the image rows with those of the model. 5. Take the inverse Fourier transform of the quotient to obtain the spatial domain LTI function h. 6. Use spatial sampling to determine the mean translation Test . 7. Use RANSAC to determine the rows of the image and model which best satisfy the relationship between effective row distance and pixel shift. 8. Use a non-linear least squares formulation to determine the optimal y-rotation and xtranslation values for the inlier rows using Test for an initial guess. 9. Repeat steps 1 to 6 using columns instead of rows to determine y -translation. 10. Align the image and model distance maps and difference them to find the z -translation. 11. Convert transforms into the body frame.
+
+4.2.6
+
+Feature Tracking
+
+The most common approach to egomotion estimation and that used by Barfoot et al., is tracking a small number of features and measuring the motion between their vectors [Barfoot et al. 2012]. When implemented on a LIDAR, this method uses features of the LIDAR's brightness map rather than features derived from the 3-D point cloud. By using the brightness, features will not necessarily spawn on geometric boundaries where parallax is influential. While such features are still useful, having a sample of texture features (parallax invariant) would help determine outliers among the geometric features. The algorithm begins by both image and model brightness maps, Ak and Ak-1 respectively, being passed through MATLAB's built in implementation of a histogram equalization (HE) filter, histeq. This is a necessary step for improving global image contrast, increasing the number of identifiable features, and reducing the prominence of bright objects. Figure 4.9 shows the effect of an HE filter on feature visibility.
+
+k Ak HE = histeq(A )
+
+(4.23)
+
+The HE filtered brightness maps are then used to detect speeded up robust feature (SURF) vectors using MATLAB's detectSURFFeatures implementation. Conveniently, MATLAB also has an implementation for describing SURF features, extractFeatures, which is used to describe detected features. More information about the details of SURF feature detection and description is given in [Bay et al. 2008]. 32
+
+4.2 Visual Odometry Algorithms
+
+(a)
+
+(b)
+
+Figure 4.9: Demonstration of contrast enhancement from a raw image, (4.9a), and an image passed through a histogram equalization filter, (4.8b). Since both images are brightness plots in the infra-red spectrum, certain objects will emit their own light and appear brighter, such as the box in the lower region of the image.
+
+Now that both image and model brightness maps have a corresponding set of described features, they are matched using the MATLAB implementation matchFeatures. This function uses the algorithm developed by Lowe [Lowe 2004] to perform an exhaustive search for unique feature pairs. The locations of the matched features on the detector are then used to generate 3-D points from the LIDAR's 3-D point cloud using linear interpolation. With 3-D representation of each feature pair, the points are passed into a RANSAC filter which, unlike the formulation used for the DFT/IDFT RANSAC algorithm, uses the egomotion problem for its model. This formulation is similar in form to Eq. 4.10 and is given as: (4.24) Fk = R(qR ) Fk-1 - qT where Fk and Fk-1 are the matched features' vectors for the image and model respectively. Solving for the x-translation and y -rotation first, Eq. 4.24 becomes:
+-1 k k qT,X = F k X - F X cos (qR,Y ) - F Z sin (qR,Y ) k -1 k 0 = FZ - Fk Z cos (qR,Y ) + F X sin (qR,Y )
+
+(4.25)
+
+Assuming the rotation between frames is less than 0.1 rad, the small angle approximation can be applied to linearize and solve Eq. 4.25. This approximation helps simplify the implementation. The error model for the RANSAC filter is the distance between transformed 33
+
+Chapter 4. Visual Odometry feature vectors of the model and the feature vectors of the image: Error = Fk - R(qR )  Fk-1 - qT (4.26)
+
+After the RANSAC filter establishes the inliers, those feature vector pairs are passed into a TRRO using the least squares formulation given by Eq. 4.26; this provides the xyz translation and y -rotation solutions. The summarized feature based algorithm is:
+
+1. Pass the image and model brightness maps, Ak and Ak-1 respective, through a histogram equalization filter.
+k-1 2. Detect the SURF features for Ak HE and AHE .
+
+3. Describe detected SURF features. 4. Match detected features. 5. Pass match feature vector pairs into a RANSAC filter to determine inliers. 6. Use inlier pairs in a least squares TRRO to determine motion.
+
+4.3
+
+Visual Odometry Testing
+
+Prior to the rover having been made operational, preliminary results using only the LIDAR camera were obtained. These results motivated algorithm design decisions and provided early insight into the competitiveness of mentioned algorithms. These results will be shown in this section.
+
+4.3.1
+
+Thresholding for Discrete Fourier Transform Method
+
+As was mentioned in section 4.2.5, row LTI transfer functions with crest-factors below four were discarded under the pretext that they harbour too much noise. Figure 4.10 show the shift predicted for each row along with its crest factor for two exposures with no motion between them. As is evident from the figure, rows with crest factors below four had a lot of spread in predicted shift and few points which were close to the nominal value of zero pixel shift. 34
+
+4.3 Visual Odometry Testing
+
+Figure 4.10: Scatter plot of row crest factor for two subsequent exposures with no motion between them. The nominal shift for this case would be zero.
+
+4.3.2
+
+LIDAR with Inclinometer Validation
+
+In section 4.3.3, VO was validated without the use of an inclinometer. This section will look at VO x-translation estimates to determine if there is any adverse effect of using the inclinometer to correct LIDAR images. The primary concern was whether acceleration of the rover experienced by the inclinometer would affect the gravity vector readings enough to degrade VO estimates. The inclinometer measures the direction of the local acceleration, including the affect of the rover's acceleration; this coincides with the gravity vector when the rover is not accelerating. Figure 4.11 looks at just such a case, using successive LIDAR images to plot motion. However, as can be seen in Fig. 4.11, the sudden acceleration at image 45 has no noticeable effect on the solution and the results, the distance travelled is accurate to within the accuracy of the instrument used to measure it.
+
+4.3.3
+
+Performance Testing
+
+Using only the LIDAR camera, telemetry was collected by driving the rover in a straight line at low speed through a grass field with foliage in the background. In total, 1000 exposures 35
+
+Chapter 4. Visual Odometry
+
+Figure 4.11: Forward motion estimate from VO when using inclinometer corrections under acceleration. The image count is proportional to time. The curve consists of no rover motion at the beginning followed by constant velocity travel.
+
+were take over a distance of 40 m. Figure 4.12 shows the results of this testing. The point cloud minimization method failed to provide any meaningful estimate of the rover's state and was furthest from truth in all motions. The DFT method and feature tracking methods performed similarly with the the feature based method having a smoother path. Their translation plots track nominal while their rotation plots exhibit increasing error. Although they under-estimated x-translation, the addition of heading from a star track would flag the slow procession in y -rotation as false, adding it instead to the x-translation. The camera's geometry is such that the coupling of x-translation to y -rotation converts one radian to one meter for small motions. Since this data consists of the 1000 small motions added together, adding the star track would ad the procession of the y -rotation to x-translation increasing its final value. This would bring the final x-translation of the DFT to approximately 22 m and that of the feature based method to approximately 34 m. Adopting performance targets of the MERs, the acceptable margin of error for x-translation would be four meters from the true value of 40 m. The further addition of the inclinometer 36
+
+4.3 Visual Odometry Testing
+
+(a)
+
+(b)
+
+(c)
+
+(d)
+
+Figure 4.12: Preliminary results of VO testing for all four motions tracked by the camera. This data set consists of 1000 exposures and a 40 m driven distance.
+
+correction could make the difference needed to meet that target.
+
+37
+
+Chapter 4. Visual Odometry
+
+38
+
+Chapter 5
+
+Geolocation
+
+Geolocation was obtained with a Sinclair Interplanetary ST-16 star track and a Jewell Instruments Tuff Tilt Digital inclinometer. Global position is derived by relating Earth-centredinertial (ECI) star vector obtained in the navigation frame to the to the Earth-centredRotational (ECR) frame. Figure 5.1 shows the relationship between different frames of reference and the information needed to transform one into the other.
+
+Figure 5.1: Simplified schematic of frame transformations.
+
+Starting with the body frame, B , the inclinometer frame, C , is the rotation through the inclinometer mounting angle, CCB . From this, the navigation frame, N , can be obtained using the rotation measured by the inclinometer, CN C . CN B = CN C CCB (5.1)
+
+Next, the heading of the rover determines the rotation between the topocentric frame, T , and N . Defining the topocentric frame as north east up, where the y -axis is pointing north, 39
+
+Chapter 5. Geolocation a z -rotation of the heading angles, CT N , rotates N into T . A heading angle of zero would mean N and T and aligned. Going in the opposite direction, B can be rotated through the star tracker's mounting angle, CSB to obtain the star tracker frame, S . The star tracker then measures the quaternion which relate its frame to the ECI frame, I , through the rotation CIS . CIB = CIS CSB (5.2)
+
+Lastly, the sidereal time, provided by a clock along with an accurate model of the Earth's rotation, provides the rotation between the ECI frame and the ECR frame, CRI , where CRI is the rotation from I to R . This step is done using MATLAB's implementation dcmeci2ecef which converts using the IAU-2000/2006 reduction [Petit & Luzum 2010]. Having the ability to go from R to N , the z -axis of the navigation frame can be described ECR frame can be used to obtain a global position. The inclinometer cannot provide a complete rotation from B to T since it does not have heading information. However, the z -axis of T is parallel with that of N and this property is what allows the z -axis of N to be used instead. The k vector of T , can be constructed in C using the inclinometer model [Enright et al. 2012].   sin (-incl,Y ) cos (-incl,X ) kB = CBC  cos (-incl,Y ) sin (-incl,X )  (5.3) cos (-incl,Y ) cos (-incl,X ) where kB is k of N but in the body frame, as denoted by the subscript. The angles incl,Y and incl,X are the pendulum angles of the inclinometer. The rotation CN C , also taken from the inclinometer model, is:  = -asin  = asin kX,C k
+
+CCN
+
+kY,C cos ( ) k = RX ( ) RY ( ) RZ ( )
+
+(5.4)
+
+where kX,C and kY,C are the x and y components of k in C , respectively. The rotation Rz ( ) comes from C being  radians away from the y -axis point in the forward direction of the rover when the heading angle is zero. The result of Eq. 5.3 can then be transformed into the ECR frame using the rotations established above. kR = CRI CIS CSB kB (5.5) With the topocentric frame's z -axis in R , the longitude, , and geodetic latitude,  , can 40
+
+be used to calculate the rotation between R and T , represented by CT R .  = atan2 kY,R , kX,R   kZ,R   = atan  2 2 kY,R + kX,R where kX,R , kY,R , and kZ,R are the x, y , and z components of kR , respectively.   -  Rz + 2 2
+2 2
+
+(5.6)
+
+CT R = Ry
+
+(5.7)
+
+It is now possible to solve for the heading of the rover by equating the product of rotation matrices going counter-clockwise in Fig. 3.3, starting with the navigation frame, to the rotation matrix CT N . CT N = CT R CRI CIS CSB CBC CCN (5.8) By definition, CT N is only a z -rotation through the heading, . Using the y -axis in the navigation frame, j, as a datum: jT = CT N j  = atan2 jX,T , jY,T where jX,T and jX,T are the x and y components of jT , respectively. Lastly, the geocentric latitude is calculated. To calculate geocentric latitude,  the WGS84 convention is used. This thesis will not go into detail on how the WGS84 is implemented but the complete standard and its implementation is presented in [Mularie 1984]. (5.9)
+
+41
+
+Chapter 5. Geolocation
+
+42
+
+Chapter 6
+
+System Integration
+
+Sensor fusion for the rover is performed at two rates to avoid averaging or down-sampling of the data. The LIDAR camera and inclinometer are capable of a comparably higher operation frequency than the star tracker. Additionally, the star tracker is more accurate when the rover is stationary while the LIDAR is needed when the rover is in motion. For this reason the LIDAR and star tracker were chosen to not operate in parallel. If the star tracker were used while the rover was in motion, the epoch of the star image would need to be synchronized with the equivalent inclinometer measurement. While this is not complex to implement using linear interpolation, the sensitivity of these sensors to arcsecond rotations could require high order interpolation to account for angular acceleration or even oscillations of the rover's suspension. For this reason the rover is stopped and one second is given for the rover's dampers to kill oscillations before the star tracker and inclinometer take readings in quick succession. Although the epochs are not strictly synchronised, the topocentric orientation is assumed constant during the star tracker exposure for a stationary rover. The resulting acquisition pattern consists of high frequency inclinometer and LIDAR pairs being taken while the rover is moving followed by the rover being stopped to take a star tracker and inclinometer readings, as illustrated by Fig. 6.1. The higher rate data acquisition forms the minor measurements and the lower rate data acquisition forms the major measurements.
+
+6.1
+
+Minor Measurement Sensor Fusion
+
+Because the VO algorithms will not try and estimate pitch and roll in the body frame, the VO and inclinometer outputs form a determinate solution. At each LIDAR exposure, the inclinometer is used to both determine body pitch and roll as well as correct the LIDAR image using with that information. Afterwards, the VO algorithm determines translation in all directions as well as body yaw, forming a complete solution. The VO solutions are integrated for the duration of the K high rate measurements, providing net motion. 43
+
+Chapter 6. System Integration
+
+Figure 6.1: Diagram illustrating the spacing of LIDAR and star tracker readings.
+
+6.2
+
+Major Measurement Sensor Fusion
+
+Low rate sensor fusion is updated once every star tracker reading. This process takes the net translation provided by the VO and treats it as a single measurement. The inclinometer again serves two purposes in this step, it is used to obtain a global position and heading using the star tracker reading and to estimate body pitch and roll. The heading is then used to correct the VO heading estimate and re-run the algorithm with LIDAR y -rotation a fixed parameter. This is done by subtracting the average difference between the net change in heading measured by VO, V O , from the change in heading between the two most recent star tracker reading . (6.1) q R, = q R,Y - ( - V O )/K where q R, is the set of heading corrected LIDAR y -rotation estimates and K is the total number of LIDAR images between the two most recent star tracker readings. By forcing a modified y -rotation through the VO algorithm, the optimizations arrived at a new xtranslation value.
+
+Because this part of the sensor fusion is over-determined, a Kalman filter is implemented to performed a statistically weighted fusion of sensor measurements.
+
+The inclinometer x and y tilt angle vector will be represented by incl and qT,V O will represent the heading corrected translation estimate given by the VO algorithm. The linear state 44
+
+6.2 Major Measurement Sensor Fusion transition model of the Kalman filter:      j 1 1 j -1  j   1   1       j -1   zj     1 1      zj -1   X,j      1      X,j -1   Y,j  =    Y,j -1  1       j     j -1  1      V O,j    V O,j -1  1      V O,j   1  V O,j -1  qT,Z,j 0 1 qT,Z,j -1
+
+(6.2)
+
+where V O and V O are the changes in longitude and latitude as calculated the VO, respectively, z is the z -translation in the topocentric frame, and  is the x and y rotation in the body frame. The blank regions of the transition matrix are filled with the appropriate zero arrays. The linear observation model of the filter is then:  j 1  j   1    incl,X,j   0 0 0       - 1 0  incl,Y,j  =      -1 j      x  V O,j      y V O,j 0 zV O,j      j 0     j    zj      X,j      Y,j      j     V O,j     V O,j  1 qT,Z,j
+
+1 0 0 0 rE 0 rE 0
+
+(6.3)
+
+where rE is the radius of the Earth in meters. Again, all empty regions of the observation matrix are filled with an appropriate number of zeros. The process noise for the Kalman filter, Q is selected to best reflect the expected motion from one data frame to another. The measurement noise, R is selected to reflect the expect repeatability of the measurements. The initial state covariance, P is a diagonal matrix with diagonal elements:
+5000 rE 5000 rE
+
+0
+
+1 1000
+
+1 1000
+
+1 1000
+
+0 0 0
+
+(6.4)
+
+The equations of the Kalman filter prediction step are: sj |j -1 = F j sj -1|j -1 P j |j -1 = F j P j -1|j -1 F T j
+
+(6.5)
+
+where, F is the state transition matrix from Eq. 6.2 and s is the major measurement state vector in Eq. 6.2. 45
+
+Chapter 6. System Integration The equations for the Kalman filter update step are: Aj = j - H j sj |j -1 C j = H j P j |j - 1 H T j + Rj
+-1 D j = P j |j - 1 H T j Cj sj |j = sj |j -1 + Dj Aj P j |j = 1 - Dj H j P j |j -1
+
+(6.6)
+
+where, H is the observation matrix in Eq. 6.3,  is the measurement vector in Eq. 6.3, and 1 is an identity matrix.
+
+6.3
+
+Complete System Test
+
+The complete tests were performed using all of the rover's sensors. For these tests, the rover would stop when acquiring star tracker readings and move when acquiring LIDAR readings. Between successive individual star tracker readings, 200 LIDAR images were taken. After the rover was done moving, a one second delay allowed all motion to stop before the next star tracker reading was taken. The inclinometer collected data any time one of the other two sensors did.
+
+6.3.1
+
+Global Navigation Test
+
+For the global navigation test, the rover travelled a distance of 13 m through a field with foliage in the background. The rover's heading was South-East and moved in roughly a straight line. The initial position of the rover was given to the low rate Kalman filter. Although unfortunate, technical difficulties with this part of testing results in less data being collected than would be preferred. Figure 6.2 shows the global position estimate of this test. In terms of path length accuracy and qualitative heading, the point cloud minimization method performed the worst while the other two methods had more similar results. Both the DFT and feature based methods traced out a path of ten meters (including z -translation), three meters short of truth. The feature based method did provide a straighter path which qualitatively better resembled the true path. Table 6.1 shows the full results of testing. The underestimation of the true motion is most likely due to the LIDAR camera intermittently failing to communicate on the night of the test along with an un-noticed shift in the rover's suspension. The suspension shift pointed the LIDAR too far down to see the foliage at all terrain angles, leaving the VO algorithms with few features in the field of view. 46
+
+6.3 Complete System Test
+
+Figure 6.2: Global position estimate of the rover using the star tracker, inclinometer, and LIDAR together. The performance of each of the three LIDAR methods is displayed.
+
+To obtain the results in Fig. 6.2, the Kalman filter's measurement noise had to be changed from the initial estimate. Originally, the global position estimate of the star track was believed to be accurate to within 200 m. Alone, the star tracker's global position estimates had an accuracy of about five kilometres. However, in order to obtain a straight line for the estimated path, the respective measurement noise was increased to an effective accuracy of 100 km. The star tracker measurements are devalued to maintain to the relative confidence between the star trackers's position estimate and the LIDAR's. Figure 6.3 shows the motion estimated through sensor fusion with no initial position and confidence in the star tracker's 47
+
+Chapter 6. System Integration
+Table 6.1: Integrated system test.
+
+Expected Point Cloud Minimization DFT/IDFT Feature Tracking
+
+Distance Travelled (m) 13 m 30.2 6.5 8.85
+
+Path Length (m) 13 46.7 10.3 10.9
+
+Path Heading (deg) 120 29.2 131 110
+
+position estimates being the expected five kilometres of measurement noise.
+
+Figure 6.3: (Surface position estimates through sensor fusion using no initial position and a five kilometre measurement noise for the star tracker's global position estimates. The start point of the path is at the origin.)
+
+It is worth noting that although the direction of travel in Fig. 6.3 is in the opposite direction of what is expected and the start point is approximate five kilometres South-East of the true position (origin of the graph), the estimated position is moving towards the rover's true position.
+
+48
+
+Chapter 7
+
+Conclusion and Future Work
+
+This thesis confirmed the ability of a star tracker and inclinometer to provide a global position estimate to within five kilometres and heading during night-time. A method for supplementing LIDAR measurements with heading and inclinations was developed and shown to work. Based on the comparisons of three VO algorithms, the feature based method is the most accurate. Throughout testing, VO performance was variable, ranging between 23% and 15% drift, well above the target of 10%. To meet these requirements, more rigorous hardware testing needs to be implemented along with better algorithm tuning. Primary concerns are accuracy of sensor calibrations during temperature changes and more adaptive RANSAC inlier thresholding. The outcome of this is that the goal of developing a working test platform has been met. While more work is needed to refine the navigation algorithms and systems to meet navigation targets, the ability to use the three sensors on a moving platform and acquire meaningful data was demonstrated. The next step in this project would be to perform this test over a longer distance where drift from VO would be noticeable. A reduced drift when a star tracker is added would provide strong support for the use of coarse global position. Along with this, it would also be beneficial to test other non-global (sparse), VO algorithms; those similar to the feature based one. It is likely that the inclusion of more data points does not provide the solvers with more meaningful information. Lastly a test where the rover does not move and subsequent star tracker measurements are used to localize the rover's position through filtering would reinforce the effectiveness of global positioning with a star tracker.
+
+49
+
+Chapter 7. Conclusion and Future Work
+
+50
+
+References
+[Barfoot et al. 2012] Barfoot, Timothy D., McManus, Colin, Anderson, Sean, & et al., "Into Darkness: Visual Navigation Based on a Lidar-Intensity Image Pipeline," Proceedings of the International Symposium on Robotics Research, 2012. [Bay et al. 2008] Bay, Herbert, Ess, Andreas, Tuytelaars, Tinne, & Van Gool, Luc, "SURF:Speeded Up Robust Features," Computer Vision and Image Understanding, Vol. 110, No. 3, 2008, Pages: 346 ­ 359. [Besl & McKay 1992] Besl, Paul J., & McKay, Neil D., "A Method for Registration of 3-D Shapes," IEEE Transactions on Pattern Analysis and Machine Intelligence, Vol. 14, No. 2, 256, 1992, Page: 239. [Biesiadecki et al. 2005] Biesiadecki, Jeffrey J., Baumgartner, Eric T., Bonitz, Robert G., & et al., "Mars Exploration Rover Surface Operations: Driving Opportunity at Merdiani Planum," Systems, Man and Cybernetics, 2005 IEEE International Conference on, Vol. 2, October, 2005, Pages: 1823 ­ 1830. [De Castro & Morandi 1987] De Castro, E., & Morandi, C., "Registration of Translated and Rotated Images Using Finite Fourier Transforms," Pattern Analysis and Machine Intelligence, IEEE transactions on, Vol. PAMI-9, No. 5, 1987, Pages: 700 ­ 703. [Enright et al. 2009] Enright, John, Furgale, Pauk, & Barfoot, Time, "Sun Sensing for Planetary Rover Navigation," IEEE Aerospace Conference, 2009. [Enright et al. 2012] Enright, John, Barfoot, Time, & Soto, Marcela, "Star Tracking for Planetary Rovers," Aerospace Conference, 2012 IEEE, Big Sky, MT, 2012, Pages: 1 ­ 13. [f. Coleman & Li 1996] f. Coleman, Thomas, & Li, Yuying, "An Interior Trust Region Approach For Nonlinear Minimization Subject to Bounds," SIAM J. OPTIMIZATION, Vol. 6, No. 2, May, 1996, Pages: 418 ­ 445. [Fischler & Bolles 1981] Fischler, Martin A., & Bolles, Robert C., "Random sample consensus: A paradigm for model fitting with applications to image analysis and automated cartography," Communications of the ACM, Vol. 24, No. 6, 1981, Pages: 381 ­ 395. [Goecke et al. 2007] Goecke, Roland, Asthana, Akshay, Pettersson, Niklas, Petersson, Lars, & et al., "Visual Vehicle Egomotion Estimation using the Fourier-Mellin Transform," Proceedings of the 2007 IEEE Intelligent Vehicles Symposium, Istanbul, Turkey, 2007, Pages: 450 ­ 455. [Grotzinger et al. 2012] Grotzinger, John P., Crisp, Joy, Vasavada, Ashwin R., & et al., Robert C. Anderson, "Mars Science Laboratory Mission and Science Investigation," Space Science Review, Vol. 170, No. 1-4, September, 2012, Pages: 5 ­ 56. 51
+
+REFERENCES [Harris & Stephens 1988] Harris, Chris, & Stephens, Mike, "A Combined Corner and Edge Detector," In Proc. of Fourth Alvey Vision Conference, 1988, Pages: 147 ­ 151. [Irani et al. 1994] Irani, M., Rousso, B., & Peleg, S., "Recovery of ego-motion using image stabilization.," Computer Vision and Pattern Recognition, 1994. Proceedings CVPR '94., 1994 IEEE Computer Society Conference on, Seattle, June, 1994, Pages: 454 ­ 460. IEEE. [Jewell Instruments LLC ] Jewell Instruments LLC. "Tuff Tilt Digital: Uniaxial & Biaxial Tiltmeter," . Rapport technique, 850 Perimeter Road, Manchester, NH. [Lowe 2004] Lowe, David G., "Distinctive Image Features from Scale-Invariant Keypoints," International Journal of Computer Vision, Vol. 60, No. 2, 2004, Pages: 91 ­ 110. [Maimone et al. 2007] Maimone, Mark, Cheng, Yang, & Matthies, Larry, "Two years of visual odometry on the Mars Exploration Rovers," Journal of Field Robotics, Special Issue on Space Robotics, Vol. 24, 2007. [MESA Imaging ] MESA Imaging. "SR4000/SR4500 User Manual," . Rapport technique, AG, Technoparkstrasse 1, 8005 Zurich. [Milella & Siegwart 2006] Milella, Annalisa, & Siegwart, Roland, "Stereo-Based Ego-Motion Estimation Using Pixel Tracking and Iterative Closest Point," Proceedings of the Fourth IEEE International Conference on Computer Vision Systems, 2006. [Mularie 1984] Mularie, William M. "Department of Defense World Geodetic System 1984: Its Definition and Relationships with Local Geodetic Systems," . Rapport technique 8350.2 Third Edition, National Imagery and Mapping Agency, 3200 South Second Street, St. Louis, MO, 1984. [Nister et al. 2004] Nister, D., Naroditsky, O., & Bergen, J., "Visual odometry," Computer Vision and Pattern Recognition, 2004. CVPR 2004. Proceedings of the 2004 IEEE Computer Society Conference on, Vol. 1, 2004, Pages: I­652 ­ I­659. [Petit & Luzum 2010] Petit, G´ erard, & Luzum, Brian. "IERS Convention (2010)," . IERS Technical Note 36, International Earth Rotation and Reference System Services, Frankfurt, 2010. [Piatti & Rinaudo 2012] Piatti, Dario, & Rinaudo, Fulvio, "SR-4000 and CamCube3.0 Time of Flight (ToF) Cameras: Tests and Comparison," Remote Sensing, Vol. 4, No. 4, 2012, Pages: 1069 ­ 1089. [Rusu et al. 2009] Rusu, Radu Bogdan, Blodow, Nico, & Beetz, Michael, "Fast Point Feature Histogram (FPFH) for 3D Registration," IEEE International Conference on Robotics and Automation, Kobe, May, 2009, Pages: 3212 ­ 3217. IEEE. [Scaramuzza & Fraundorfer 2011] Scaramuzza, Davide, & Fraundorfer, Friendrich, "Visual Odometry. Part I: The First 30 Years and Fundamentals," IEEE Robotics & Automation Magazine, 2011, Pages: 80 ­ 92. 52
+
+REFERENCES [Tillman 2009] Tillman, James E, "Mars temperature overview," Online publication. URL http://www-k12. atmos. washington. edu/k12/, retrieved, 2009, Pages: 07­15. [Wertz et al. 2011] Wertz, James R., Everett, David F., & Puschell, Jeffery J., editeurs, Space Mission Engineering: The New SMAD, Microcosm Press, 2011.
+
+53
+
+

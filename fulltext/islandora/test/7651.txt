@@ -1,0 +1,2194 @@
+Effective Multi-level Monte Carlo Methods for Stochastic Biochemical Kinetics
+by Priyabrata Senapati Bachelor of Science, Memorial University of Newfoundland, 2014 A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Science in the Program of Applied Mathematics Toronto, Ontario, Canada, 2018 c Priyabrata Senapati 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research. I understand that my thesis may be made electronically available to the public.
+
+ii
+
+Effective Multi-level Monte Carlo Methods for Stochastic Biochemical Kinetics Master of Science 2018 Priyabrata Senapati Applied Mathematics Ryerson University
+
+Abstract
+Stochastic mathematical models are essential for an accurate description of biochemical processes at the cellular level. The effect of random fluctuations may be significant when some species have low molecular counts. While exact stochastic simulation methods exist, they are typically expensive on systems arising in applications. Thus more effective strategies are required for simulating complex stochastic models of biochemical system. Often, the expected value of some function of the final time solution of the stochastic model is of interest. Then, the approach employing multi-level Monte Carlo methods is more efficient than the traditional techniques. In this thesis, we study multi-level Monte Carlo (MLMC) schemes for a reliable and effective simulation of stochastic models of biochemical kinetics. The advantages of these MLMC strategies are illustrated on several biochemical models arising in applications.
+
+iii
+
+Acknowledgements
+I would like to wholeheartedly thank my parents, my wife, my brother and my grandmother for their immense patience, instilling their faith in me and their constant inspiration to work hard. I would like to express my sincerest thanks and gratitude to the individuals who assisted with this thesis. First of all, I would like to thank my supervisor Prof. Silvana Ilie; her ongoing support and guidance were integral to the completion of both the research and this document. Finally, to my examining committee members, Prof. Jean-Paul Pascal, Prof. Dejan Delic and Prof. Dzung Ha, I want to express my great appreciation for the time set aside to read the thesis and attend the thesis defense.
+
+iv
+
+Dedication
+I dedicate this thesis to Sanatana Hindu Dharma, for its deepest understanding on cosmic nature that inspired me to pursue higher levels of education.
+
+v
+
+Contents
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dedication . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Appendices . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1 Introduction 2 Background 2.1 2.2 2.3 2.4 2.5 2.6 Stochastic Models . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Chemical Master Equation (CME) . . . . . . . . . . . . . . . . . . . . . Derivations of Stochastic Simulation Algorithm (Gillespie's Algorithm) . . . . . . . . . . . . . . . . . . . . . . The Tau-Leaping Method . . . . . . . . . . . . . . . . . . . . . . . . . . Chemical Langevin Equation (CLE) . . . . . . . . . . . . . . . . . . . . . Derivation of Reaction Rate Equation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii iii iv v viii ix xiv 1 5 5 6 8 12 14 16
+
+3 The Multi-Level Monte Carlo Method 3.1 3.2 MLMC General Idea . . . . . . . . . . . . . . . . . . . . . . . . . . . . . The MLMC Method for Stochastic Biochemical Kinetics . . . . . . . . . . . . . . . . . . . . . . . vi
+
+19 20 22
+
+3.2.1
+
+An MLMC Method Using Scaling . . . . . . . . . . . . . . . . . .
+
+28 31 31 46 55 64 74
+
+4 Numerical Results 4.1 Potassium Channel (Model 1) . . . . . . . . . . . . . . . . . . . . . . . . 4.2 Michaelis Menten System (Model 2) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.3 Cyclical Reaction System (Model 3) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5 Conclusion References
+
+vii
+
+List of Tables
+4.1 Comparison of expected values obtained through SSA and MLMC (using different -values) for the Potassium Channel Model and the computational times of these algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . Comparison of trajectories obtained through simulation of the MLMC (using different -values) for the Potassium Channel Model . . . . . . . . . . Comparison of expected values obtained through SSA and MLMC (using different -values) for the Michaelis Menten Model and the computational times of these algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . . Comparison of expected values obtained through SSA and MLMC (using different -values) for the Cyclical Reaction Model and the computational times of these algorithms . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+33 33
+
+4.2 4.3
+
+46
+
+4.4
+
+56
+
+viii
+
+List of Figures
+4.1 Potassium Reaction Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 412 seconds. . . . . . . . . . . . . . . . . . . . . . . Potassium Reaction Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 412 seconds. . . . . . . . . . . . . . . . . . . . . . . Potassium Reaction Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 412 seconds. . . . . . . . . . . . . . . . . . . . . . . Potassium Reaction Model; probability distribution of species S4 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 4 is 412 seconds. . . . . . . . . . . . . . . . . . . . . . . Potassium Reaction Model; probability distribution of species S5 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 5 is 412 seconds. . . . . . . . . . . . . . . . . . . . . . . Potassium Channel Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for =1.5 and below. At the final time, i.e, tf inal = 20, we see that there is no difference of molecules between the results of the SSA and the MLMC with =2 and resulting in a relative error of 0.1%. . ix
+
+35
+
+4.2
+
+36
+
+4.3
+
+37
+
+4.4
+
+38
+
+4.5
+
+39
+
+4.6
+
+40
+
+4.7
+
+Potassium Channel Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of 1 molecule between the results of the SSA and the MLMC with =2 and resulting in relative error of approximately 1.1%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Potassium Channel Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of approximately 1 molecule between the results of the SSA and the MLMC with all values and resulting in relative error of approximately 0.6%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Potassium Channel Model: Means of number of molecules of species S4 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 1.4%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+41
+
+4.8
+
+42
+
+4.9
+
+43
+
+4.10 Potassium Channel Model: Means of number of molecules of species S5 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 1.4%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . x
+
+44
+
+4.11 Potassium Channel Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance considered are 1 =0.5, 2 =0.75, 3 =1, . . . . . . . . . . . . . . . . . . . . . . . . . . 4 =1.25, 5 =1.5 and 6 =2 4.12 Michaelis Menten Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 94.4 seconds. . . . . . . . . . . . . . . . . . . . . . . 4.13 Michaelis Menten Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 94.4 seconds. . . . . . . . . . . . . . . . . . . . . . . 4.14 Michaelis Menten Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 94.4 seconds. . . . . . . . . . . . . . . . . . . . . . . 4.15 Michaelis Menten Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1 and resulting in relative error of approximately 1.3%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.16 Michaelis Menten Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 3.1%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . xi
+
+45
+
+48
+
+49
+
+50
+
+51
+
+52
+
+4.17 Michaelis Menten Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with =1 and resulting in relative error of approximately 0.3%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.18 Michaelis Menten Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance 1 =0.5, 2 =0.75, 3 =1, 4 =1.25, 4 =1.5 and 4 =2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.19 Cyclical Reaction Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 69 seconds. . . . . . . . . . . . . . . . . . . . . . . . 4.20 Cyclical Reaction Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 69 seconds. . . . . . . . . . . . . . . . . . . . . . . . 4.21 Cyclical Reaction Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 69 seconds. . . . . . . . . . . . . . . . . . . . . . . . 4.22 Cyclical Reaction Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with =2 and resulting in relative error of approximately 0.7%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . xii
+
+53
+
+54
+
+57
+
+58
+
+59
+
+60
+
+4.23 Cyclical Reaction Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =0.5 and resulting in relative error of approximately 1.1%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.24 Cyclical Reaction Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with = 0.5 and resulting in relative error of approximately 2.6%. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.25 Cyclical Reaction Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance 1 =0.5, 2 =0.75, 3 =1, 4 =1.25, 4 =1.5 and 4 =2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+61
+
+62
+
+63
+
+xiii
+
+List of Appendices
+1 Probability Distributions 2 Poisson Process 2.1 Linear combination of independent Poisson random variables . . . . . . . 3 Convergence in Probability 66 68 69 70
+
+xiv
+
+Chapter 1 Introduction
+Stochastic modelling is an important research topic in Systems Biology. Mathematical modelling and simulation of biochemical systems are more cost effective and faster than experiments in lab. In the last decade, many modelling approaches for biochemical networks have been considered.The experimental data is enormous in Cellular Biology and these data require to be analyzed, therefore, the need for accurate models of these biological processes and efficient tools for simulating and studying them. The traditional mathematical modeling of biochemical systems uses the continuous deterministic model of the reaction rate equations In deterministic models, concentrations of chemical species are continuous variables and the standard theory of chemical kinetics uses the reaction rate equations, which is a set of ordinary differential equations, to model the dynamics of the system. The reaction-rate equations are based on the Law of Mass Action which gives a relationship between the reaction rates and the molecular concentration. Deterministic modelling approaches have been sucessfully used for chemically reaction systems, where there are large molecular counts of the reacting species. However, key biological processes may involve some species with low population numbers. In an environment when there are small molecular numbers of certain species, the deterministic models are genearally inaccurate and stochastic models are required. For instance, when there are few regulatory molecules available in a single cell, a continuous deterministic model fails to describe the system dynamics and the intrinsic random fluctuations [20, 39]. In stochastic models, species may have an integer or a real number of molecules and the reactions 1
+
+CHAPTER 1. INTRODUCTION are treated as discrete and random events. Stochastic models are essential for studying the behaviour of biochemical systems with low amounts of certain species. McAdams & Arkin [4] showed that stochasticity does play an important role in the lysis/lysogeny decision of the bacteria -phage [28]. Samoilov et al.[35] demonstrated that noise can induce bi-stability in a monostable system. The Chemical Master Equation (CME) [12] is one of the most refined models of wellstirred biochemical systems. The most accurate model of non-homogenous biochemical sytems in Molecular Dynamics. Molecular Dynamics is a very complex model, as it keeps a record of all positions and velocities of the molecules in the system. Daniel Gillespie proposed an exact algorithm for simulating the solution of the Chemical Master Equation [11, 12]. This exact algorithm simulates every reaction one at a time. When biochemical systems have some fast reactions, it become computationally intensive to simulate every reaction in the system. For improving the computational time, Gillespie [14] proposed the tau-leaping method, where the system is advanced with a predetermined step size  , which leaps over many iterations. Gillespie [14] also proposed the Chemical Langevin Equation, a continuous stochastic model and a bridge between the Chemical Master Equation and the Reaction Rate Equation models. The continuous stochastic model of biochemical kinetics, the Chemical Langevin Equation (CLE) is a reduction of the Chemical Master Equation in the regime of large molecular counts. When a system has very large population numbers for all reactants, the system dynamics may be modeled using the RRE instead of the CLE. Other approximate algorithms have been developed in the litereature for solving the Chemical Master Equation and this remains an active area of research [19]. Such approximate algorithms for the CME were proposed by Rathinam et al. [31]. Cao, Gillespie & Petzold [6], Tian & Burrage [36] and Chatterjee et al. [7]. Stability and consistency studies of the tau-leaping method were conducted by Rathinam et al. [32], higher order tau-leaping methods were developed by Li [26] and adaptive time-stepping tau-leaping strategies were introduced by by Anderson [2]. Also, the tau-leaping method has been a connection between a microscopic, stochastic and discrete model of well-stirred biochemical kinetics (the Chemical Master Equation [14]) and a macroscopic, stochastic and continuous model (the Chemical Langevin Equation [14]). Langevin equations which are charachteristically stochastic differential equations (SDE) have received considerable at2
+
+CHAPTER 1. INTRODUCTION tention for their practical applications in physics, chemistry, biology [37, 9] besides their uses in Systems Biology [24]. An introduction to the numerical solutions of stochastic differential equations can be found in Higham [18]. The exact algorithms and the approximate algorithms may fare well on certain models depending on the stiffness of the biochemical system. The exact algorithm, for instance, behaves well on non-stiff systems. But, when it comes to simulating stiffer systems, i.e, systems with fast and slow reactions, approximate methods may be more efficient. Another strategy to reduce the computational time and maintaining the level of accuracy while simulating more challenging biochemical systems is to use hybrid methods. Hybrid methods use a combination of approximate and exact models and/or methods. Among them are the methods of Alfonsi et al. [1], Cao et al. [5], Haseltine & Rawlings [16], Hellander & Lotstedt [17], Kiehl et al. [22], MacNamara et al. [27], Mattheyses & Simmons [23], Puchalka & Kierzek [29], Rao & Arkin [30] , Salis & Kaznessis [33], Samant & Vlachos [34] and Weinam et al. [38]. In this thesis, we study multi-level Monte Carlo methods (MLMC) for stochastic discrete models of biochemical systems. We investigate the efficiency of these methods, when approximating the mean values of some function of the state of the biochemical system. Giles [10] proposed the MLMC methods in order to approximate E (f (X (t))), where E (·) is the expected value, f is a polynomial and X (t) is a stochatic process of interest. The MLMC strategies aim to estimate the expected value E (f (X (t))) at a reduced computational time compared to existing methods, while maintaining a good accuracy of the estimation. The method uses different levels of accuracy. A base estimator is computed using the tau-leaping method using with a large step size. In the subsequent levels, we calculate correction estimators which are then added to the base estimator in order to reduce bias and to improve accuracy. The key concept behind this method is to reduce the variance, by simulating sets of coupled trajectories in calculating correction estimators. Each trajectory simulated on a coarser grid is coupled with a trajectory simulated on a finer grid. The coupling of trajectories has to be carefully implemented so that the variance of the difference of the coupled trajectories is reduced, leading to a reduction of the computational time. The MLMC methods give good estimation of the mean value at a fraction of the computational cost of the exact algorithm. Anderson and Higham [3] developed multi-level Monte Carlo methods for models of biochemical 3
+
+CHAPTER 1. INTRODUCTION systems. However, their approach may not be the most effective on generic biochemical systems. In this work, we study the MLMC strategies proposed by Lester et al [25] This thesis is organized as follows. In Chapter 2, we introduce stochastic models of wellstirred biochemical systems. The models we discuss are the Chemical Master Equation (CME). In Chapter 3, we present the multi-level Monte Carlo methods for the CME, and investigate improvements to their computational cost. In Chapter 4, we illustrate the advantages of the MLMC methods over the stochastic simulation algorithm by testing them on three biochemical models of practical interest. The models that we used are Potassium Channel model, Michaelis Menten model and Cyclical Reaction model. Finally, in Chapter 5, we present our conclusions and discuss our future work.
+
+4
+
+Chapter 2 Background
+
+2.1
+
+Stochastic Models
+
+In this section we consider a process that involves N different types of molecules or biochemical species S1 , ..., Sn . We are also assuming that the system is a well-stirred (or homogeneous) system so that the molecules are spread uniformly across the spatial domain. These N species will take part in M different types of chemical reactions R1 , .., Rn . For instance, a molecule of type A can combine with a molecule of type B to create a molecule of type C. We also assume that the system is in thermal equilibrium and that the volume of the spatial domain is constant.
+
+Suppose that initially at time t = 0, we know that the molecular amounts and our objective is to describe how these number of molecules evolve over time. Thus the state vector, may be represented as an N X 1 matrix. The i-th row corresponds to the number of Si molecules at time t.   X1 (t)    X2 (t)    (2.1) X(t) :=  .  . .   XN (t) 5
+
+2.2. CHEMICAL MASTER EQUATION (CME)
+
+CHAPTER 2. BACKGROUND
+
+where Xi is a non negative integer that shows how many molecules of species i are present at time t. We also introduce a state change vector vj ,    vj :=    v1j v2j . . . vN j The stoichiometric matrix V has vj as its j-th column where each of the vij is the change in the number of Si molecules caused by the reactions. A chemical reaction system consists of N chemical species X1 ,..,XN and M reactions R1 ,..,RM . The state vector is denoted by X (t) = [X1 (t), ..., X (t)], where Xi (t) is represents the amount of Si molecules at time t. At time t = 0, initial population numbers are given. Associated with the j th reaction is the propensity function [19], aj X (t): the probability of this reaction Rj taking place in the infinitesimal time interval [t, t + dt) is aj X (t)dt. U nimolecular : Sm -  something has propensity function aj X (t) = cj Xm (t)
+1 Xm (t)(Xm (t) - 1) Dimerization : Sm + Sm -  something has aj (X (t)) = cj 2 cj cj
+
+   ,   (2.2)
+
+Bimolecular : Sm + Sn -  something has aj (X (t)) = cj Xm (t)Xn (t), where, m = n. 1 For the dimerization, we have 2 Xm (t)(Xm (t) - 1), which represents the number of combinations possible when 2 molecules are chosen from Xm number of total molecules, (Xm )! i.e (2!)( . Xm -2)!
+
+cj
+
+2.2
+
+Chemical Master Equation (CME)
+
+In this section we derive stochastic discrete model of well-stirred biochemical kinetics, the Chemical Master Equation. Now, we study the quantity P (x, t) defined by:
+
+P (x, t|x0 , t0 ) = P rob{X (t) = x, given X (t0 ) = x0 }f or t  t0 6
+
+
+
+(2.3)
+
+CHAPTER 2. BACKGROUND
+
+2.2. CHEMICAL MASTER EQUATION (CME)
+
+If we know the probability of being in any state, at time t, then we can find the probability of being in state x at time t + dt, assuming that no more than one reaction can take place over the small interval [t, t + dt). The two situations that can occur is, either the system was already in state x at time t and no reaction took place over the interval [t, t + dt), or for some 1  j  M the system was in state x - vj at time t and the j th reaction took place over the interval [t, t + dt) which later brought the system to the state x. Using the law of total probability, we have that
+
+M +1
+
+P (A) =
+j =0
+
+P (A|Hj )P (Hj )
+
+(2.4)
+
+where H0 , H1 , ..., HM , HM +1 represent disjoint (not more than one can happen) and exhaustive (one of them must happen) events and A is the event of interest. If H0 is the event that the system is in x at t, let Hj for 1  j  M be the event for the system is in x-vj at time t and HM +1 be the event that the system is in any other state at time t. Then we have (2.5) P (A|Hj ) = aj (x - vj )dt, 1  j  M
+
+If P (A|H0 ) is the probability of no reactions taking place in the interval [t, t + dt), then we have
+
+M
+
+P (A|H0 ) = 1 -
+j =1
+
+aj (x)dt
+
+(2.6)
+
+This means 1 minus the probability of any reaction happening. We also have that P (A|HM +1 ) = 0 because HM +1 contains all the states that are more than one reaction away from x. Using the above four equations, we derive
+M
+
+P (x, t + dt) =
+M
+
+(1 -
+j =1
+
+aj (x)dt P (x, t) (2.7)
+
++
+j =1
+
+aj (x - vj )dtP (x - vj , t). 7
+
+2.3. DERIVATIONS OF STOCHASTIC SIMULATION ALGORITHM (GILLESPIE'S ALGORITHM) CHAPTER 2. BACKGROUND Arranging the above equation and setting a limit dt  0, we get
+M
+
+dt 0
+
+lim
+
+P (x, t + dt) - P (x, t) = dt
+
+(aj (x - vj )P (x - vj , t) - aj (x)P (x, t).
+j =1
+
+(2.8)
+
+The above equation leads to Chemical Master Equation below:
+M
+
+dP (x, t) = dt
+
+(aj (x - vj )P (x - vj , t) - aj (x)P (x, t)).
+j =1
+
+(2.9)
+
+The CM E (2.9) is a linear ODE (ordinary differential equation) system with one ODE for each possible state, CME is usually hard to solve because it is a linear ODE system with one ODE for each possible state. If the number of states is large then the CME is a very large system of ODEs, which is very challenging to solve numerically.
+
+2.3
+
+Derivations of Stochastic Simulation Algorithm (Gillespie's Algorithm)
+
+The CME is very high-dimensional and it is computationally intensive to deal with. The Stochastic Simulation Algorithm (SSA) [11, 12] gets around this issue by computing single realizations of the state vector rather than computing an entire probability distribution. The SSA is in exact agreement with the CME. We introduce the probability quantity P0 ( |x, t) as follows: given that X(t) = x, P0 ( |x, t) is the probability that no reaction takes place in the interval [t, t +  ). Now we consider the time interval [t, t +  +d ). We also assume that the event(s) happening over the interval [ t, t +  ) are independent of the events happening over the interval [ t+ , t +  +d ). We have that probability that no reaction takes place in [ t,t+ +d ) is probability that no reaction takes place in [ t,t +  ) and no reaction takes place in [ t+ , t+ +d ). Mathematically, this translates to independent events, i.e probability that no reaction takes place in [ t, t +  ) x probability that no reaction takes place in [ t+ , t +  + d ) = probability that no reaction takes place in [ t, t +  ) x (1 - sum of probability that each reactions taking place over the 8
+
+2.3. DERIVATIONS OF STOCHASTIC SIMULATION CHAPTER 2. BACKGROUND ALGORITHM (GILLESPIE'S ALGORITHM) interval [ t+ , t +  + d )). This is written as:
+M
+
+P 0 ( +  |x, t) = P0 ( |x, t) 1 -
+k=1
+
+ak (x)d
+
+(2.10)
+
+the above equation is re-arranged and taking the limit d  0 lim P0 ( +  |x, t) - P0 ( |x, t) = -P0 ( |x, t) ak (x)d ) 0 d k=1
+M M
+
+dt
+
+(2.11)
+
+we get dP0 ( |x, t) = -P0 ( |x, t) ak (x)d ) d k=1 Solving this ODE with P0 ( |x, t) = 1, gives P0 ( |x, t) = e-
+M k=1 ak (x)
+
+(2.12)
+
+(2.13)
+
+Now we need to determine p( |x, t) defined by p(, j |x, t)d is the probability that the next reaction (a) will be the jth reaction and (b) it will occur in the time interval [t+ ,t+ +d ) if X (t) = X . The following propositions from Wilkinson [39] will be used in justifying the stochastic simulation algorithm SSA. Proposition 2.3.1. If Xi Exp(i ) with parameter i , i = 1,2,..,n, are independent exponential random variables, then
+
+n
+
+X0  min{Xi }  Exp(0 ), where 0 =
+i i=1
+
+i
+
+9
+
+2.3. DERIVATIONS OF STOCHASTIC SIMULATION ALGORITHM (GILLESPIE'S ALGORITHM) CHAPTER 2. BACKGROUND Proof. First note that for X Exp(), we have P (X > x) = Exp(-x). Then
+
+P (X0 > x) = P (min{Xi } > x)
+i
+
+= P ([X1 > x][X2 > x]...[Xn > x])
+n
+
+=
+i=1 n
+
+P (Xi > x) e-i x
+i=1 -x
+n
+
+=
+
+i=1 i = e = e-0 x
+
+So P (X0 x) = 1-e-0 x and hence X0 Exp(0 ) This lemma is for the following proposition. Lemma 2.3.1. Suppose that X Exp() and Y Exp(µ) are independent random variables. Then P (X < Y ) = Proof. P (X < Y ) =
+o  . +µ
+
+
+
+P (X < Y |Y = y )f (y )dy P (X < y )f (y )dy
+o
+
+= = =
+o  +µ
+
+(1 - e-y )µe-µy dy
+
+This next result gives the likelihood of a particular exponential random quantity of an independent collection being the smallest. Proposition 2.3.2. If Xi Exp(i ), i = 1,2,..,n, are independent exponential random variables with parameter i , let j be the index of the smallest number Xi . Then j is a discrete random variable with probability mass function (pmf ) 10
+
+2.3. DERIVATIONS OF STOCHASTIC SIMULATION CHAPTER 2. BACKGROUND ALGORITHM (GILLESPIE'S ALGORITHM)
+n
+
+i =
+
+i , 0
+
+i = 1,2,,,n, where 0 =
+i=1
+
+i
+
+Proof. j = P (Xj < min{Xi })
+i= j
+
+= P (Xj < Y ) where Y = min{Xi }, so that YExp(-j ), where -j =
+i=j i= j j j +-j j 0
+
+i
+
+= =
+
+(by the lemma)
+
+Using the independence of occurrence of events, we have that probability (a) and (b) = probability that no reaction took place over [t,t+ ) * probability that the jth reaction took place over [t+ ,t+ +d ) assuming that d is so small that at most one reaction took place over that time interval, we have
+
+p(, j |x, t)d = P0 ( |x, t)aj (x)d and from (2.13) we have
+M - ak (x) k=1
+
+(2.14)
+
+(2.15)
+
+p(, j |x, t) = aj (x)e
+M
+
+If we let a0 (x) =
+k=1
+
+ak (x), then the equation (2.15) can be re-written as
+
+p(, j |x, t) =
+
+aj ( x ) a0 (x)e-a0 (x) a0 ( x )
+
+(2.16)
+
+We express this joint probability density function as a product of two density functions: 11
+
+2.4. THE TAU-LEAPING METHOD
+
+CHAPTER 2. BACKGROUND
+
+· Next Reaction Index j is a discrete random variable representing the index of the next reaction. · Time Until Next Reaction the density function of  is the time to the next reaction. As the next reaction index j and time until next reaction  are independent random variables, we can compute then separately. The Stochastic Simulation Algorithm by Daniel Gillespie is based on [12] a Monte Carlo approach and is as follows:
+
+Stochastic Simulation Algorithm 1. Initiate the system at t0 =0 and X (t0 ) = x0
+M
+
+2. At time t evaluate a1 (x), ..., aM (x), and a0 (x) 
+j =1
+
+aj ( x )
+
+3. Let r1 and r2 be two uniform random numbers in (0,1) and compute  and j as follows: a.  =
+1 ln r11 a0 (x) j
+
+b. j = the smallest integer satisfying
+k=1
+
+ak (x) > r2 a0 (x)
+
+4. Replace t  t +  and x  x + vj . 5. Record (x, t). Return to step 2, else end simulation.
+
+2.4
+
+The Tau-Leaping Method
+
+The SSA is an exact method and therefore it is computationally expensive on systems with fast reaction. In this method, a reaction time and reaction index is computed for each reaction that occurs in the system before adjusting state change vectors and propensity functions. If the system is a stiff system, i.e, if there are many molecules of certain species which participate in fast reaction then that propensity function of 12
+
+CHAPTER 2. BACKGROUND
+
+2.4. THE TAU-LEAPING METHOD
+
+such reactions are large aleading to a very small step size  to the next reaction it is computationally expensive. The exact state of the system at time t +  (see Kurtz [8]) is given by the following equation:
+M t+
+
+X(t +  ) = X(t) +
+j =1
+
+j P j (
+t
+
+aj (X(s))ds)
+t+ aj (X(s))ds t
+
+(2.17) is its
+
+In the above equation Pj (·) is a Poisson random variable, and parameter.
+
+· Leap Condition We assume that  > 0 is small enough such that the propensity functions aj (X(t)), for j = 1,...,M remain relatively constant over the interval t  s  t +  , so that few reactions occur, thus aj (X(s))  aj (X(t)). Using the leap condition and substituting it into equation(2.17), we have
+
+M
+
+t+
+
+X(t +  )  X(t) +
+j =1 M
+
+j Pj (
+t t+
+
+aj (X(t))ds)
+
+ X(t) +
+j =1 M
+
+j Pj (aj (X(t))
+t
+
+ds)
+
+ X(t) +
+j =1
+
+j Pj (aj (X(t)) ).
+
+Thus the tau-leaping method is obtained (see Gillespie [14]):
+M
+
+X(t +  ) = X(t) +
+j =1
+
+j Pj (aj (X(t)) ).
+
+(2.18)
+
+In this equation {Pj (aj (X(t)) )}M j =1 represent the random variables which are to be computed in this method. The probability of the jth reaction taking place over the small time interval of length d is given by aj (X (t))d where aj (X (t)) is almost constant over the time interval [t,t+ ). 13
+
+2.5. CHEMICAL LANGEVIN EQUATION (CLE)
+
+CHAPTER 2. BACKGROUND
+
+Then the number of type j reactions within [t, t+ ) may be computed using Pj (aj (X (t)) ) with parameter aj (x) which is a Poisson distribution with mean and variance aj (X (t)) The algorithm for tau-leaping is computed as SSA:
+
+Tau-Leaping Algorithm 1. Calculate {Pj }M j =1 from the distribution of Poisson random variables. 2. Initialize the system t0 =0, x(t0 ) = x0
+M
+
+3. Then update X(t +  ) to X(t) +
+j =1
+
+j p j
+
+4. Update t to t +  . 5. Go to 2 or stop.
+
+2.5
+
+Chemical Langevin Equation (CLE)
+
+Suppose [14] that the leap time  is chosen in such a way that the mean aj (X(t)) of Pj (aj (X(t)) ) is large for j = 1, .., M , i.e, every reaction occurs many times over the interval [t,t+ ). Then we approximate each Poisson random variable by a normal normal random variable with the same mean and variance. According to Stirling's approximation [13], Pj (aj (X(t)) )Zj (aj (X(t)), aj (X(t)) ), if aj (X(t) >> 1. By linear combination theorem for normal random variables, we derive
+
+Z (aj (X(t), aj (X(t),  ) = aj (X(t) + Replacing Pj (aj (X(t) )) in (2.18) with aj (X(t)) + 14
+
+aj (X(t) Zj (0, 1).
+
+(2.19)
+
+aj (X(t)) Zj , according to (2.19),
+
+CHAPTER 2. BACKGROUND
+
+2.5. CHEMICAL LANGEVIN EQUATION (CLE)
+
+we get Zj where Zj are independent normal (0,1) random variables.
+M M
+
+X (t +  ) = X (t) + 
+j =1
+
+vj aj (X (t)) +
+
+ 
+
+vj
+j =1
+
+aj (X (t))Zj (0, 1).
+
+(2.20)
+
+Equation (2.20) is known as the Chemical Langevin Equation (as CLE). We also notice that the tau-leaping method uses an integer-valued Poisson random variables, while (2.20) employs real-valued normal random variables. In the limit  dt (2.19) becomes a stochastic differential equation of the form:
+M
+
+dX (t) =
+j =1
+
+vj [aj (X (t))dt +
+
+aj (X (t))dWj (t)]
+
+(2.21)
+
+where Wj , 1  j  M, are independent Wiener processes. Definition 2.5.1. A scalar standard [18] Wiener process over [0,T] is a random variable W(t) that depends continuously on t  [0,T] and satisfies the following three conditions: 1. W(0) = 0 (with probability 1) 2. For any 0s < tT the random variable given by the increment W(t)-W(s) is normally distributed with mean zero and variance (t-s); equivalently, W(t)-W(s)   t - sN (0, 1) where N (0, 1) denotes a normally distributed random variable with zero mean and variance 1. 3. For any 0s < t < u < v T the increments W(t)-W(s) and W(v)-W(u) are independent. Note that equation (2.20) is the Euler-Maruyama method for applied to the stochastic differential equations (2.20). The assumptions used to derive the CLE are: i the propensity functions do not change significantly over the time interval [t,t+ ), ii the value of each propensity function times the step size, i.e. aj (X (t)) , is large. The condition (i) and (ii) applies simultaneously when the molecular populations of each species is large. 15
+
+2.6. DERIVATION OF REACTION RATE EQUATION
+
+CHAPTER 2. BACKGROUND
+
+2.6
+
+Derivation of Reaction Rate Equation
+
+We investigate the assumptions under which the Chemical Master Equation (CME) can be reduced to the continuous deterministic model of the reaction rate equation (RRE). If K is the countable state space of the process Xt satisfying the CME, then (see [39] for more detail).   E (Xt ) = xP (x, t|x0 , t0 ) t t xK  = x P (x, t|x0 , t0 ) t x K where K is the countable state space of the process. By applying equation (2.9) we get  E (Xt ) = t =
+xK M
+
+x
+xK
+
+ P (x, t|x0 , t0 ) t
+M
+
+x
+j =1
+
+(aj (x - vj )P (x - vj , t|x0 , t0 ) - aj (x)P (x, t|x0 , t0 ) x(aj (x - vj )P (x - vj , t|x0 , t0 ) - xaj (x)P (x, t|x0 , t0 )
+x K
+
+=
+j =1 xK
+
+We can substitute x + vj for x because x + vj  K and derive  E (Xt ) = t
+M
+
+(x + vj )(aj (x)P (x, t|x0 , t0 ) -
+j =1 xK x K
+
+xaj (x)P (x, t|x0 , t0 )
+
+Simplifying this equation we obtain  E (Xt ) = t
+M
+
+vj aj (x)P (x, t|x0 , t0 )
+j =1
+
+By the definition of expected values, the above equation can be written as  E (Xt ) = t
+M
+
+[vj E (aj (Xt ))].
+j =1
+
+16
+
+CHAPTER 2. BACKGROUND
+
+2.6. DERIVATION OF REACTION RATE EQUATION
+
+Substituting Y (t) = E (Xt ) in the above, we get d Y (t) = dt
+M
+
+vj E (aj (Xt )
+j =1
+
+We now investigate the types of reactions is the reaction rate equation is valid, E (aj (Xt )) = aj (E (Xt )) = aj (Y (t))
+
+Consider the following reactions of various orders: 1. If aj (X (t)) = mj , then E (aj X (t)) = E (mj ) = mj = aj (Y (t)). 2. If aj (X (t)) = mj xi , then E (aj (X (t))) = E (mj xi ) = mj E (xi ) = aj (E (X (t))) = aj (Y (t)), 3. If aj (X (t)) = mj xi xk , where i = k , the population species Si and Sk may not be independent, then E (aj (X (t))) = E (mj xi xk ) = mj E (xi xk )=mj E (xi )E (xj ) = aj (Y (t)). Thus the average behaviour of the solution of the CME satisfies the RRE if the biochemcal system has only reactions of order 0 and 1. The system reaches the thermodynamic limit ( Gillespie [15]) when its volume V and each species population Xi (t) approach infinity, while the species concentration (i.e. species population/volume) remains constant, i.e., if i = constant. When there are large number of molecules, the Xi  and V  then X V deterministic part of the CLE grows as the system size but the stochastic part grows as its square root. Therefore the stochastic part is negligible compared to the deterministic part. So, from equation (2.21), if we ignore the stochastic part of the CLE then we get ):
+M
+
+d Y (t) = dt
+
+vj aj (Y (t)).
+j =1
+
+(2.22)
+
+This equation is called the reaction rate equation (RRE). Therefore when the system has very large number of molecules, it can be approximated by using the RRE model. 17
+
+2.6. DERIVATION OF REACTION RATE EQUATION
+
+CHAPTER 2. BACKGROUND
+
+In biochemical stochastic models where the molecular number of each species is greater than 1000, we are able to reduce the stochastic model of the CME (or CLE) to that of the deterministic reaction-rate equations.
+
+18
+
+Chapter 3 The Multi-Level Monte Carlo Method
+Monte Carlo methods have been extensively used in computational finance to approximate the expected value of a quantity of interest, which is a function of a stochastic process. This stochastic process may be the solution of a stochastic differential equation (SDE). Consider a SDE of the form: dS (t) = a(S, t)dt + b(S, t)dW (t), 0 < t < T, (3.1)
+
+where a(·) and b(·) are the drift and diffusion terms, respectively. If S0 is the initial data (in our case, the initial number of molecules of a species), the goal is to compute the expected value of f (S (T )). The function f satisfies the uniform Lipschitz condition, i.e., there exists a constant c > 0 and a domain D such that for any U and V in D
+
+|f (U ) - f (V )|  c|U - V |.
+
+(3.2)
+
+Then discretization of this SDE using the Euler-Maruyama method with time step h yields Sn+1 = Sn + a(Sn , tn )h + b(Sn , tn )Wn (3.3) 19
+
+3.1. MLMC GENERAL IDEA
+
+CHAPTER 3. THE MULTI-LEVEL MONTE CARLO METHOD
+
+and the estimate for E [f (ST )] is the mean of f (ST /h ) from N independent path simulations [10] N 1 Y = f (S (i) T /h ) (3.4) N i=1 The expected mean square error (MSE) is of the form [10] M SE  c1 N -1 + c2 h2 (3.5)
+
+where c1 and c2 are constants. In this equation, the first term corresponds to the variance in Y and the second term comes from the biasness of Euler Maruyama discretizations. In the multi-level Monte Carlo method developed by Giles [10] the time steps for the discretizations are given by hl = M -l T , l = 0, 1,..., L, for integer M 2. This is a geometric sequence of time steps with hL being the smallest time step. In a multi grid method, the stepsize is half the previous stepsize in the previous grid. On a fine grid, the accuracy is much better but the computational cost is high. On a coarse grid the accuracy is lower but the computational cost is low. In this Chapter, we describe the multi-level Monte Carlo (MLMC) method applied to the stochastic discrete model of well-stirred biochemical systems, the CME and how does it work in order to compute the expected values efficiently.
+
+3.1
+
+MLMC General Idea
+
+The stochastic process X (t) governed by the CME satisfies the following equation (see Kurtz [8])
+M t+
+
+X(t +  ) = X(t) +
+j =1
+
+j P j (
+t
+
+aj (X(s))ds).
+
+If pj 1 , pj 2 , .., pj m are independent Poisson processes then
+ 2 t
+
+Pj 1 (
+0
+
+aj (X(s))ds) + Pj 2 (
+
+
+aj (X(s))ds) + ... + Pj m (
+(m-1)
+
+aj (X(s))ds)
+
+20
+
+CHAPTER 3. THE MULTI-LEVEL MONTE CARLO METHOD
+ 2
+
+3.1. MLMC GENERAL IDEA
+t
+
+= Yj
+0 t
+
+aj (X(s))ds +
+
+
+aj (X(s))ds +
+(m-1)
+
+aj (X(s))ds
+
+= Yj (
+0
+
+aj (X(s))ds)
+
+where Yj are unit rate Poisson processes and (m - 1)  t m . For the state vector X (t) which obeys the CME satisfies the the random time change representation [8])
+R t
+
+X (t) = X (0) +
+j =1
+
+Yj
+0
+
+aj (X (s)ds) vj ,
+
+(3.6)
+
+where vj and aj are the state change vector and the propensity corresponding to reaction Rj , respectively and {Yj }M j =1 are independent unit-rate Poisson processes. We demonc1 strate the use of the equation (3.6) in the biochemical reaction system S1 S2 . For
+c2
+1 example in the reaction, S1 -  S2 , S1 molecules are converted to S2 molecules at a rate of c1 X1 , X1 being the number of molecules of type S1 . If the system satisfies the mass
+
+c
+
+T
+
+action kinetics, the stochastic process X (t) =
+t
+
+X1 (t), X2 (t)
+t
+
+can be represented as
+
+X (t) = X (0) + Y1
+0
+
+c1 X1 (s)ds (-1, 1)T + Y2
+0
+
+c2 X2 (s)ds (1, -1)T
+
+(3.7)
+
+where (-1, 1)T and (1, -1)T are the state change vectors form the chemical reactions c1 c2 c3 above. To solidify our notation, consider a network S1 -  , S2 -  S1 , 2S2 -  S3 and c3 2S2 - S3 . Here c1 , c2 and c3 are rate constants. Then, the state vector of this biochemical system obeys;
+t t
+
+X (t) = X (0) + Y1
+0
+
+c1 X1 (s)ds (-1, 1, 0)T + Y2
+0 t
+
+c2 X2 (s)ds (1, -1, 0)T
+
++Y3
+0
+
+1 c3 X2 (s)(X2 (s) - 1)ds (0, -2, 1)T 2
+
+where v1 = [-1, 1, 0]T , v2 = [1, -1, 0]T , v3 = [0, -2, 1]T are the state change vectors.
+
+21
+
+3.2. THE MLMC METHOD FOR CHAPTER 3. THE MULTI-LEVEL MONTE STOCHASTIC BIOCHEMICAL KINETICS CARLO METHOD
+
+3.2
+
+The MLMC Method for Stochastic Biochemical Kinetics
+
+In this section, we will present the multi-level Monte Carlo method to estimate the mean of f (X (t)) where f is a function of interest, e.g., f (x) = x and X (t) is the stochastic process representing the state vector of a well-stirred biochemical system. In order to reduce the computational costs, the multi-level Monte Carlo strategy couples the trajectories to accurately approximate the expected value of a random variable for rather than the entire distribution. By coupling trajectories on consecutive levels, the method reduces the variance of the mean estimate. By levels, we are referring to computing estimates using finer step sizes in higher consecutive levels. From our sample distribution, the MLMC method finds the moments of the distribution such as mean if f (x) = x and variance, if f (x) = x2 in case the mean was computed in advance.
+
+The multi-level Monte Carlo method generates many levels and each level corresponds to an estimate. The summation of the estimates from all the levels is employed to our approximate the desired mean, expected value of f (X (t)). For instance, on level 0, the tau-leaping method is used to generate a larger number of sample paths (n0 ). Then the point estimate for Xi is 1 Q0 := E [Z0 ]  n0
+(r) n0 (r) Z (T ), 0 r=1
+
+(3.8)
+
+where Z is the number of molecules of the species of interest at time T in path r generated using the tau-leaping method with time step  . If  is large, the estimates calculated are cheap, but inaccurate. In the next level (level 1), we introduce a correction term to the estimator which will reduce the bias. In order to improve the accuracy of the estimator, we calculate two sets of n1 sample paths. The first set of sample paths is computed using the tau (0 ) from the previous level. The second set of trajectories is calculated by using the step size 1 = 0 /K, where K 2 integer. Then the correction term is the difference between the 22
+
+CHAPTER 3. THE MULTI-LEVEL MONTE 3.2. THE MLMC METHOD FOR CARLO METHOD STOCHASTIC BIOCHEMICAL KINETICS estimates calculated using two sample n1 paths 1 Q1 := E [Z1 - Z0 ]  n1
+n1 (r ) (r) [Z (T ) - Z (T )]. 1 0 r=1
+
+(3.9)
+
+Adding this correction term to the estimator calculated on the base level (level 0) reduces the bias of the resulting estimator. We can note that Q0 + Q1 = E [Z0 ] + E [Z1 - Z0 ] = E [Z1 ]. So adding the two estimators gives a bias equivalent to that of the tau-leaping method with  = 1 . This process is repeated for the subsequent levels. Summing up the estimates obtained from all the levels leads to a more accurate estimator, equivalent in accuracy to an approximation by the tau-leaping method with the stepsize of the finest mesh. The way to develop efficiency of the multi-level method is to generate two sets of sample paths Z1 (T )(r) , Z0 (T )(r) : r = 1, ..., n1 (3.10) so that the variance in their difference is minimized. If the variance in their difference Vl is denoted by Vl , then the estimator variance is given as . A lower variance implies nl that fewer sample paths are needed to achieve the same accuracy of the estimation. On the second level, this process is repeated to generate a second correction term. In this level, two sets of n2 sample paths are generated. One set has  = 1 and the second has 1 = 2 , such that 2 < 1 . The correction term is the estimator of their difference = K
+
+1 Q2 := E [Z2 - Z1 ]  n2
+
+n2 (r ) (r) (T ) - Z (T )]. [Z 1 2 r=1
+
+(3.11)
+
+Adding the correction term generated from level 2 to level 1 and level 0, we derive Q0 + Q1 + Q2 = E [Z0 ] + E [Z1 - Z0 ] + E [Z2 - Z0 ] = E [Z2 ] by the linearity property of expected values. Thus the summation of the three estimators gave a bias equivalent to the tau leaping method with  = 2 . Continuing this procedure 23
+
+3.2. THE MLMC METHOD FOR CHAPTER 3. THE MULTI-LEVEL MONTE STOCHASTIC BIOCHEMICAL KINETICS CARLO METHOD gives the following telescopic sum
+
+L
+
+L
+
+E [Zl ] = E [Z0 ] +
+l=1
+
+E [Zl - Zl-1 ] =
+l=0
+
+Ql
+
+(3.12)
+
+When the correction terms are added to subsequent levels, the bias of the estimator is reduced until a desired accuracy is achieved. Finally and optionally, we can generate two sample of nL+1 sample paths, one set using the expected values obtained by SSA and the other using tau-leaping with  = L , we can compute the final correction term
+nL+1 (r ) [Xi (r) (T ) - Z (T )] L r=1
+
+QL+1 = E [Xi - Zl ]
+
+1 nL+1
+
+(3.13)
+
+and the above estimation can be added to the telescopic sum in order to get an unbiased estimator below
+
+L
+
+L
+
+Qb = E [Xi ] = E [Z0 ] +
+l=1
+
+E [Zl - Zl-1 ] + E [Xi - ZL ] =
+l=0
+
+Ql + Q L+1
+
+(3.14) in to to in
+
+The above equation will give us an unbiased estimation of the quantity of interest, our case the mean E (X (T )). It is important to note that the total CPU time taken generate the estimates from all the levels is less than the total CPU time required estimate Xi using the exact stochastic simulation algorithm for an insignificant loss accuracy of the estimation.
+
+To use the multi-level Monte Carlo method, we need to consider the following: · the choice of the number of levels in the algorithm as it will affect the total computational time, · the value of the estimator variance of each level, affect the total computational time. 24 Vl will ensure accuracy and also nl
+
+CHAPTER 3. THE MULTI-LEVEL MONTE 3.2. THE MLMC METHOD FOR CARLO METHOD STOCHASTIC BIOCHEMICAL KINETICS The key idea in this method is to reduce the overall estimator variance Vl by making the variance from each levels sufficiently small so that fewer trajectories are needed on each level to obtain an estimation of the desired accuracy reducing the computational time. An important point to make is, that the error of a Monte Carlo is l errorl   . Nl (3.15)
+
+where l 2 is the variance and N is the number of Monte Carlo trajectories. We can see from the relation between error and variance that, if the variance is reduced, then fewer trajectories are required for the corresponding level to obtain a similar error in the estimation
+
+Coupling in MLMC The algorithm below explains how the coupling is done in order to reduce the variance [3]. Fix an integer M  2 . Fix hl > 0 and set hl-1 = M  hl . Set Zl (0) = Zl-1 (0) = x0 , t0 = 0, n = 0. repeat the following steps until tn T : 1. For j = 1, ..., M, (a) Set · mk,1 = min(ak (Zl ), ak (Zl-1 )) · mk,2 = ak (Zl ) - mk,1 · mk,3 = ak (Zl-1 ) - mk,1 (b) For each k, let · pk,1 = P oisson(mk,1  hl ) · pk,2 = P oisson(mk,2  hl ) · pk,3 = P oisson(mk,3  hl ) 25
+
+3.2. THE MLMC METHOD FOR CHAPTER 3. THE MULTI-LEVEL MONTE STOCHASTIC BIOCHEMICAL KINETICS CARLO METHOD · Pk = pk,1 + pk,2 · Qk = pk,1 + pk,3 · Gk = Gk + Pk  vk · Fk = Fk + Qk  vk (c) it Set · Zl = Zl + Gk · Zl-1 = Zl-1 + Fk 2. Set tn+1 = tn + hl-1 . 3. Set n = n + 1 Some of the observations we make are: 1. We do not need to update ak (Zl-1 ) during the workings of the inner loop of j = 1,...,M. 2. At most one of m2 , m3 will be nonzero during each step with both being zero whenever ak (Zl ) = ak (Zl-1 ). Therefore at most two Poisson random variables are required per reaction channel at each step and not three. 3. While two paths are being generated, max{m2 , m3 } should be small for each step. Hence the work in computing Poisson random numbers will fall on pk,1 1 , which is the same amount of work as would be needed for the generation of a single path of tau-leaping. Note that pk,1 is a common Poisson random number for the coupled trajectories. Since pk,1 is larger than pk,2 and pk,3 , the coupling is strong, and therefore the variance of the estimation is reduced. If each sample path on level takes cl time to generate the estimator using nl sample paths, then we minimise the total computational time according to the method proposed
+1
+
+The cost of generating a Poisson random variable generally decreases with the size of the mean.
+
+26
+
+CHAPTER 3. THE MULTI-LEVEL MONTE 3.2. THE MLMC METHOD FOR CARLO METHOD STOCHASTIC BIOCHEMICAL KINETICS in [25]
+L
+
+min
+nl l=0
+
+nl cl such that
+
+Vl < nl l=0
+
+L
+
+2
+
+(3.16)
+
+Here
+
+2
+
+controls the estimator variance. Consider a R and the Lagrange function,
+L
+
+L(cl , nl , Vl , ) =
+l=0
+
+nl cl + 
+
+Vl nl l=0
+
+L
+
+.
+
+We wish to find  such that
+
+L nl
+
+= 0. Calculating the derivative with respect to nl gives
+L
+
+  L(cm , nm , Vm , ) = nl nl for = 0, 1,...,L We know that nm = lm = nl Thus we get   L(cm , nm , Vm , ) = nl nl leading to cl - 
+
+n m cm + 
+m=0
+
+Vm n m=0 m
+
+L
+
+= 0,
+
+1 if m = l, 0 if m=l
+
+Vm n m cm +  n m=0 m=0 m Vl = 0. nl 2
+
+L
+
+L
+
+L
+
+=
+
+cm lm + 
+m=0
+
+Vm lm =0 (-nm 2 ) m=0
+
+L
+
+Therefore the number of trajectories on level , n minimizing the quantity in (3.16) is nl =  Vl . cl (3.17)
+
+Recall that
+
+Vm  n m=0 m 27
+
+L
+
+2
+
+,
+
+(3.18)
+
+3.2. THE MLMC METHOD FOR CHAPTER 3. THE MULTI-LEVEL MONTE STOCHASTIC BIOCHEMICAL KINETICS CARLO METHOD Substituting nl from (3.17) into (3.18), we get Vm 1 = Vm cm   n  m=0 m m=0 Thus   1
+2 m=0 L L L 2
+
+V m cm
+
+(3.19)
+
+To get the optimal nl from (3.17) with  satisfying (3.19). We choose nl = 1
+2 m=0 L
+
+V m cm
+
+Vl . cl
+
+(3.20)
+
+We can use the values nl for the number of trajectories at level l. When the values of Vl l , whereas the variances Vl and cl are available it is also possible to estimate cl ans cl  K 0 may not be known but we can estimate them from simulating few sample paths. In order to calculate the total computational cost, we let cl and Vl be the cost and variance of a sample path Zl - Zl-1 , then the total computational cost of the multi-level estimator is L l=0 nl cl . We can choose according to (3.20), then the total computational cost is
+2
+
+L
+
+c=
+
+-2 l=0
+
+V l cl
+
+.
+
+(3.21)
+
+3.2.1
+
+An MLMC Method Using Scaling
+
+Another MLMC method for stochastic discrete biochemical system was developed by Anderson and Higham [3]. This method uses a different strategy for calculating the number of trajectories needed for each levels, based on the largest molecular amount. Consider V , to be the largest initial molecular amount of a species. The species population will vary over the period of time during simulation, the best guess we have is the largest initial species number. This approach scales the molecular number of species Si by pa28
+
+CHAPTER 3. THE MULTI-LEVEL MONTE 3.2. THE MLMC METHOD FOR CARLO METHOD STOCHASTIC BIOCHEMICAL KINETICS rameter i  0 by setting Xi v (t) = V -i Xi (t) so that Xi v = O(1) = V -i Xi such that O(1) = V -i Xi (0) for each species Si . Here Xi v (t) is the abundance of for each species Si . We have to carefully pick i such that Xi v = O(1). We want i to be large enough but not so large that Xi v converges to zero as V . If we take logarithms on both sides, then we can rewrite the above equation as
+
+i = logV (Xi (t)) The general form of such a scaled model is
+t
+
+X (t) = X (0) +
+k
+
+V
+
+V
+
+Yk V
+
+ 0
+
+V ck ak (X V (s))ds  V ,
+
+where Yk is a Poisson process,  ak (X V ) are of order one since Xi V on V . It is also natural to have
+
+and ck are scalars, | V | = O(V -ck ), and both X v and = O(1). Here ak V is a propensity function and depends ¯ = V V V ck [3] as the order of magnitude for the
+k
+
+number of computations required to generate a single realisation using exact algorithm. The parameter  is interpreted as being related to the time scale model. If  > 0, then the shortest time scale (time taken by chemical reactions) in the problem is much smaller than 1 and if  < 0 it is much larger. The optimum is to have  0 in order to avoid the error bounds grow rapidly. Similarly for each reaction rates ci , each of these reaction rates are scaled according to cj = O(1)V j and if we take logarithm on both sides then we can rewrite as
+
+j = logV (cj ) The scaling factor for the reaction as a whole is  , calculated as
+
+ = max {j + vj  - i }
+i,j :vij =0
+
+Here vij is the (i,j) entry of the stoichiometric matrix and vj is reaction Rj and  is 29
+
+3.2. THE MLMC METHOD FOR CHAPTER 3. THE MULTI-LEVEL MONTE STOCHASTIC BIOCHEMICAL KINETICS CARLO METHOD a vector containing all the i [21]. We also need a parameter  which is computed as follows:
+
+ = min {i }
+i,j :vij =0
+
+so that |k V |  V -k . we have that 0 and by the choice of  we have ck - k 0 for all k . Aso, we point that  is chosen such that ck =0 for at least one k . It is explicitly noted that the classical scaling holds if and only if ck k 1 and  = 0 [3]. Then, the required number of trajectories for the base estimator, n0 , is calculated as
+
+n0 = V - V 
+
+-2
+
+,
+
+where is the desired accuracy of the estimator for E (f (X (t))). The number of trajectories required to calculate correction estimators at level l, nl is calculated as
+
+nl = V - V  (L - l0 )hl
+
+-2
+
+where  {0,1,...,L}, the step size l = T M - and L is chosen by taking L = O(|ln( -1 )|). Recall that we can estimate the expected value at the finest level may be computed as
+L L
+
+E [Zl ] = E [Z0 ] +
+l=1
+
+E [Zl - Zl-1 ] =
+l=0
+
+Ql .
+
+We can estimate the above quantities using n0 and {nl }1 L within an error of O( ) by evaluating the right side of the above equation. As discussed earlier the implementation of the MLMC can be done with any desired accuracy but with more levels comes higher computational cost for obtaining a higher accuracy. Our experiment with this approach showed that it is not the most efficient when applied to a wide class of models. However, it could be said that there could be other models that we have not tested but might be compatible with this approach.
+
+30
+
+Chapter 4 Numerical Results
+In this section, we test the MLMC method described in Chapter 3 on three models of practical interest. We do so by simulating expected values using 10,000 trajectories with SSA and the MLMC method with a certain tolerance, . Our test show that a significant amount of computational time is saved using the MLMC strategy with a lower tolerance compared to the SSA. which is an exact method, but comes at a higher computational cost. We plotted the expected values for the molecular amounts of various species, obtained using the exact method of Gillespie [12] (SSA) and with the MLMC method as functions of time and found good agreement in the results of the two methods. For each model we also got the probability distribution of the molecular amount of each species, obtained using 10,000 SSA trajectories.
+
+4.1
+
+Potassium Channel (Model 1)
+
+Consider the system the Potassium Channel system studied in [28],
+1 S1 -  S2 c2 S2 -  S1
+
+c
+
+31
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+3 S2 -  S3 c4 S3 -  S2 c5 S3 -  S4 c6 S4 -  S3 c7 S4 -  S5 c8 S5 -  S4 c9 S5 -  S3 c10 S3 -  S5
+
+c
+
+The propensity functions corresponding to the reactions above are: a1 (x) a2 (x) a3 (x) a4 (x) a5 (x) a6 (x) a7 (x) a8 (x) a9 (x) a10 (x) = = = = = = = = = = c1 x 1 ; c2 x 2 ; c3 x 2 ; c4 x 3 ; c5 x 3 ; c6 x 4 ; c7 x 4 ; c8 x 5 ; c9 x 5 ; c10 x3 ;
+
+Here xi 's correspond to the molecular population number of species Si . The stoichiometric matrix for this biochemical network is:   -1 1 0 0 0 0 0 0 0 0    1 -1 -1 1  0 0 0 0 0 0     V = 0 0 1 -1 -1 1 0 0 1 -1   0  0 0 0 1 - 1 - 1 1 0 0   0 0 0 0 0 0 1 -1 -1 1 This model has the following reaction rate, parameters and initial conditions: X(1) = 100; X(2) = 50; X(3) = 100; X(4) = 50; X(5) = 100, c(1) = c(2) = c(3) = c(4) = c(5) = 0.1. The interval of integration is [0,20]
+
+32
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1) SSA 81.1214 80.2564 79.7566 79.3184 79.5472 412s MLMC( 1 =0.5) 81.1122 80.0417 79.7396 79.3871 79.7194 490s MLMC( 2 =1) 80.8897 79.1176 80.3015 79.6838 80.0074 73s MLMC( 3 =1.5) 81.36 78.5467 80.44 78.0024 78.4133 36s MLMC( 4 =2) 81.0312 81.1562 80.2812 78.9688 78.5624 12s
+
+X1 X2 X3 X4 X5 CP Utime
+
+Table 4.1: Comparison of expected values obtained through SSA and MLMC (using different -values) for the Potassium Channel Model and the computational times of these algorithms Levels n n0 n1 MLMC( 1 =0.5) 695 570 MLMC( 2 =1) 136 108 MLMC( 3 =1.5) 75 60 MLMC( 4 =2) 32 23
+
+Table 4.2: Comparison of trajectories obtained through simulation of the MLMC (using different -values) for the Potassium Channel Model
+
+We present in table 4.1 the estimates of the expected values of the Xi molecules obtained from simulating the Potassium Channel model using both the SSA and the MLMC methods. The SSA is an exact method whereas MLMC is an approximate method. We have discussed earlier that while being an exact thus accurate method, SSA simulation comes at a high cost for models with some fast reactions. However, the MLMC strategy provides significant computational time savings without significant loss in accuracy of estimating the mean values. We see that the the expected values obtained from both methods are very close to each other, with a difference of approximately 1, 2 or 3 at most number molecules for some species. For example, consider species 5, the SSA simulation gives us 79.5472 whereas MLMC simulation gives 78.5624 (by using tolerance 4 =2). The -78.5624|  100%  1.2%. This relative error of MLMC compared to SSA ones is |79.5472 |79.8148| shows a very good accuracy of our simulation. We also see from Table 4.1 that, the MLMC scheme is approximately 20 (412/20) times faster than the SSA. Figures 4.64.10 show the expected values for the molecular amounts of the species X1 , X2 , ..., X5 respectively as functions of times estimated from 10000 trajectories utilizing the SSA and the MLMC strategy with a given tolerance. Figure 4.11 gives a loglog plot of the norm-2 of the absolute error of the MLMC compared to the 'exact' solution of the SSA, 33
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS as a function of the tolerance almost 1. set for the estimator. The slope in the loglog plot is
+
+34
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+0.06
+
+SSA for Potassium Reaction Model for Species 1
+Simulated SSA for Species 1
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+130
+
+Number of S 1 Molecules
+
+Figure 4.1: Potassium Reaction Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 412 seconds.
+
+, 35
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+
+0.06
+
+SSA for Potassium Reaction Model for Species 2
+Simulated SSA for Species 2
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+130
+
+Number of S 2 Molecules
+
+Figure 4.2: Potassium Reaction Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 412 seconds.
+
+, 36
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+0.06
+
+SSA for Potassium Reaction Model for Species 3
+Simulated SSA for Species 3
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of S 3 Molecules
+
+Figure 4.3: Potassium Reaction Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 412 seconds.
+
+, 37
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+
+0.06
+
+SSA for Potassium Reaction Model for Species 4
+Simulated SSA for Species 4
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of S 4 Molecules
+
+Figure 4.4: Potassium Reaction Model; probability distribution of species S4 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 4 is 412 seconds.
+
+, 38
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+0.06
+
+SSA for Potassium Reaction Model for Species 5
+Simulated SSA for Species 5
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of S 5 Molecules
+
+Figure 4.5: Potassium Reaction Model; probability distribution of species S5 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 5 is 412 seconds.
+
+, 39
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+
+100 98 96 94
+
+Comparative Plotting of Expected Values of SSA and MLMC for Potassium Channel Model
+S1 for SSA S1 (epsilon=0.5) for MLMC S1 (epsilon=1) for MLMC S1 (epsilon=1.5) for MLMC S1 (epsilon=2) for MLMC
+
+Molecular Number
+
+92 90 88 86 84 82 80 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.6: Potassium Channel Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for =1.5 and below. At the final time, i.e, tf inal = 20, we see that there is no difference of molecules between the results of the SSA and the MLMC with =2 and resulting in a relative error of 0.1%.
+
+, 40
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+140
+
+Comparative Plotting of Expected Values of SSA and MLMC for Potassium Channel Model
+S2 for SSA S2 (epsilon=0.5) for MLMC
+
+120
+
+S2 (epsilon=1) for MLMC S2 (epsilon=1.5) for MLMC S2 (epsilon=2) for MLMC
+
+100
+
+Molecular Number
+
+80
+
+60
+
+40
+
+20
+
+0 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.7: Potassium Channel Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of 1 molecule between the results of the SSA and the MLMC with =2 and resulting in relative error of approximately 1.1%.
+
+, 41
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+
+100
+
+Comparative Plotting of Expected Values of SSA and MLMC for Potassium Channel Model
+S3 for SSA S3 (epsilon=0.5) for MLMC S3 (epsilon=1) for MLMC S3 (epsilon=1.5) for MLMC S3 (epsilon=2) for MLMC
+
+95
+
+Molecular Number
+
+90
+
+85
+
+80
+
+75 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.8: Potassium Channel Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of approximately 1 molecule between the results of the SSA and the MLMC with all values and resulting in relative error of approximately 0.6%. ,
+
+42
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+120
+
+Comparative Plotting of Expected Values of SSA and MLMC for Potassium Channel Model
+S4 for SSA S4 (epsilon=0.5) for MLMC S4 (epsilon=1) for MLMC S4 (epsilon=1.5) for MLMC S4 (epsilon=2) for MLMC
+
+100
+
+80
+
+Molecular Number
+
+60
+
+40
+
+20
+
+0 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.9: Potassium Channel Model: Means of number of molecules of species S4 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 1.4%. ,
+
+43
+
+4.1. POTASSIUM CHANNEL (MODEL 1) CHAPTER 4. NUMERICAL RESULTS
+
+100
+
+Comparative Plotting of Expected Values of SSA and MLMC for Potassium Channel Model
+S5 for SSA S5 (epsilon=0.5) for MLMC S5 (epsilon=1) for MLMC S5 (epsilon=1.5) for MLMC S5 (epsilon=2) for MLMC
+
+95
+
+Molecular Number
+
+90
+
+85
+
+80
+
+75 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.10: Potassium Channel Model: Means of number of molecules of species S5 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 1.4%. ,
+
+44
+
+CHAPTER 4. NUMERICAL RESULTS 4.1. POTASSIUM CHANNEL (MODEL 1)
+
+8
+
+Plot of log(Epsilon) vs. log(Error)
+log (Error) linear fit, slope = 0.906
+
+7
+
+6
+
+5
+
+log (error)
+
+4
+
+3
+
+2
+
+1
+
+0 -0.8
+
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+log (epsilon)
+
+Figure 4.11: Potassium Channel Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance considered are 1 =0.5, 2 =0.75, 3 =1, 4 =1.25, 5 =1.5 and 6 =2
+
+, 45
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2) X1 X2 X3 CP Utime SSA 72.5692 46.8809 73.1191 94.4 seconds MLMC( 1 =0.5) 73.79 46.09 73.9 13 seconds
+
+CHAPTER 4. NUMERICAL RESULTS MLMC( 2 =1) 73.64 46.622 73.3780 4.3 seconds MLMC( 3 =1.5) 72.6984 45.4049 74.5951 3.1 seconds MLMC( 4 =2) 72.25 44.9583 75.0417 2.3 seconds
+
+Table 4.3: Comparison of expected values obtained through SSA and MLMC (using different -values) for the Michaelis Menten Model and the computational times of these algorithms
+
+4.2
+
+Michaelis Menten System (Model 2)
+
+The second model used for testing is the Michaelis-Menten system [19]. The focus species are subject to three reactions: S1 + S2
+c c1 c2
+
+S3
+
+3 S3 -  S2 + S4 .
+
+The propensity functions corresponding to these reactions are: a1 (x) = c1 x1 x2 ; a2 (x) = c2 x3 ; a3 (x) = c3 x3 ; while the stoichiometric matrix is:   -1 1 0   V = 1 -1 1 . 1 -1 -1 The reaction rate parameters and the initial conditions are listed below: nA (Avogadro's number) = 6.023e23; Vol = 1e-15 liters; X(1) = round(5e-7); X(2) = 2e-7; X(3) = 0; X(4)=0; 1e6 ; c(2) = 1e-4; c(3) = 1e-1; c(1) = nA vol. The simulation is performed on the time interval [0,20]. We simulated 10,000 trajectories using the SSA and the MLMC method with tolerances = 0.5, 1, 1.5 and 2. 46
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+Table 4.3 shows the estimates of the expected values of the molecular amounts of various species obtained from simulating Michaelis Menten model using both the SSA and the MLMC methods with tolerance values 1 =0.5, 2 =1, 3 =1.5 and 4 =2. The values Xi correspond to estimated expected values of the population number for species Si . We see that approximations of the expected values obtained from the MLMC methods with the tolerances tried are very close to those obtained with the SSA (an exact algorithm), with a difference of approximately 1 or 2 at most number molecules for some species. For example, consider species S1 , the SSA simulation gives an estimation of the E (X (20)) of 72.5692 whereas MLMC ( 4 =2) simulation gives 72.25. The relative error of MLMC -72.25|  100%  0.4%. This shows a very good accuracy of our compared to SSA is |72.|5692 72.5692| simulation. We also see from Table 4.3 that the speed up of MLMC method ( 1 =0.5) is approximately 7.3 (94.4/13) times faster than SSA. The speed up of MLMC method ( 2 =1) is approximately 22 times faster than SSA. Similarly, the speed up of MLMC method ( 3 =1.5) is approximately 30.4 (94.4/3.1) times faster than SSA and finally the speed up of MLMC method ( 3 =2) is approximately 41 (94.4/2.3). In Figures 4.12 4.14, we present the probability distribution of the molecular amounts of the species S1 , S2 and S3 , respectively, computed using the SSA, at T=20. We compare the SSA and the the MLMC method with the =0.5, 1 and 1.5 in Figures 4.15 - 4.17 for species S1 , S2 and S3 respectively. Each plot shows the estimation of the mean number of the Si molecules as a function of time, computed the SSA and by the MLMC method with the sequence of tolerances. Figure 4.18 gives a loglog plot of the norm 2 error i.e., error(T ) = XSSA (T ) - XM LM C (T ) 2 , for the MLMC compared to the SSA for the Michaelis Menten system. Here error is a function of the tolerance . The slope of the linear fit is 0.2.
+
+47
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+0.06
+
+SSA for Michaelis Menten Model for Species 1
+Simulated SSA for Species 1
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 30
+
+40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of S 1 Molecules
+
+Figure 4.12: Michaelis Menten Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 94.4 seconds.
+
+, 48
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+0.08
+
+SSA for Michaelis Menten Model for Species 2
+Simulated SSA for Species 2
+
+0.07
+
+0.06
+
+Probability Distribution
+
+0.05
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 10
+
+20
+
+30
+
+40
+
+50
+
+60
+
+70
+
+80
+
+Number of S 2 Molecules
+
+Figure 4.13: Michaelis Menten Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 94.4 seconds.
+
+, 49
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+0.08
+
+SSA for Michaelis Menten Model for Species 3
+Simulated SSA for Species 3
+
+0.07
+
+0.06
+
+Probability Distribution
+
+0.05
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+Number of S 3 Molecules
+
+Figure 4.14: Michaelis Menten Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 94.4 seconds.
+
+, 50
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+350
+
+Comparative Plotting of Expected Values of SSA and MLMC for Michaelis Menten
+S1 for SSA S1 (epsilon=0.5) for MLMC S1 (epsilon=1) for MLMC S1 (epsilon=1.5) for MLMC
+
+300
+
+250
+
+Molecular Number
+
+200
+
+150
+
+100
+
+50 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.15: Michaelis Menten Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1 and resulting in relative error of approximately 1.3%.
+
+, 51
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+120
+
+Comparative Plotting of Expected Values of SSA and MLMC for Michaelis Menten
+S2 for SSA
+
+110
+
+S2 (epsilon=0.5) for MLMC S2 (epsilon=1) for MLMC S2 (epsilon=1.5) for MLMC
+
+100
+
+90
+
+Molecular Number
+
+80
+
+70
+
+60
+
+50
+
+40
+
+30 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.16: Michaelis Menten Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =1.5 and resulting in relative error of approximately 3.1%. ,
+
+52
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+110 100 90 80 70 60 50 40 30 20 10 0 0
+
+Comparative Plotting of Expected Values of SSA and MLMC for Michaelis Menten
+S3 for SSA S3 (epsilon=0.5) for MLMC S3 (epsilon=1) for MLMC S3 (epsilon=1.5) for MLMC
+
+Molecular Number
+
+2
+
+4
+
+6
+
+8
+
+10
+
+12
+
+14
+
+16
+
+18
+
+20
+
+Time
+
+Figure 4.17: Michaelis Menten Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1 and 1.5. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with =1 and resulting in relative error of approximately 0.3%.
+
+, 53
+
+4.2. MICHAELIS MENTEN SYSTEM (MODEL 2)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4
+
+Plot of log(Epsilon) vs. log(Error)
+log(Error) linear fit, slope = 0.2172
+
+3.5
+
+3
+
+2.5
+
+log (error)
+
+2
+
+1.5
+
+1
+
+0.5
+
+0 -0.8
+
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+log (epsilon)
+
+Figure 4.18: Michaelis Menten Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance 1 =0.5, 2 =0.75, 3 =1, 4 =1.25, 4 =1.5 and 4 =2 .
+
+, 54
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+4.3
+
+Cyclical Reaction System (Model 3)
+
+Finally, we study the Cyclical Reaction System from [28]. This system consists of three reactions involving three reacting species. The reaction channels are:
+1 S1 -  S2 c2 S2 -  S3 c3 S3 -  S1
+
+c
+
+and have propensities: a1 (x) = c1 x1 ; a2 (x) = c2 x2 ; a3 (x) = c3 x3 . This reaction system has the following stochiometric matrix:   -1 0 1    V =  1 -1 0  0 1 -1. 1. We simulate the Cyclical Reaction system with the following initial conditions and reaction rate parameters X(1) = 100; X(2) = 80; X(3) = 100, c(1) = 0.1; c(2) = 0.1; c(3) = 0.1, on the time interval [0,20]. 2. As with the previous model, we simulate the SSA using 10,000 trajectories and the MLMC strategy with a sequence of tolerances, which in this case is =0.5,1, 1.5 and 2. The probability distributions of the molecular amounts computed over 10,000 trajectories of the SSA, at T=20,included in figures 4.20-4.22. 3. The estimates of the average number of molecules of each species Si as functions of time, computed using the SSA and the MLMC with different tolerance levels, are shown in figures 4.23-4.25. Table 4.4 presents the average number of molecules of each species at final time T=20, computed over 10,000 trajectories of the stochastic simulation algorithm and by the 55
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3) X1 X2 X3 CP Utime SSA 93.8182 93.4114 92.7707 69 seconds MLMC( 1 =0.5) 90.3133 94.4423 95.2444 19 seconds
+
+CHAPTER 4. NUMERICAL RESULTS MLMC( 2 =1) 92.5638 94.0787 93.3845 4 seconds MLMC( 3 =1.5) 93.9167 93.5877 92.4956 2.8 seconds MLMC( 4 =2) 94.5832 96.3388 89.0780 2 seconds
+
+Table 4.4: Comparison of expected values obtained through SSA and MLMC (using different -values) for the Cyclical Reaction Model and the computational times of these algorithms MLMC method with the following sequence of tolerances 1 =0.5, 2 =1, 3 =1.5 and 4 =2. Also, Table 4.4 gives the computational time required by each method. We see that the the expected values obtained from all methods are very close to each other with a difference of approximately 1, 2 or 3 at most number molecules for some species. For instance, for species S2 , the SSA simulation estimates an average of 93.4112 whereas MLMC with = 0.5 simulation predicts an average of 94.4423 S2 molecules. The relative -94.4423|  100%  1.1%. This shows a very error of the MLMC compared to SSA is |93.4114 |93.4114| good accuracy of our simulation. We also see from Table 4.4 above, the computing time of the MLMC scheme is approximately 35 (69/2) times faster than SSA. Figures 4.194.21 show the expected values for the molecular amounts of the species X1 , X2 , ..., X5 respectively as functions of times estimated from 10,000 trajectories utilizing the SSA and the MLMC strategy with a given tolerance. Figure 4.25 gives a loglog plot of the norm-2 of the total error of the MLMC method compared to the SSA, as a function of the tolerance . The slope in the loglog plot is almost 2.
+
+56
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+0.06
+
+SSA for Cyclical Reaction Model for Species 1
+Simulated SSA for Species 1
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+130
+
+140
+
+Number of S 1 Molecules
+
+Figure 4.19: Cyclical Reaction Model; probability distribution of species S1 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 1 is 69 seconds.
+
+, 57
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+0.06
+
+SSA for Cyclical Reaction Model for Species 2
+Simulated SSA for Species 2
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+130
+
+140
+
+Number of S 2 Molecules
+
+Figure 4.20: Cyclical Reaction Model; probability distribution of species S2 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 2 is 69 seconds.
+
+, 58
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+0.06
+
+SSA for Cyclical Reaction Model for Species 3
+Simulated SSA for Species 3
+
+0.05
+
+Probability Distribution
+
+0.04
+
+0.03
+
+0.02
+
+0.01
+
+0 50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+130
+
+140
+
+Number of S 3 Molecules
+
+Figure 4.21: Cyclical Reaction Model; probability distribution of species S3 at time T=20, using 10,000 trajectories of the SSA. The total time taken to simulate for Species 3 is 69 seconds.
+
+, 59
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+120
+
+Comparative Plotting of Expected Values of SSA and MLMC for Cyclical Reaction
+S1 for SSA S1 (epsilon=0.5) for MLMC S1 (epsilon=1) for MLMC S1 (epsilon=1.5) for MLMC S1 (epsilon=2) for MLMC
+
+115
+
+110
+
+Molecular Number
+
+105
+
+100
+
+95
+
+90 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.22: Cyclical Reaction Model: Means of number of molecules of species S1 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with =2 and resulting in relative error of approximately 0.7%.
+
+, 60
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+110
+
+Comparative Plotting of Expected Values of SSA and MLMC for Cyclical Reaction
+S2 for SSA
+
+105
+
+S2 (epsilon=0.5) for MLMC S2 (epsilon=1) for MLMC S2 (epsilon=1.5) for MLMC S2 (epsilon=2) for MLMC
+
+100
+
+Molecular Number
+
+95
+
+90
+
+85
+
+80
+
+75
+
+70 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.23: Cyclical Reaction Model: Means of number of molecules of species S2 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 1 molecule between the results of the SSA and the MLMC with =0.5 and resulting in relative error of approximately 1.1%. ,
+
+61
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+CHAPTER 4. NUMERICAL RESULTS
+
+110
+
+Comparative Plotting of Expected Values of SSA and MLMC for Cyclical Reaction
+S3 for SSA
+
+105
+
+S3 (epsilon=0.5) for MLMC S3 (epsilon=1) for MLMC S3 (epsilon=1.5) for MLMC S3 (epsilon=2) for MLMC
+
+100
+
+Molecular Number
+
+95
+
+90
+
+85
+
+80
+
+75
+
+70 0 2 4 6 8 10 12 14 16 18 20
+
+Time
+
+Figure 4.24: Cyclical Reaction Model: Means of number of molecules of species S3 , as a function of time, estimated using 10,000 trajectories of the SSA and the MLMC method with values of the tolerance being 0.5, 1, 1.5 and 2. The time of integration used in T = 20. The accuracy of the MLMC method is excellent for all values. At the final time, i.e, tf inal = 20, we see that there is a difference of at most 2 molecule between the results of the SSA and the MLMC with = 0.5 and resulting in relative error of approximately 2.6%. ,
+
+62
+
+CHAPTER 4. NUMERICAL RESULTS
+
+4.3. CYCLICAL REACTION SYSTEM (MODEL 3)
+
+10
+
+Plot of log(Epsilon) vs. log(Error)
+log(Error) linear fit, slope = 1.9918
+
+8
+
+6
+
+log (Error)
+
+4
+
+2
+
+0
+
+-2
+
+-0.8
+
+-0.6
+
+-0.4
+
+-0.2
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+log (Epsilon)
+
+Figure 4.25: Cyclical Reaction Model: the loglog plot of the absolute error of the MLMC with various values of compared to the SSA, as a function of the tolerance . The values of tolerance 1 =0.5, 2 =0.75, 3 =1, 4 =1.25, 4 =1.5 and 4 =2 .
+
+, 63
+
+Chapter 5 Conclusion
+This thesis discusses numerical strategies for simulating stochastic discrete models of well-stirred biochemical kinetics, namely the Chemical Master Equation. The focus is on efficient and accurate methods for approximating the expected value of a function of interest (f ) of the stochastic process modeling the evolution of the biochemical network, X (t). The recently developed multi-level Monte Carlo (MLMC) of Giles is more efficient that the existing stochastic simulation algorithm of Gillespie, for evaluating the expected values E (f (X (t))). Although, the SSA is an exact algorithm, it often requires a high computational cost, especially when some reactions in the system are fast therefore taking smaller timesteps because the step size in SSA in inversely proportional to the sum of propensity functions. The multi-level Monte Carlo method provides a more cost-effective way to estimate E (f (Xi (t))) than the Stochastic Simulation Algorithm, by choosing a sequence of levels from coarser grids to finer grids. Trajectories on coarser grids are cheaper to simulate but inaccurate, while trajectories on finer grid are expensive to simulate, but accurate. In the MLMC tau-leaping method, we observed that we can pick a fix step size and calculate the expected value of our functional using different levels with the first level being the base estimator and subsequent levels being the bias correction estimators. These correction estimators are added to the base estimator to reduce bias resulting in higher order of accuracy. The accuracy of the estimator obtained from this addition is 64
+
+CHAPTER 5. CONCLUSION that of the most accurate levels added. The MLMC method reduces the variance of the estimator by coupling the sets of trajectories simulated at each level. If the variance of the estimator is reduced then fewer trajectories are needed to obtain a similar accuracy of the estimator, thus reducing its computational cost. Our approximation may be as close as possible to the exact algorithm by choosing more levels but higher number of levels also comes at a higher computational cost. So, there is a trade-off between the efficiency of the estimator and the achieved accuracy. We investigated improvements for the number of trajectories on each level taken by the MLMC strategy for a certain accuracy. This improved MLMC strategy has accuracy comparable to that of the SSA, but at a small fraction of the SSA's computational time. In addition, we investigated the effect of choosing a certain tolerance, on the accuracy achieved by the MLMC technique compared to the accuracy of the exact SSA. We investigated the behaviour of the MLMC strategies compared to the SSA on several models of biochemical networks arising in applications and we discussed the advantages of the MLMC approach.
+
+Future Work
+In our future work, we shall design adaptive time-stepping strategies method for MLMC techniques for stochastic biochemical networks. Such adaptive schemes are particularly important for the cost of moderately stiff to stiff biochemical systems. For stiff problems, a fixed-stepsize scheme significantly increased the computational time of the algorithm, for a given level of accuracy compared to a variable stepsize scheme. .
+
+65
+
+Appendix 1 Probability Distributions
+· The random variable X has a uniform distribution over the range [a,b], X  U(a,b), if it has a probability density function of the form
+1 b-a
+
+f X ( x) =
+
+if a  x  b, 0 otherwise.
+
+· The random variable X has an exponential distribution with parameter , X  Exp(), if it has a probability density function of the form e-x if x  0, 0 otherwise.
+
+f X ( x) =
+
+· The random variable X has a Poisson distribution with parameter , X  P(), if it has a probability mass function of the form
+
+P (X = k ) = if k = 0, 1, 2, ...
+
+k - k e k!
+
+· The random variable X has a binomial distribution with parameters n and p, X  66
+
+APPENDIX 1. PROBABILITY DISTRIBUTIONS B(n,p), if it has a probability mass function of the form n p
+
+P (X = k ) = if k = 0, 1, 2, ..., n
+
+pk (1 - p)n-k
+
+67
+
+Appendix 2 Poisson Process
+
+· A stochastic process {N (t), t  0} is said to be a counting process if N (t) represents the total number of events that occur by time t.
+
+· The counting process {N (t), t  0} is said to be a Poisson process having rate  > 0, if:
+
+1. N (0) = 0,
+
+2. the process has independent increments,
+
+3. the number of events in any interval of length t has a Poisson distribution with mean t, i.e., for all s, t  0 the following is true
+) P {N (t + s) - N (s) = n} = e-t (t , n!
+n
+
+for n = 0,1,... 68
+
+2.1. LINEAR COMBINATION OF INDEPENDENT POISSON RANDOM APPENDIX 2. POISSON PROCESS VARIABLES
+
+2.1
+
+Linear combination of independent Poisson random variables
+
+If X1 and X2 are independent Poisson random variables such that X1 P1 (1 ) and X2 P2 (2 ) then X1 + X2 P (1 + 2 ), that is X1 + X2 is a Poisson distribution of parameters 1 + 2 .
+
+69
+
+Appendix 3 Convergence in Probability
+Let  be a set, then a  - algebra F on  has the following properties: 1.   F 2. F  F 3. If A1 , A2 , ..  F then A :=  i=1 Ai  F Here (, F ) is a measurable space. A probability measure P is a mapping P : F [0,1] with the following properties: 1. P () = 0 and P () = 1
+
+
+2. If the sequence of sets
+
+{Ai } i=1
+
+ F and are disjoint, then
+
+P ( i=1 Ai )
+
+=
+i=1
+
+P (Ai ).
+
+The triplet (, F, P ) is a probability space. Let (, F, P ) be a probability space. The sequence of random variables (Yn ) converges in limit (convergence in probability) to Y , i.e, Yn  Y if, P ( : |Yn ( ) - Y ( )| > )  0 as n   and  > 0
+
+70
+
+References
+[1] Aur´ elien Alfonsi, Eric Cances, Gabriel Turinici, Barbara Di Ventura, and Wilhelm Huisinga. Adaptive simulation of hybrid stochastic and deterministic models for biochemical systems. In ESAIM: proceedings, volume 14, pages 1­13. EDP Sciences, 2005. [2] David F Anderson. Incorporating postleap checks in tau-leaping. The Journal of chemical physics, 128(5):054103, 2008. [3] David F Anderson and Desmond J Higham. Multilevel monte carlo for continuous time markov chains, with applications in biochemical kinetics. Multiscale Modeling & Simulation, 10(1):146­179, 2012. [4] Adam Arkin, John Ross, and Harley H McAdams. Stochastic kinetic analysis of developmental pathway bifurcation in phage -infected escherichia coli cells. Genetics, 149(4):1633­1648, 1998. [5] Yang Cao, Daniel T Gillespie, and Linda R Petzold. The slow-scale stochastic simulation algorithm. The Journal of chemical physics, 122(1):014116, 2005. [6] Yang Cao, Daniel T Gillespie, and Linda R Petzold. Efficient step size selection for the tau-leaping simulation method. The Journal of chemical physics, 124(4):044109, 2006. [7] Abhijit Chatterjee, Dionisios G Vlachos, and Markos A Katsoulakis. Binomial distribution based  -leap accelerated stochastic simulation. The Journal of chemical physics, 122(2):024112, 2005. 71
+
+REFERENCES
+
+REFERENCES
+
+[8] Stewart N Ethier and Thomas G Kurtz. Markov processes: characterization and convergence, volume 282. John Wiley & Sons, 2009. [9] C Gardiner. Stochastic methods: a handbook for the natural and social sciences 4th ed.(2009). [10] Michael B Giles. Multilevel monte carlo path simulation. Operations Research, 56(3):607­617, 2008. [11] Daniel T Gillespie. A general method for numerically simulating the stochastic time evolution of coupled chemical reactions. Journal of computational physics, 22(4):403­434, 1976. [12] Daniel T Gillespie. Exact stochastic simulation of coupled chemical reactions. The journal of physical chemistry, 81(25):2340­2361, 1977. [13] Daniel T Gillespie. The chemical langevin equation. The Journal of Chemical Physics, 113(1):297­306, 2000. [14] Daniel T Gillespie. Approximate accelerated stochastic simulation of chemically reacting systems. The Journal of Chemical Physics, 115(4):1716­1733, 2001. [15] Daniel T Gillespie. Stochastic simulation of chemical kinetics. Annu. Rev. Phys. Chem., 58:35­55, 2007. [16] Eric L Haseltine and James B Rawlings. Approximate simulation of coupled fast and slow reactions for stochastic chemical kinetics. The Journal of chemical physics, 117(15):6959­6969, 2002. [17] Andreas Hellander and Per L¨ otstedt. Hybrid method for the chemical master equation. Journal of Computational Physics, 227(1):100­122, 2007. [18] Desmond J Higham. An algorithmic introduction to numerical simulation of stochastic differential equations. SIAM review, 43(3):525­546, 2001. [19] Desmond J Higham. Modeling and simulating chemical reactions. SIAM review, 50(2):347­368, 2008. 72
+
+REFERENCES
+
+REFERENCES
+
+[20] Silvana Ilie, Wayne H Enright, and Kenneth R Jackson. Numerical solution of stochastic models of biochemical kinetics. Canadian Applied Mathematics Quarterly, 17(3):523­554, 2009. [21] Hye-Won Kang, Thomas G Kurtz, et al. Separation of time-scales and model reduction for stochastic reaction networks. The Annals of Applied Probability, 23(2):529­ 583, 2013. [22] Thomas R Kiehl, Robert M Mattheyses, and Melvin K Simmons. Hybrid simulation of cellular behavior. Bioinformatics, 20(3):316­322, 2004. [23] Thomas R Kiehl, Robert M Mattheyses, and Melvin K Simmons. Hybrid simulation of cellular behavior. Bioinformatics, 20(3):316­322, 2004. [24] Hiroaki Kitano. Computational systems biology. Nature, 420(6912):206, 2002. [25] Christopher Lester, Ruth E Baker, Michael B Giles, and Christian A Yates. Extending the multi-level method for the simulation of stochastic biological systems. Bulletin of mathematical biology, 78(8):1640­1677, 2016. [26] Tiejun Li. Analysis of explicit tau-leaping schemes for simulating chemically reacting systems. Multiscale Modeling & Simulation, 6(2):417­436, 2007. [27] Shev MacNamara, Alberto M Bersani, Kevin Burrage, and Roger B Sidje. Stochastic chemical kinetics and the total quasi-steady-state assumption: application to the stochastic simulation algorithm and chemical master equation. The Journal of chemical physics, 129(9):09B605, 2008. [28] Bence M´ elyk´ uti, Kevin Burrage, and Konstantinos C Zygalakis. Fast stochastic simulation of biochemical reaction systems by alternative formulations of the chemical langevin equation. The Journal of chemical physics, 132(16):164109, 2010. [29] Jacek Puchalka and Andrzej M Kierzek. Bridging the gap between stochastic and deterministic regimes in the kinetic simulations of the biochemical reaction networks. Biophysical Journal, 86(3):1357­1372, 2004. 73
+
+REFERENCES
+
+REFERENCES
+
+[30] Christopher V Rao and Adam P Arkin. Stochastic chemical kinetics and the quasisteady-state assumption: Application to the gillespie algorithm. The Journal of chemical physics, 118(11):4999­5010, 2003. [31] Muruhan Rathinam, Linda R Petzold, Yang Cao, and Daniel T Gillespie. Stiffness in stochastic chemically reacting systems: The implicit tau-leaping method. The Journal of Chemical Physics, 119(24):12784­12794, 2003. [32] Muruhan Rathinam, Linda R Petzold, Yang Cao, and Daniel T Gillespie. Consistency and stability of tau-leaping schemes for chemical reaction systems. Multiscale Modeling & Simulation, 4(3):867­895, 2005. [33] Howard Salis and Yiannis Kaznessis. Accurate hybrid stochastic simulation of a system of coupled chemical or biochemical reactions. The Journal of chemical physics, 122(5):054103, 2005. [34] Asawari Samant and Dionisios G Vlachos. Overcoming stiffness in stochastic simulation stemming from partial equilibrium: a multiscale monte carlo algorithm. The Journal of chemical physics, 123(14):144114, 2005. [35] Michael Samoilov, Sergey Plyasunov, and Adam P Arkin. Stochastic amplification and signaling in enzymatic futile cycles through noise-induced bistability with oscillations. Proceedings of the National Academy of Sciences of the United States of America, 102(7):2310­2315, 2005. [36] Tianhai Tian and Kevin Burrage. Binomial leap methods for simulating stochastic chemical kinetics. The Journal of chemical physics, 121(21):10356­10364, 2004. [37] Nicolaas Godfried Van Kampen. Stochastic processes in physics and chemistry, volume 1. Elsevier, 1992. [38] E Weinan, Di Liu, and Eric Vanden-Eijnden. Nested stochastic simulation algorithms for chemical kinetic systems with multiple time scales. Journal of computational physics, 221(1):158­180, 2007. [39] Darren J Wilkinson. Hall/CRC, 2006. Stochastic modelling for systems biology. Chapman and
+
+74
+
+

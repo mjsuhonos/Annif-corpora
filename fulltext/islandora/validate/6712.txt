@@ -1,0 +1,3668 @@
+CACHE FILTERING ALGORITHM FOR LEAST FREQUENTLY USED DATA WITH ACCURATE MEMORY SIMULATION
+
+By ~iu Kwan Leung
+
+REng. Ryerson University, 2007 Toronto, Ontario, Canada
+
+A thesis presented to Ryerson University
+
+in partial fulfillment of the
+requirement for the degree of Master of Applied Science
+
+in the Program of
+Electrical and Computer Engineering
+
+Toronto, Ontario, Canada, 20 I 0
+
+© Kiu Kwan Leung 2010
+
+Author's Declaration
+I hereby declare that I am the sole author of this thesis.
+
+I authorize Ryerson University to lend this thesis to other Institutions or individuals
+
+for the purpose of SCholarr
+Author's signature: ....~
+#
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the pu~ of scholarly researc Author's signature:
+
+k --
+
+(
+
+ii
+
+Abstract
+Cache Filtering Algorithm For Least Frequently Used Data with Accurate Memory Simulation
+© Kiu Kwan Leung 2010
+
+Master of Applied Science Department of Electrical and Computer Engineering Ryerson University
+
+We propose a cache filtering algorithm to improve processor performance using a small buffer inside the processor and an algorithm to filter least frequently used accesses from Ll and L2 caches. The algorithm uses simple DRAM fast-page
+
+accessing mode to identity accesses that are not previously accessed or not frequently used and keep them out of the cache system and store them in small buffer.
+
+We have also added a realistic page interleaved DDR3 memory simulation model to the SimpleScalar simulator. This model supports any processor and memory clock
+
+speeds, different sets of memory latencies, various configurations of memory banks and channels.
+
+Results show that the filtering algorithm could improve· performance of some applications compared to the same system that does not use the filtering algorithm.
+
+iii
+
+Acknowledgement
+I would like to express my deep gratitude to my supervisor, Dr. Nagi Mekhiel for offering me such a chance to work with him as his master student. It is always his brilliant ideas and directions that saved me out of my hurdles throughout the research process and it is always his patience and tolerance that made this research work such an enjoyable learning experience.
+
+I must also thank my parents for their constant support throughout my life.
+
+I am
+
+thankful for their encouragement and their teachings, which had shaped me up to what I am over the years and allowed me to have such a strong sense that I have a nice place called home. I truly believe that without them, I will not be able to receive
+
+such a wonderful learning experience at Ryerson University.
+
+Thirdly, I appreciate the assistance offered by my former supervisor, Dr. Cungang Yang, throughout my graduate studies. His has always been one of my best guides
+
+to direct me through the program and taught me how to be a good graduate assistance. I must also thank Professor Ken Clowes for his great advices. As one of the most
+
+skilled programmers across the department, he nicely explained the meanings of the advanced syntax used by the author of the SimpleScalar simulator, which enabled me to understand simulator and become a Simple Scalar developer quickly.
+
+I am grateful for the financial assistance that I received through my supervisor and the Electrical and Computer Engineering department at Ryerson University. only reason why I can stay focus and enjoy this research process.
+It is the
+
+iv
+
+Finally, I sincerely appreciate the Electrical and Computer Engineering department's lab support team for their kind assistance. Without their technical knowledge about
+
+the UNIX operating system, I will never finish the research at ease.
+
+v
+
+Dedication
+
+To my supervisor: Professor Nagi Mekhiel To my family: father and mother To my former supervisor: Professor Cungang Yang
+
+vi
+
+Table of Contents
+
+1 Introduction. ........ ...... .... ....... ......... ............ ...... ....... ...... .... ............... ...... ...... ... ..... 1 1.1 List of Contributions and Objectives of the Research .................................. 3 1.2 Motivation .................................................................................................. 4 1.2.1 Cache pollution caused by rarely used data blocks ............................. 8 1.3 The organization of this thesis .................................................................... 11 2 Methodology ...................;................................................................................. 12 3 The Page Interleaved DDR3 Memory Module for the SimpleScalar Simulator .. 19 3.1 The software modeling of the memory model ........................................... 19 3.1.1 The data components of the memory model ..................................... 20 3.1.2 The functional components of the memory modeL .......................... 26 3.2 The operation ofthe memory model ......................................................... 28 3.2.1 Overlapped memory access scheduling ............................................ 28 3.2.2 Memory addressing .......................................................................... 30 3.2.3 The memory_access_latency function .............................................. 38 3.3 Simulation and discussion ...................·..................................................... 44 4 The Cache Filtering Algorithm for Least Frequently Used Data ......................... 52 4.1 The background ........................................................................................ 52 4.2 The baseline system's memory hierarchy characteristics ........................... 53 4.3 The cache filtering algorithm and its components ..................................... 53 4.3.1 The instruction register (lR) and data register file (DRs) ................. ~ 55 4.3.2 The instruction and data Ll cache (I and D L1 caches) ..................... 55 4.3.3 The L2 cache.................................................................................... 56 , 4.3.4 The filter buffer ................................................................................ 56
+
+vii
+
+4.3.5 The algorithm ................................................................................... 62 5 Simulation and analysis ofthe cache filtering algorithm .................................... 68 5.1 The desktop/notebook computer environment and simulation settings....... 68 5.2 Simulation results and discussion (desktop/notebook environment) .......... 70 6 Overview and Comparison of Related Works..................................................... 90 6.1 Cache Filtering Techniques to Reduce the Negative Impact of Useless Speculative Memory References on Processor Performance(Spec)..... 90 6.1.1 Performance improvement comparison (CF-LFU vs. Spec) .............. 91 6.2 Line Distillation: Increasing Cache Capacity by Filtering Unused. Words in Cache Lines (Line distillation) ......................................................... 94 6.2.1 Performance improvement comparison between CF-LFU and Line distillation ......................................................................................... 96 6.3 Reducing Cache Polution via Dynamic Data Prefetch Filtering (Prefetch filter) ................................................................................................. 98 6.3.1 Performance improvement comparison between CF-LFU and Prefetch filter ............................................................................................ 99 7 Conclusion and future work ............................................................................. 103 Bibliography ...................................................................................................... 105 Appendix ............................................................................................................ 110 A.I Sample verification of cache filtered desktop system with 2MB L2 cache running gzip .......................................................................................... 110 A2 Memory simulation result verification ...................................................... 127
+
+viii
+
+List of Tables
+
+1.1 Total amount of memory access requests generated within execution range ....... 5 1.2 Total amount of single accessed addresses within execution range ..................... 5 1.3 Total amount of repeated addresses within execution range ............... ~ ............... 5 1.4 Total amount of repeated accesses within execution range ....... :......................... 5 3.1 Simulation settings for channel ~n.d bank tes .................................................... 45 5.1 Simulation settings for the desktop/notebook environment .............................. 69 6.1 Simulation settings for comparison between CF-LFU, no-spec-L2 fill and spec-L2 fill LRU ............................................................................................. 92 6.2 Simulation settings for comparison between CF-LFU and Line distillation ...... 96 6.3 Simulation settings for comparison between CF-LFU and Prefetch filter ......... 99
+
+ix
+
+List of Figures
+
+1.1 The performance ratio comparing to 1980s baseline computer systems - . the growing performance gap between processor and memory ....................... :... 2 1.2 Initial content of cache ...................................................................................... 8 1.3 Cache miss forces cache to replace Block 0 ....................................................... 9 1.4 Cache content after replacing X with Z, program requests for X again causing another cache miss to replace block 1 ................................................................ 9
+
+1.5 Cache content after replacing Y with X, program requests for Y again causing
+another cache miss to replace block 0 .............................................................. 10 1.6 Final cache content after replacing Z with Y ..................................................... l1 2.1 SimpleScalar cache access function work flow ................................................ 14 2.2 SimpleScalar cache and memory access function sample calling sequence ...... 16 3.1 Graphical representation of the mem_t data structure....................................... 21 3.2 The overlappable and unoverlappable phases of a random memory access ....... 29 3.3 The overlappable and unoverlappable phases of a fast page memory access ..... 29 3.4 Overlapped memory access scheduling example .............................................. 30 3.5 32bit dual channel 8 bank memory address format........................................... 30 3.632 bit dual channel 16 bank memory address format ........................................ 31 3.732 bit single channel 8 bank memory address format ....................................... 31 3.832 bit single channel 16 bank memory address formaL ................................... 31 3.9 Consecutive read timing (current access is fast page read) ............................... 40 3.10 Write following a fast page read timing (current access is fast page write) ..... 41 3.11 Random access to the same bank as the previous write timing ....................... 42 3.12 memory_accessJatency function work flow .................................................. 44
+
+x
+
+3.13 Memory row hit rates of the gcc simulation ................................................... 46 3.14 Row hit improvement when total amount of memory banks is doubled .......... 47 3.15 gcc simulated performance ............................................................................ 48 3.16 gcc performance improvement achieved by increasing the amount of memory channels ........................................................................................................ 49 3.17 gcc performance improvement achieved by doubling the total amount of memory banks ................................................................................... ;.......................... 49 4.1 Block diagram of the cache filtering scheme.................................................... 54 4.2 Filtered read/write work flow .......................................................................... 58 4.3 Cache fetching from the filter buffer work flow ............................................... 59 4.4 Filtered writeback followed by cache fetching work flow ................................ 60 4.5 Filtered writeback without cache fetching work flow ....................................... 61 4.6 Possible outcomes for L1 fetch miss with Ll clean/empty replacement block .. 62 4.7 Possible outcomes for L1 fetch miss with L1 dirty replacement block ............. 63 4.8 One level cache filtering and lowest level cache filtering decision tree for two level cache hierarchies ..................................................................................... 64 4.9 One level cache filtering and lowest level cache filtering psuedo code for two level cache hierarchies ............................ ,........................................................ 65 4.10 Ll cache filtering decision tree for two level cache hierarchies ...................... 66 4.11 Ll cache filtering psuedo code decision tree for two level cache hierarchies .. 67 5.1 Performance gain of the cache filtered systems ................................................ 70 5.2 Performance ofthe systems with 256KB L2 cache .......................................... 71 5.3 Performance of the systems with 512KB L2 cache .......................................... 71 5.4 Performance of the systems with 1MB L2 cache .............................................. 72 5.5 Performance of the systems with 2MB L2 cache .............................................. 72 5.6 Total amount of cache filtering throughout benchmark execution .................... 74
+xi
+
+5.7 Extra memory accesses of the cache filtered systems ....................................... 75 5.8 The memory row hit rate of the cache filtered systems ..................................... 76 5.9 Data Ll cache hit rate ...................................................................................... 77 5.10 L2 cache hit rate ............................................................................................ 79 5.11 Xlisp simulation with varied I and D L1 cache size, extracted from [23] ........ 81 5.12 gzip simulations with varied L2 cache size on original SimpleScalar simulator ....................................................................................................... 82 5.13 Total amount of gzip memory accesses .......................................................... ·83 5.14 gzip ratio of overlapped memory access versus total memory accesses .......... 84 5.15 mcfperformance in IPC ................................................................................. 84 5.16 mcftotal memory accesses ............................................................................ 85 5.17 mcf extra memory access rate ........................................................................ 86 5.18 mcfmemory row hit rate ............................................................................... 87 6.1 Performance improvement comparison between CF-LFU, no-spec-L2fill and spec-L2fillLRU .................................. ~ ...................................................... 93 6.2 Performance improvement comparison between CF-LFU and Line distillation ....................................................................................................... 97 6.3 Performance improvement comparison between CF-LFU and prefetch filter for gcc ........................................................................................................... 100 6.4 Performance improvement comparison between CF-LFU and prefetch filter for gzip ........... ...... ............. ..................... .... ..... ........ ........................ ......... ..... 100 A.I A gzip sim-outorder simulation output file :.................................................... 116
+
+xii
+
+Chapter 1 Introduction
+Over the years computer engmeers and architects have been researching and developing new techniques to enhance computer performance. These technologies
+
+include increasing operating frequency of processor and memory, pipelining and developing superscalar architecture to exploit instruction-level parallelism(ILP), introducing multi-level cache system to hide the overgrowing memory latency, developing simultaneous multithreading (SMT) and multicore processors to harness the power of thread-level parallelism(TLP), etc.[l, 12 and 14]
+
+However, studies have revealed the fact that today's computer performance is not only governed by the amount of work performed per clock cycle of the processor, but also the amount of data bandwidth the memory subsystem can offer, which is inversely proportional to the latency of the memory system. According to [1 and 3], processor
+
+performance has been improving at a rate of 52% annually starting from the year 1986. However, the evolution of memory performance has only been maintaining at a steady pace of 7% per year since 1980. The industry noticed the issue of the growing
+
+performance difference between processors and memory and tried to solve this problem through various techniques.
+
+1
+
+Figure 1.1: The performance ratio comparing to 1980s baseline computer systems the growing performance gap between processor and memory [1]
+
+But as the performance gap between processor and memory keeps growing, modern processors will make more frequent stalls to wait for instructions and data to be transmitted from memory. Moreover, traditional solutions to solve the memory
+
+bandwidth/latency problem will also reach its physical limits so engineers must spare no efforts to reinvent more efficient way of utilizing the cache and memory systems, which is the main focus of this work.
+
+2
+
+1.1 List of Contributions and Objectives of the Research
+The main objective of this thesis is to enhance the perfonnance of Professor Mekhiel's patented work - Cache Filtering Method and Apparatus. contributions are summarized as follows: The overall research
+
+·
+
+Studied modem computer programs' memory address usage pattern and established a relationship betwe.en cache pollution caused by single memory accesses and the concept of cache filtering.
+
+· ·
+
+Illustrated the problem of cache pollution. Created a page interleaved DDR3 memory module for the Simple Scalar Simulator version 3.0d, which will be used to implement and test our cache filtering algorithm. Our memory module supports multi memory channels,
+
+multi memory banks, user configurable access latencies and allows easy extensions to other memory types (RDRAM, SDRAM, XDRRAM, etc.). · Improved Professor Mekhiel's cache filtering algorithm by: Reinventing a new set of cache miss handling procedures to replace the original cache filtering scheme's procedures. Introducing a filter buffer to capture filtered data and prevent eviction of useful cache blocks.
+
+3
+
+1.2 Motivation
+We began our research by studying the memory address traces of some SPEC CPU 2000 component benchmarks. The traces were obtained from Brigham Young They are recorded from the first Through studying the
+
+University Trace Distribution Center [15].
+
+instruction to the SO millionth instruction of the benchmarks.
+
+address traces, we can learn history of addresses requests generated by the benchmarks from their initialization stage to middle of the execution.
+
+We wrote a java program, which takes a memory address trace as an input file and counts the followings: · The total amount of memory access requests generated within the instruction range; · The total amount of unique memory addresses being requested for only once (single accessed addresses); · The total amount of unique memory addresses being requested for more than once (repeated addresses); · The total amount of times the .program made accesses request to repeated addresses (repeated access).
+
+4
+
+The counting results and the average of the results are shown in the following tables:
+
+Table 1.1: Total amount of memory access requests generated within execution range Apsi 10388240 Parser 9222144 equake 10327879 perlmk 10326311 gee 10356038 swim 9164118 mcf 10377283 twolf 10024960 mgrid 10363629 vortex 10270839 average 10082144
+
+"
+
+Table 1.2: Total amount of single accessed addresses within execution range Apsi 62231 Parser 86838 equake 52093 perlmk 78304 gcc 112909 swim 316984 mcf 58889 twolf 141746 mgrid
+
+~0161
+I
+
+vortex 344597
+
+average 165475
+
+Table 1.3: Total amount of repeated addresses within execution range Apsi 112459 Parser 146835 equake 89547 perlmk 113867 gee 175754 swim 351524 mef 83503 twolf 211584 mgrid 475660 vortex 438342 average 219908
+
+Table 1.4: Total amount of repeated accesses within execution range Apsi 10326009 Parser 9135306 equake 10275786 perlmk 10248007 gcc 10243129 swim 8847134 mef 10318394 twolf 9883214 mgrid 9963468 vortex 9926242 average 9916669
+
+5
+
+With the counting results available, we can calculate: · · · · the percentage of the average single accessed addresses; the percentage of the average repeated addresses; the percentage of the average single access; the percentage of the average repeated accesses.
+
+Average total amount of unique memory addresses being requested within the execution range (total unique addresses): Total unique addresses = average single accessed addresses + average repeated addresses
+
+::::: 165475 + 219908::::: 385383
+
+Percentage of average single accessed addresses (average single accessed addresses
+
+%):
+Average single accessed addresses % (average single accessed address 1 total unique addresses) x 100% (1654751385383) x 100%:::; 42.9%
+
+Percentage ofaverage repeated addresses (average repeated addresses %): Average repeated addresses% 100% - average single accessed addresses % 100% - 42.9%
+=
+
+57.1%
+
+Average total amount of accesses to single accessed addresses (Average single accesses): Average single access == average single accessed addresses
+
+= 165475
+
+6
+
+Percentage of average single access (average single access %): Average single access %
+
+=
+
+(average single access / average total memory access) x 100% (165475/10082144) x 100% = 1.6%
+
+Percentage ofaverage repeated access (average repeated access %): Average repeated access % 100% - average single access % 100% -1.6% = 98.4%
+
+The calculations are indicating the 57.1 % of repeated addresses are occupying 98.4% of the total memory accesses as they are being used for twice or more. The
+
+remaining 42.9% of memory addresses, contributing .to only 1.6% of the total accesses, . are being used for only once and they will be discarded by the benchmarks.
+
+We believe that allowing the 1.6% of single accesses to enter the cache system will ultimately lead to degraded system performance because: · they will cause cache pollution by replacing the frequently used data originally resides in the cache (to be discussed later); · they will waste the valuable memory bandwidth to transmit them back and forth from the main memory to the cache and vice versa as they will be accessed only once and will soon be replaced by other cache blocks; · they will also increase the memory row/page miss rale as those accesses will break the normal memory accessing pattern, causing the memory to open another rarely used page and to close the frequently used one.
+
+7
+
+1.2.1 Cache pollution caused by rarely used data blocks
+As cache is designed to provide high speed access to the processor, it will service any kind of access by loading the requested data and keeping the data in its cache blocks, in hope that the program will reuse the data in the future. The only problem with
+
+this approach is that it will cause a situation known as cache pollution, which is very expensive in terms of memory bandwidth and processor time as it destroys the cache's data locality (the word locality implies that when data is needed, it is already located at the cache). To explain the situation, we have included the following example:
+
+A computer has a small 2 way associative cache with 2 cache blocks and only 1 indeX, which implements the least recently used (LRU) cache replacement scheme, is executing a program. The program being executed makes frequent use of data
+
+located at addresses X and Y so the cache is fully occupied by those data.
+
+Cache
+Block 0 (LRU) Block 1 (MRU)
+
+~===c=o=n=~=n=t===x======I~ ~1====c=o=n=re=n=t===Y======~
+Figure 1.2: Initial content of cache
+
+8
+
+Cache miss with no empty Processor requests Z block, replace X with Z
+
+Cache
+Block 0 (lRU) Block 1 (MRU)
+
+~====c=on=t=en=t===x======~I~ ~1=====c=o=nt=e=m====Y======~
+Figure 1.3: Cache miss forces cache to replace Block 0 Suddenly, the program makes request for a data from address Z, which will only be used once (or rarely used) throughout the program execution. Suppose the program
+
+had just accessed address Y. then the cache would have no space for the request of Z.
+It must replace cache block 0, which stores data at address X. by writing the content
+
+back to main memory and load data at address Z into the cache block.
+
+Processor requests X, replace Y with X
+
+I
+Cache
+Block 0 (MRU) Block 1 (lRU)
+
+~===c=o=n=re=n=t===z======I~ ~1=====c=on=t=e=nt===Y======~
+Figure 1.4: Cache content after replacing X with Z, program requests for X again causing another cache miss to replace block 1
+
+9
+
+After the program finishes using data at address Z, it resumes the regular pattern by first request for X then Y. This causes another two additional cache misses because
+
+the least recently used policy will first replace block 1 with data from address Y by data from X, then replace block 0 with data from address Z with replaced by Y.
+
+Processor requests Y, replace Z with Y
+
+I
+Cache
+Block 0 (LRU) Content Block 1 (MRU) Content
+
+=Z
+
+=X
+
+Figure 1.5: Cache content after replacing Y with X, program requests for Y again causing another cache miss to replace block 0
+
+Note that each cache block replacement, depending on whether they have previously been modified or not, would require one to two memory accesses (writeback and loading) to service. Assuming all data accesses happened in this example were
+
+writes, address Z had caused three cache misses and six memory accesses to service such a request. Therefore, one can conclude that the access to address Z had
+
+polluted the cache's original content, consumed large amount of memory bandwidth, caused the processor to wait and yielded degraded performance.
+
+10
+
+Cache
+Block 0 (MRU) Content Block 1 (LRU) Content = X
+
+=Y
+
+Figure 1.6: Final cache content after replacing Z with Y
+
+1.3 The organization of this thesis
+With the motivation of this research properly defined, we will organize the following chapters to: · · introduce the SimpleScalar simulator tool set (Chapter 2); describe the design of the page interleaved DDR3 memory performance simulation module (Chapter 3); · · propose the cache filtering algorithm for least frequently used data (Chapter 4); simulation and discussion of the cache filtering algorithm for least frequently used data (Chapter 5); · give an overview of the current technology related to cache filtering and compare the performance gain of each technology (Chapter 6); · Discuss the future work and conclusion (Chapter 7).
+
+11
+
+Chapter 2
+Methodology
+In this chapter, we will introduce the Simple Scalar Simulator tool set The
+
+SimpleScalar Simulator tool set [12, 13 and 14] is a col1ection of many simulators written with the C language. Out of the many available simulators, we have chosen
+
+to evaluate our work on a simulator named sim-outorder.
+
+Sim-outorder is a detailed simulator that can model a 32bit out-of-order execution superscalar processor. Out-of-order execution is a technique to boost processor
+
+performance by allowing the processor to, based on the availability of the processor's functional units, change the instruction execution order of a program. The approach
+
+is valid as long as the correctness of the data being processed is maintained and data are being written back to memory in the correct order.
+
+Sim-outorder is also a performance simulator.
+
+That is, sim-outorder simulates by
+
+executing a compatible program binary/executable file like an ordinary computer, with an emulated processor, memory and hard disk (2GB of virtual memory). Throughout the simulation process, sim-outorder will collect performance statistics, such as cache hit rate and cycle per instruction (CPI), and display the information collected at the end of the simulation.
+
+The SimpleScalar tool set also contains a number of simpler yet useful simulators, such as sim-fast, a simple processor functional simulator that does not have any error checking; sim-safe, a sim-fast equivalent with error checking capabilities; sim-cache, a simple cache simulator and sim-bpred, a branch predictor simulator.
+12
+
+Due to the nature of this work, we must briefly discuss how sim-outorder handles cache/memory access latencies. Sim-outorder was designed as a superscalar
+
+processor which has both instruction and data level 1 (Ll) cache, optional separated or unified instruction and data level 2 cache and a main memory module.
+
+Access to each of the above mentioned components is modeled by calling the corresponding access latency calculation function in the simulator. For cache
+
+accesses, the level 1 cache latency calculation function (Ll latency function) will perform all cache access activities and return an integer value that can accurately represent the cache access latency in processor clock cycles.
+
+If the data being requested is found in the cache, the Lllatency function will compare the cache hit latency with the time when the cache block is accessible (when the block is completely loaded from the next level) and return the bigger of the two values. In
+
+case of cache miss where accesses to the next level of the hierarchy (writeback and data loading) are required, the Ll latency function will update the cache blocks and call the next level's latency calculation function. Such a calling sequence will end
+
+when one of the following scenarios is reached -- the requested data is found in any subsequent level or the data is not found in all cache levels and access to memory is needed. Once the cache miss situation is being properly serviced by calling the
+
+appropriate access functions, the L 1 latency function· will sum up all the latencies returned by the subsequent level latency calculation functions and return the sum as the latency of such cache access.
+
+13
+
+Cache access function
+
+I
+Cache hit Return Max(cache hit latency, cache block accessible wait time) Clean replace block Update cache blocks Fetch data by calling next level's access function Add the latency value returned by the
+
++
+Cache miss Add cache block searching latency to the overall latency
+
+·
+
+·
+I
+
+· · ·
+
++
+
+Dirty replace block Writeback the dirty replace block by calling next level's access function
+,
+
++
+
+Add the latency value returned by the next level's access function to the overall latency Fetch data by calling next level's access function Add the latency value returned by the next level's access function to the overall latency and return the overall latency
+
+.
+
+·
+
+next level's access function to the overall latency and return the overall latency
+
+· ·
+
+Figure 2.1: Simple Scalar cache access function work flow
+
+Upon receiving the cache access latency, sim-outorder will generate a pipeline event. Pipeline event is a data structure which contains a register field and a time field. The
+
+register field in the pipeline event represents the destination of the data being loaded from or the source of the data being written to the cache. The time field is used to
+It
+
+represent the clock cycle when the data loading or data writing is finished.
+
+contains the value ofT + latency of the cache access, where T is the clock cycle when the processor requests for the cache access. The pipeline event will be added to
+
+sim-outorder's event queue, which will be checked by sim-order in every simulated processor clock cycle. When the recorded clock cycle of the time field is reached,
+14
+
+the pipeline event will be deleted by sim-outorder.
+
+The instructions that are utilizing
+
+the register specified by the pipeline event will then be considered as ready to be executed by the processor.
+
+Figure 2.2 shows the function calling sequence of one particular cache access.
+
+In
+
+this example, sim-outorder accessed certain data from data Ll cache by calling the LI cache access function (function A). writeback is required. The access generated a cache miss in Ll and a
+
+Function A then called the L2 cache access function (function The writeback block was found in the L2 cache,
+
+B) to write back the replacing block.
+
+therefore function B could simply update the L2 cache's content and return a latency to function A as part of the total access latency.
+
+15
+
+"Tj
+
+~.
+
+6 N tv
+"!:;
+
+0
+Cf.)
+(")
+
+.... 8
+Cf.)
+
+::r
+
+g
+0
+
+(")
+
+~
+L1 cache access function (A)
+
+L1 Cache miss
+Cache h~, retum latency
+
+h
+
+L1 data loaded, turn latency
+
+g
+Q.
+
+.... 0'1
+
+8 0 8
+
+12 miss, clean
+block, load data Return latency
+
+12 data loaded
+return latency
+
+J
+
+..:!
+r» (")
+(")
+
+0
+
+12 cache access
+function (8) Memory access function {Cl
+
+0
+
+c;.., c;..,
+
+§> Sl. o· ::I
+c;.., "!:;
+
+time
+
+0
+(")
+
+8
+
+r»
+
+OQ
+
+Er
+
+~
+
+,.Q
+
+0 0
+
+c;..,
+
+=
+(")
+
+:::I
+
+0
+
+After the writeback, function A must load data from the L2 cache, which caused a second call to function B. in the L2 cache. needed. Unfortunately, that data load had also caused a cache miss
+
+This time, the L2 cache has a clean block and no write back is
+
+Therefore, function B must make a memory access by calling the memory At the end of function C's execution, the latency of This value would then be returned to Eventually, function
+
+access function (function C).
+
+loading the data from memory was calculated.
+
+function B and function A as part of the total accessing latency.
+
+A would sum up the writeback and data loading latencies and return the value to sim-outorder.
+
+It is important to note that there exist several limitations in sim-outorder's memory
+
+hierarchy design.
+
+Firstly, when a writeback occurs, regardless it happens in the Ll
+
+or L2 cache, sim-outorder has an infinitely large write buffer with no access latency to temporarily store the cache block being written back. Hence, all cache and memory
+
+write actions will have an unrealistic latency of zero clock cycles.
+
+Memory access latency = latency offirst data column + (total amount ofcolumn to be accessed - 1) x latency ofremaining column
+
+In addition, sim-outorder's memory access latency calculation is relatively simple the total memory access latency is equal to the latency of the first data column (including Tcmd, Trp, Trcd, Tcas, Tcwd and first column transmission) plus the latency of transmitting the remaining data columns multiplied by total amount of columns minus one (for the first column). From this fonnula, one can easily notice
+
+that sim-outorder's memory model is only valid when an outdated close page policy is used. Also, sim-outorder assumes memory accesses are always being scheduled to
+17
+
+be far apart, therefore no memory access will post any burden to the data bus and causes future accesses to wait for the current access to fmish.
+
+Lastly, as all component access functions must return an exact latency to sim-outorder, it is impossible to implement a memory module which supports access reordering. This is because memory access reordering requires all accesses to be added and sorted within a queue first. Therefore the memory module cannot calculate the access
+
+latency until the access order is confirmed.
+
+To conclude, we have discussed some internal details of the SimpleScalar Simulator tool set. We hope that this information will allow one to easily understand the
+
+operation of the SimpleScalar Similator and the design of our cache filter and memory module. In the next chapter, we will discuss our page interleaved DDR3 memory
+
+module for the SimpleScalar Simulator.
+
+18
+
+Chapter 3
+The Page Interleaved DDR3 Memory Module for the SimpleScalar Simulator
+In this chapter, we will fIrst discuss the software design of the page interleaved DDR3
+memory performance simulation model (will be referred as memory model) for the Simple Scalar simulator. Second, we will describe the operation of the model. At
+
+the end of the chapter, we will also simulate the system.
+
+The remainder of this chapter will be organized as follows: · · · The software modeling of the memory model (Section 3.1); The operation of the memory model (Section 3.2); Simulation and discussion (Section 3.3).
+
+3.1 The software modeling of the memory model
+To properly design the memory model, we did a study of the memory address format and the virtual memory address space (hard disk) of sim-outorder. chapter 2, sim-outorder models a 32bit computer. As mentioned in
+
+The virtual address space, or the
+
+hard disk, of this computer is 2GB in size (address starts from hexadecimal OxOOOOOOOO to Ox7f:l:lHlf, according to the memory.c from the simulator's source fIles). This address range is perfectly addressable with 32bits because the Therefore,
+
+hexadecimal range of 32bits starts from OxOOOOOOOO to Oxffifffff.
+
+sim-outorder represents memory addresses with a md_addr_t enumerated data type (user defIned data type), which is C language's unsigned int (unsigned integer) type. And if one also studies the machine definition of sim-outorder (machine.h), he/she
+
+19
+
+will notice that the virtual memory page size is defined as 4096 bytes (4KB).
+
+We made two important decisions before we began the programming. First, we decided to directly map the 2GB of virtual memory space into 2GB of physical memory space with 4KB per memory row/page. the design of our memory model. This decision will greatly simplify
+
+Second, we decided to remove the infinite write
+
+buffer out of sini-outorder because of its unrealistic size and its zero access latency. In this context, sim-outorder must now wait for all cache/memory writebacks to complete and include the writeback latency in the latency calculations.
+
+Our memory model has two components - the data and functional component.
+
+The
+
+data component, to be discussed in section 3.1.1, is the data structures that represent the memory hardware in the simulator. The functional component, covered in
+
+section 3.1.2. is used to describe the operation of the memory model.
+
+3.1.1 The data components of the memory model
+The data component of the memory model is written in the memory.h source file of SimpleScalar. It defmes the new data structures which are necessary for the memory
+
+model to operate properly. · · ·
+
+It includes:
+
+modification to the mem_t data structure; a new channel_t data structure; a new bank_t data structure.
+
+20
+
+mem_t
+r-------------------~
+
+channeLl
+
+latched.,Jlage
+
+Figure 3.1: Graphical representation of the mem_t data structure
+
+Modification to the mem_t data structure
+A number of new data members were added to the mem_t data structure. noticeable addition is a channel_t pointer called channel. dynamically allocated array of channel_t data structures. The most
+
+Channel is a pointer to a This array of channel_t is
+
+used to represent one or multiple memory channels (the model can support up to two channels at this point).
+
+introduced to allow fast conversion between processor clock and memory clock. Given the clock speed of the processor and memory bus from the user input, the memory model will store the result of processor clock divided by the memory bus
+
+result of memory bus clock divided by the processor clock.
+
+To convert a value from
+
+memory clock to processor clock, the simulator can simply multiply the value with
+
+21
+
+the mem_to_cpu_clk variable.
+
+A processor clock can also be converted easily by
+
+mUltiplying the value with the cpu_to_mem_clk variable.
+
+Following the floating point values are several 64bit integer values (C language's long long type): · · access_count: a statistical value to store the total amount of memory access;
+
+unoverlaped_fpJead_clk and unoverlaped_fp_write_clk: statistical values to store the total amount of unoverlapped fast page read/write delay in processor clock (overlapped delay will be discussed in section 3.2);
+
+·
+
+unoverlaped_filteredJead_clk statistical values for debugging;
+
+and
+
+unoverlaped_filtered_write_clk:
+
+unused
+
+·
+
+unoverlapedJandomJead_ clk and unoverlapedJandom_write_clk: statistical values to store the total amount of unoverlapped random read/write delay in processor clock.
+
+Finally, there is a list of 32bit integer values (C language's int type) added to the mem_t data structure to store: · · · · · · · · the data bus width in bytes (bus_width); the total amount of memory channels (channels); bank -the total amount of banks per channel (bank); the column access strobe latency in memory clock cycles (Tcas); the row to column delay latency in memoIY clock cycles (Trcd); the row precharge latency in memory clock cycles (Trp); the burst length of the memory model (Tburst, a fixed value of 8 for DDR3); the write recover time in memory clock cycles (Twr);
+
+22
+
+·
+
+the rank to rank switching time and the data bus write to read switching time in memory clock cycles (Trtrs);
+
+· · · · ·
+
+the command duration time in memory clock cycles (Tcmd); the column write delay in memory clock cycles (Tcwd); the column to column delay in memory clock cycles (Tccd); the size ofa bank(bank_size); the memory mapping, only page interleaving is supported in the current implementation and other memory mapping can be added in the future
+
+·
+
+the memory type, only DDR3 is supported in the current implementation but SDRAM can also be supported with minor changes to the code (mem_type).
+
+The channel_t data structure
+A new channel_t data structure was introduced to represent a memory channel. The
+
+most important data member of the data structure is a bank_t (to be discussed later) pointer. Same as the channel_t pointer found in the mem_t data structure, the bank_t
+
+pointer points to a dynamically allocated bank_t array to represent the collection of banks within a memory channel.
+
+Following the bank_t pointer is a SimpleScalar enumerated mem_cmd data type variable known as previous_command. According to the memory.h source file, the
+
+mem_cmd enumerated data type is a flag to represent read or write memory commands/activities. The previous_command variable was added to represent the
+
+previous bus activity, which is important for memory access latency calculations (to be discussed in section 3.2).
+
+23
+
+Two 32bit integer values, prev_burst and prev_accessed_bank, were added to handle different memory access situations (to be discussed in section 3.2) during the latency calculation. The prev_burst value keeps the amount of processor time taken to make The prev_accessed_bank holds the previous Also, it is important to note that the C language
+
+the previous data transmission. accessed bank number/array index.
+
+uses pointer arithmetic to access the array elements, therefore the indexes starts from
+
+oto size of the array-1.
+
+Finally, there is also a list of 64bit integer values from the channel_t data: · busjimer: the value recorded by this variable represents the processor cycle when the data bus ofthis memory channel will become idle. · cmd_timestamp: this value records the processor cycle when the Jast memory access command was issued by the memory controller. · burst_timestamp: a value used to represent the processor cycle when the laSt data transmission began. ~ · access30unt: a statistical value to record the total amount of memory access to the memory channel. · actual_transfer: a statistical value to keep the total amount of data columns being transferred by the memory channel. · roW_hit: a statistical value to count the total amount of row hit happened in the memory channel. · fp_reads and fp_writes: two statistical values to record the total amount of fast page read I write access to the memory channel. · random_reads and random_writes: two statistical values to record the total amount of random read/write access to the memory channeL
+
+24
+
+·
+
+channel_unoverlaped_fp_read_clk and channel_unoverlaped_fp_write_clk: two statistical values to hold the total amount of unoverlapped fast page read I write delay in processor cycles.
+
+·
+
+channel_overlaped_fp_read_clk
+
+and
+
+channel_overlaped_fp_write_clk:
+
+two
+
+statistical values to record the total amount of overlapped fast page read I write delay in processor cycles (overlapped delay will be discussed in section 3.2). · channel_unoverlapedJandomJead_clk and channeCunoverlapedJandom_
+
+write_clk: two statistical values to keep the total amount of unoverlapped random read I write latency in processor cycles. · channetoverlapedJandomJead_clk and channel_overlapedJandom_write_ clk: two statistical values to keep the record of the total amount of overlapped random read I write latency in processor cycles. · filtered_reads, filtered_write, channel_overlaped_filteredJead_ clk, channet
+
+channetunoverlaped_filtered_write_clk: unused statistical values for debugging purposes.
+
+The bank_t data structure
+The bank_t data structure was defmed to represent a memory bank of the memory model. There are only two values stored in the data structure - the latched-page and the ras_timestamp. The latched-page variable is an unsigned integer value to The ras_timestamp is the
+
+represent the previously opened row of the memory bank.
+
+record of the processor cycle when the last row precharge happened to the memory bank.
+
+25
+
+3.1.2 The functional components of the memory model
+The functional component of the memory model was implemented in the memory.c source file. It has a number of functions and we categorized them into three classes:
+
+setter functions to initialize the values of the data components; memory access latency function to define how the memory model should operate and helper functions to aid latency calculations. functions. In this sub-section, we .will list and briefly describe the
+
+Setter functions
+There are six setter functions to allocate and initialize the memory model's data structures, they are: · set_mem_size: a function that dynamically allocates the channel_t and bank_t data structure arrays and calculates the size of each memory bank based on the user specified amount of memory channells and bankls per channel. · set_bus_width: a function that takes the user inputted memory data bus width (in bytes) and initializes the mem_t data structure 's bus_width variable. · set_clk: this function takes the user inputted value for processor clock and memory data bus clock and compute the mem_t data structure's
+
+mem_to_cpu_clk and cpu_to_mem_clk variables. · set_map: a function that takes the user inputted value for memory mapping and initializes the mem_t data structure's map_type variable. We intended to allow
+
+bank interleaving and cache line interleaving mode to be added in the future as extensions to the work, but in the current implementation, only page interleaving is supported.
+Note: Some of the functions will have detailed explanation in section 3.2 as they are closely related to the operation of the memory model. 26
+
+·
+
+set_type: this function sets the mem_type variable of the mem_t data structure with the user inputted value. This function was added to allow future memory
+
+model extensions such as SDRAM and DDR4 to be added with minor code modification. · setJatency: this function sets the following latencies with the user inputted values: Tcas, Trcd, Trp, Tras, Tburst, Twr, Trtrs, Tcmd, Tcwd and Tccd [2].
+
+Memory access latency calculation function
+The memory access latency function (memory_access_latency) was implemented to calculate the latency of a memory access, based on the current state of the mem_t data structure. (refer to section 3.2.3 for more detail).
+
+Helper functions
+We have also defmed some helper functions to aid latency calculations: · max: max is a function to compare two integer values and return the bigger value of the two. · is_latched: given a starting address, its corresponding channel and bank, this function returns a non-zero value if the address generates a row hit (the row of the starting address is the same as the row being latched by the given channel's bank), zero otherwise. · get_mem-page: given a starting address, this function consults the page table and returns the physical memory page/row number which the address is located at (refer to section 3.2.2 for more detail). · get_mem_actual_bank: based on the page/row number received from
+
+get_mem-page, this function returns the physical bank number which contains the page (refer to section 3.2.2 for more detail).
+27
+
+·
+
+geCmem_channel and get_mem_bank: these two functions will take the physical bank number returned by get_mem_actuatbank and calculate the channel array index and bank array index of the mem_t data structure respectively (refer to section 3.2.2 for more detail).
+
+3.2 The operation of the memory model
+In this section, we will discuss various aspects related to the operation of the memory model. These aspects include the overlapped memory access scheduling, memory
+
+addressing and most importantly, the memory access latency calculation.
+
+3.2.1 Overlapped memory access scheduling
+Back in section 3.1.1, several statistical variables from the mem_t and channel_t data structures to record the overlapped and unoverlapped access latencies were introduced. These latencies are related to a specific memory access scheduling technique known as the overlapped memory access scheduling [2].
+In high speed memory systems
+
+with multiple banks, memory accesses can be pipelined into different phases.
+
+The
+
+phases are: react to an access request (Tcmd), row precharge (Trp), data ready (Trcd), column select (Tcas or Tcwd), data transmission and data recovery (Twr, for write only).
+
+If the newly requested memory access is not reading from/writing to the same memory bank as the previous access, the memory controller can schedule the new access to start processing. up to the column selecting phase, before the previous access is completed (an example is shown in Figure 3.4). This type of scheduling is
+
+overlapped memory access scheduling as part of the memory accesses are being
+
+28
+
+overlapped.
+
+This is possible because row precharging and column selecting actions But
+
+will not affect the previous access as they are utilizing different memory banks.
+
+it is important to note that the command reaction and the actual data transmission can not be overlapped within a memory channel because each memory channel has only one data and command bus for data and command transmission.
+Cannot be overlapped
+
+~
+React to an Row Data . Column select (Teas I Tcwd)
+./
+
+Data
+
+Data recovery
+
+access request precharge Ready (Tcmd)
+\
+
+transmission (for write only. Twr}
+
+(Trp)
+
+(Tred)
+
+"-
+
+y~
+Can be overlapped
+
+'-----y---J
+
+...
+
+Cannot be overlapped
+
+Figure 3.2: The overIappable and unoverIappable phases of a random memory access
+
+Cannot be overlapped
+
+~
+React to an Column Data Data recovery access request select (Teas I (Tcmd) Tcwd) transmission (for write only. Twr)
+
+Cannot be overlapped
+
+Can be overlapped
+
+Figure 3.3: The overlappable and unoverlappable phases of a fast page memory access
+
+29
+
+Not overlapped Access 1 to bank 0
+React Row Data Column Data
+
+/'
+transmission
+
+L---.
+Notovenapped
+
+precharge Ready select Row Data React Iprecharge IReady
+
+transmission Data Column select
+
+Access 2 to bank 1
+
+Figure 3.4: Overlapped memory access scheduling example
+
+3.2.2 Memory addressing
+According to the DDR3 standards. a memory channel has at least 8 banks. With our
+
+memory model supporting 2GB of single and dual channel memory with up to 16 banks per channe~ the memory address has the following formats:
+
+Dual channel, 8 banks per channel:'
+Don't care
+
+6 ~--A31~A29A28A27A26A25A24A23A22A21A20A19A18A17~15A14A13
+IA1rt11 A10A9A8A7 A6A5A4A3A2A1 A~
+
+Row/page select
+
+I
+Channel select
+
+'----y--J
+
+y
+Column and byte select Bank select
+
+Figure 3.5: 32bit dual channel 8 bank memory address format
+
+30
+
+Dual channel, 16 banks per channel:
+Don't care Row/page select
+
+~ ---------------~--------------11"~
+A31A30A29A28A21A26A25A24A23A22A21A20A19A18A11~16A15~14A1)
+
+t11~1A10A9A8A7A6AsA4A3A2A1A~
+
+1
+Channel select
+
+V
+Column and byte select
+
+.
+
+Bank select
+
+Figure 3.6: 32 bit dual channel 16 bank memory address format
+
+Single channel, 8 banks:
+Don't care Row/page select
+
+~ ,--_-------.-A---------_~
+~1l A10A9ASA7 A6ASA4A3A2A1 A':J
+Column ~byte select
+A31A30A29A2SA27A26A25A24A23A22A21A20A19A1SA17A16A15A14A13A12
+
+~
+
+Bank select
+
+Figure 3.7: 32 bit single channel 8 bank memory address format
+
+Single channel, 16 banks:
+Don't care Row/page select'
+
+JL __--------------~--------------__ rlr "'\
+~
+A31A30A29A28A21A26A25A24A23A22A21A20A19A18A11A16A1SA14A13A12 All A10A9A8Al A6ASA4A3A2A1 AO \ )
+
+V
+Column and byte select
+
+/
+
+Y
+
+Bank select
+
+Figure 3.8: 32 bit single channel 16 bank memory address format
+
+31
+
+In our simulator, the decoding in the software can be achieved by either the logical approach (bit masking) or the mathematical approach (integer division and modulo). The benefit of the logical approach is the ease of implementation, but it is more restrictive as it requires the programmer to hard-code the bit masks. Keeping the
+
+future expendability of the simulator in our mind, we decided to take the mathematical approach and implemented the get_mem"'page, get_mem_actuaCbank,
+
+get_mem_channel and get_mem_bank functions.
+
+Upon receiving a memory address, the memory model decodes the address by first calling the geCmem"'page function. signature: unsigned int get_memJ'age(struct mem_t *mem,md_addr_t addr); The mem variable is a mem_t pointer, which points to sim-outorder's mem_t data structure. The second parameter, addr, is the target memory address to be translated This function has the following function
+
+into page/row number.
+
+The get_memJ'age function takes the requested address and search for the physical page number from the page table. The page number is formed by dividing the If the page is not found from the
+
+memory address with the page size (4096 Bytes).
+
+page table, the get_mem"'page function will divide the value and return the result as the physical page number. Note that the physical page number is unique across the
+
+memory space, the memory model can simply take the physical page number as the row identifier with the mathematical approach.
+
+32
+
+With the physical page number available, the memory model calculates the physical bank number where the address located at with the get_mem_actual_bank function. This function has the foJlowing function signature:
+
+The addr value is the memory address that needs to be converted to a physical bank number.
+
+The get_mem_actuaCbank function takes the remainder of the division between the physical page number and the multiplication result of total amount of channel and amount of banks per channeL
+Physical bank number = physical page number MOD (total amount ofchannels total amount ofbanks per channel)
+
+*
+
+Since page interleaving distributes memory rows/pages in a zigzag manner across the banks and channels, he memory model must further process the physical bank number with the get_mem_channel and get_mem_bank functions to obtain the channel number and the bank number of the channel.
+
+The geCmem_channel function has the following function signature: int get_mem_channel(struct mem_t* mem, int bank);
+
+The get_mem_channel function calculates the channel number by taking the remainder ofthe physical bank number divided by the total amount of channels.
+Channel number
+
+= physical bank number MOD total amount ofchannels
+
+Note: The bank variable is the physical bank number returned by the get_mem_actual_bank function.
+
+33
+
+Similarly, the get_mem_bank function has the following function signature: int geCmem_bank(struct mem_t* mem, int bank); The get_mem_bank function calculates the bank number of the channel by dividing the physical bank number with the total amount of channels.
+
+Bank number ofa channel
+
+physical bank number / total amount ofchannels
+
+We have included the following address conversion example with 4 memory channel and bank configurations to prove that our mathematical memory address decoding method is correct for all memory configurations:
+
+Suppose the memory address to be accessed is 366882: The binary form of366882 is: 00000000000001011001100100100010 Following the bit naming convention from Figure 3.7, for single channelS banks: The column and bank select bits are All toAO, which are "100100100010"; The bank select bits are A14 to A12, which are ''001''; The row select bits are A30 to A1S, which are "0000000000001011". Therefore, we expect this address belongs to bank 1.
+
+Using our mathematical approach: Physical page number
+
+=
+:=
+
+address / page size (4KB)
+
+366882/4096 = 89
+
+Note: the mathematical approach uses the C language's integer division and modulo operations. Therefore both the division result and the remainder will be integers. 34
+
+Physical bank number
+
+=
+
+physical page number MOD (total amount of channel total amount of banks per channel)
+
+*
+
+=
+Channel number
+
+89 MOD (1
+
+* 8) = 89 MOD 8 = 1
+
+=
+
+physical bank number MOD total amount of channels
+
+1 MOD 1 =0
+Bank number
+=
+
+physical bank number I total amount of channels
+
+=
+
+1/1=1
+
+By applying the mathematical approach to the single channel 8 bank scenario, the result is bank I. Therefore we can conclude that the result of mathematical approach
+
+matched the logical approach's result
+
+Single channel 16 banks:
+The column and bank select bits are A 11 to AO, which are "1001001000 I 0"; The bank select bits are AI5 toAl2. which are "1001"; The row select bits are A30 to A 16, which are "000000000000101". Therefore, we expect this address belongs to bank 9.
+
+Using our mathematical approach: Physical page number
+=
+
+address I page size (4KB) 366882 I 4096 = 89 physical page number MOD (total amount of channel total amount of banks per channe 1)
+
+=
+Physical bank number
+
+=
+
+*
+
+=
+
+89 MOD 16=9
+physical bank number MOD total amount of channels 9 MOD 1 =0
+
+Channel number
+
+=
+=
+
+35
+
+Bank number
+
+=
+==
+
+physical bank number 1total amount of channels
+
+911
+
+9
+
+By applying the mathematical approach to the single channel 16 bank scenario, the result is bank 9. The result of our mathematical approach is matching the logical
+
+approach's outcome again.
+
+Dual channelS banks:
+The column and bank select bits are All to AO, which are "100100100010"; The channel select bit is A 12, which is "1"; The bank select bits are A15 to AB, which are "100"; The row select bits are A30 to A 16. which are "000000000000101". Therefore, we expect this address belongs to channell's bank 4.
+
+Using our mathematical approach: Physical page number
+
+= =
+
+address 1 page size (4KB)
+366882/4096 = 89
+
+Physical bank number
+
+=
+
+physical page number MOD (total amount of channel total amount of banks per channel)
+
+*
+
+=
+Channel number =
+
+89 MOD (2*8) = 89 MOD 16 = 9 physical bank number MOD total amount of channels 9MOD2= 1 physical bank number 1total amount of channels
+9/2=4
+
+=
+Bank number
+=
+
+=
+
+By applying the mathematical approach to the dual channel 8 bank scenario, the result is channell's bank 4. Therefore mathematical approach is also valid with the dual
+
+channel 8 bank configuration.
+36
+
+Dual channel 16 banks:
+The column and bank select bits are A 11 to AO, which are" 100 100 I 000 10"; The channel select bit is A 12, which is "I"; The bank select bits are A16 to AI3, which are "1100"; The row select bits are A30 to A 17, which are "00000000000010", Therefore, we expect this address belongs to channell's bank 12.
+
+Using our mathematical approach: Physical page number
+=
+
+address I page size (4KB) 366882 I 4096 89
+
+=
+Physical bank number
+
+= =
+
+physical page number MOD (total amount of channel total amount of banks per channel) 89 MOD (2
+
+*
+
+* 16) =89 MOD 32 = 25
+
+Channel number
+
+=
+
+physical bank number MOD total amount of channels 25 MOD2= 1 physical bank number 1total amount of channels
+
+=
+Bank number
+=
+
+=
+
+25/2 = 12
+
+Finally, by applying the mathematical approach to the dual channel 16 bank scenario, the result is channell's bank 12, which is matching our expecte.d results. Through
+
+the proving process similar to mathematic induction, we conclude that our mathematical memory address decoding method is correct for all memory configurations.
+
+Note: For the remainder of this document, we will refer to each of the memory latencies mentioned in section 3.1.1 by their short form (e.g. command duration time Tcmd)
+
+37
+
+3.2.3 The memory_access_latency function
+The memory_accessJatency function models the memory operations, calculates the latency of each access and returns the value to sim-outorder. of memory_access_latency is shown below: unsigned int memory_accessJatency(struct mem_t· mem, int chunks, md_addr_t addr, enum mem_cmd cmd, tick_t now); The mem parameter is a mem_t pointer which points to the mem_t data structure of sim-outorder. The second parameter, chunks. is the total amount of bytes the The function signature
+
+processor/cache is requesting for the memory access (in sim-outorder, it is the L2 cache block size since the L2 cache is the only cache that requests for memory access). The addr parameter is the frrst address which the processor/cache is requesting. The
+
+last parameter, now, is the processor cycle when the processor/cache requested for the memory access.
+
+The algorithm behind the memory_access_latency function
+Before the description of the algorithm begins, one must note that the latency value returned by memory_access_latency is not simply the sum of the timing parameters (Tcmd, Trp, Trcd, Teas, Tcwd and data transmission), but a latency relative to the 'now' parameter. That is, the value returned by the function can be significantly This is caused by the fact that when the
+
+larger than the sum of those timings.
+
+processor/cache requests for a memory access, the memory model can either be idle or busy servicing the pervious access/so If the memory is servicing another access, it
+
+must wait for the previous access to complete before servicing the current access.
+
+38
+
+The most important goal of the memory_access_latency function (latency function) is to calculate the earliest possible starting processor cycle (start time) for the memory access requested by the processor/cache. When the latency function is calle~ it will
+
+first call the get_mem_actual_bank, get_mem_bank, get_mem_channel and is_latched functions to determine whether the access is a random type or fast page type.
+
+Once the access type is determine~ the latency function will check whether the access is the flJ'St memory access of the simulation (bus_timer = 0). If so, the start time can simply be set as "now" and the access type will be limited to random access (the first access of a simulation has to be random access. structure is
+initialize~
+
+Also, when the mem...t data
+
+the latched row/page of all memory banks is set as row 0, so
+
+we must override the result of the is_latch function).
+
+If the access is not the flJ'St access of the simulation, the latency function compares the value of the "now" parameter with the channel's previous command start time (cmd_timestamp + Tcmd) and takes the larger value as the temporary start time. This is because an access cannot start earlier than the previous access. Note that the
+
+temporary start time will be increased (shifted further away from "now") as the function handles other situations.
+
+If the access type was previously determined as fast page mode, the latency function will store the sum of the corresponding timing parameters (Tcmd + Tcas for read OR Tcwd for write) to an integer variable "latency" and detect the following situations:
+
+39
+
+Consecutive reads If the previous access is a read operation and the current access is also a read, the function will first compare the value of the previous data transmission time (prev_burst from channel_t data structure) and the column to coJumn delay (Tccd) and store the Jarger value of the two values to a temporary variable known as "temp". The latency function will then ensure the minimum distance between the current read's start time and the previous read's start time is ''temp'' by incrementing the temporary start time of the current access. This action allows sufficient time for the
+
+memory to complete the data transmission and column selection.
+MAX(prev_burst, ~) Command & address bus Tcmd
+
+Previous access is fast page read
+
+r
+
+Read
+
+OJ
+
+@
+
+I--_-:-~
+
+....-_.....A . . . ._--..
+
+. . _--_ prev_burst
+Data of Read 1
+
+Data bus
+
+..
+lime
+Teas
+
+Previous access is random read
+
+Data bus
+
+Data of Read 1
+
+Trp
+
+Tred Teas
+
+lime
+
+Figure 3.9: Consecutive read timing (current access is fast page read)
+
+40
+
+Fast page write following a fast page read
+If the previous access is a fast page read and the current access is a write, the latency function must ensure the timing distance between the previous read and the current write is Tcas + Trtrs + Tcwd + prev_burst. Note that the Trtrs is added as a timing
+
+bubble to eliminate the conflict with the internal data movement ofthe read access.
+Teas+Trtrs+Tcwd+prev_burst Command & address bus Tcmd Tcwd
+
+f
+
+A'---_~
+
+Read 0
+
+I
+
+~
+~
+
+preY_burst
+
+... ,'
+
+Data bus
+
+Data of Write 1
+
+Teas
+
+Trtrs
+
+TIme
+
+Figure 3.10: Write following a fast page read timing (current access is fast page write)
+
+If the latency function determined the access type is random access, the function will store the sum of the corresponding timing parameters (Tcmd + Trp + Trcd + Tcas for read OR Tcwd for write) to the "latency" variable and record the latched row/page to the bank's
+latched~ge
+
+variable.
+
+Also, if the latency function determines the
+
+current memory access is the first access of the simulation, it will skip the following start time calculation and jump to the actual data transmission latency calculations.
+
+Because random accesses require a row precharge, the latency function must check the last ras_timestamp of the bank. If the timing difference between temporary start
+
+time and the last ras_timestamp (temporary start time - ras_timestamp) is less than the value of the Tras of the mem_ t data structure, the latency function will increment the temporary start time with the value: Tras - (temporary start time - ras_timestamp).
+
+41
+
+Random access to the same bank as the previous write
+After handling the Tras timing requirement, the latency function checks whether the previous access was accessing the same memory bank and the access was a write. If
+
+so, the memory must allow a minimum timing distance of Twr to allow the row latch to write the updated values back to the memory cells.
+Tcwd+prev_burst +Twr
+A~
+>
+
+Tcmd
+
+___~
+
+Command& [ address bus Write 0
+
+I
+_
+
+[RiW1l
+preY_burst
+
+,.-_-'A ....____
+Data bus (Data of Write 0 )
+
+Y
+Tcwd
+
+I Data of RIW 11 Y--r-"-rY ·
+. . .
+
+Twr Trp Trcd Teas! Tcwd
+
+TIme
+
+Figure 3.11: Random access to the same bank as the previous write timing When the latency function finishes calculating the temporary start time of the current access, it will begin the actual data transmission latency calculations and record the followings: · The bank number of the current access to the prev_bank variable of the channel_t data structure; · The temporary start time of the current access to the cmd_timestamp variable of the channel_t data structure and to the ras_timestamp of memory bank (if row precharge needed);
+· >
+
+The current access command (Read or Write) to the previous_command variable of the channel_t data structure;
+
+·
+
+The time when data transmission begins (cmd_timestamp + "latency") to the bursctimestamp variable of the channel_t data structure;
+
+42
+
+Actual data transmission latency calculation The actual data transmission latency calculation starts by dividing the "chunks" parameter with the mem_t data structure's bus_width variable to obtain the total amount of data columns to be transmitted. Once the total amount of data columns is
+
+determined, the latency function will divide the amount by two and store the result to a temporary variable known as access_transfer (DOR3 memory can transmit twice per memory clock and transmit one data column per transmission).
+
+At this point, the latency function is still in terms of memory clock cycles.
+
+Therefore
+
+the latency function will convert the result to processor clock cycles by multiplying
+
+With every value converted to processor clock cycle, the latency function will store the value of access_transfer to the channel's pre v_burst variable for future latency calculations. The latency function will also store the value of start time + "latency"
+
++ access_transfer to the bus_timer variable of the channel because the data bus will be
+busy until the newest memory access (the current access) finishes.
+
+Finally, the last action of the latency function is to calculate the memory access latency that is relative to the "now" parameter. value of bus_timer - "now". This is completed by returning the
+
+43
+
+Decode address to
+
+chanr' bank and row ,.,mber
+
+Determine whether it is fast page mode or random access
+
+Fast page mode:
+
+~
+
+I
+
+Random access:
+
+~
+
+Consecutive reads handling
+
+t
+
+1
+Random access to the same bank as the previous write
+
+Fast page write following a fast page read handling.
+
+I
+
+Actual data transmission latency calculation
+
+r
+
+Latency return
+
+t
+
+Figure 3.12: memory_access_latency function work flow
+
+3.3 Simulation and discussion
+In this section, we will perform a memory channel and bank test to verifY our memory module's behavior under different memory channel and bank settings. In this test.
+
+we will use the gcc benchmark from the SPEC CPU 2000 benchmark suite for the simulations and monitor the system performance and memory row hit rate under the following memory configurations: · · · · · 1 channel 4 banks; 1 channelS banks; 2 channels 2 banks (4 banks in total); 2 channels 4 banks (8 banks in total); 2 channels 8 banks (16 banks in total).
+44
+
+Note that we will set all of the simulation settings, except the cache and memory related settings, with the default settings of sim-outorder. Also, our cache settings
+
+will be consistent among each sub-section to anow precise comparison between data points. Finally, as mentioned in section 3.1, our custom version of sim-outorder does
+
+not include the write buffer and memory access reordering capabilities.
+
+Simulation settings
+Table 3.1: Simulation settings for channel and bank test Instruction L 1 cache size Data Ll cache size Ll cache latency L2 cache size L2 cache latency Cache block size Ll cache set associativity L2 cache set assocaitivity Custom DDR3 memory memory bus speed (MHz)
+i
+
+32KB 32KB 1 processor clock 1MB· 10 processor clocks 64B
+
+4 8
+model's 800 (DDR3 1600)
+
+Amount of memory banks Amount of memory channels Tcas, Trcd, Trp, Tras (memory clocks) Trtrs, Tcwd, Tcmd, Twr, Tccd (memory clocks)
+
+4,8
+1,2 7, 7, 7, 21
+
+1, 7, 1,5,4
+
+Our DDR3 memory model's processor 3200 clock (MHz)
+Note: To verify the statistical values generated by our custom sim-outorder, we have also included a sample simulation output file verification in appendix A2 on page 127. 45
+
+Row hit rates and row hit improvement
+
+Row hit rates
+Memny row hit rate (%, bigger is better)
+
+I- row hit ralc 1
+
+44.00% 43.00% 42.00% 41.00%
+'0'
+'-'
+
+"<F-
+
+~ :2
+~
+0
+
+40.00% 39.00% 38.00% 37.00% 36.00% 35.00% 34.00%
+I charne~ 4 2 charnel>, 2 I channet 8 2 channel'>. 4 2 charnels 8 banks (4 banks it barKs (4 banks it. banks (8 banks Ii banks (8 banks it banks (16 banks total) total) total) total) Ii total)
+37 37 41.56% 41.56% 43.45%
+
+~
+
+· row hi rate
+
+Merrol)' configuratiJn
+
+Figure 3.13: Memory row hit rates of the gee simulation
+
+Note: Please note that there has never been any DDR3 memory being manufactured with only 2 and 4 memory banks. Therefore, the simulations with 2 and 4 memory banks are never intended to reflect
+
+real world memory performance; instead, they are only used to illustrate the behavior of the memory
+row hit rate when the total amount of memory banks is being doubled. FinaJly, when considering the
+
+row hit rates of the multi channels setups. we must take the average row hit rate across the channels as the overall memory row hit rate.
+
+46
+
+Memory row hit rate improvement achieved by doubling the total amount of memory banks
+Row hit improvement achieved by doubling the total amount of memory banks (%, bigger is better) .-f-ow-h-it-im-p-ro-vc-m-cn-'d
+. ,r:
+
+12.00% 10.00% 8.00% 6.00% 4.00% 2.00% 0.00%
+
+Figure 3.] 4: Row hit improvement when total amount of memory banks is doubled From the row hit rate plot, one can notice the followings: · The row hit rate improvement is not sensitive to the total amount of memory channels; · The row hit improvement of doubling the total amount of memory banks (from 1 channel 4 banks OR 2 channels 2 banks to 1 channel 8 banks OR 2 channels 4 banks respectively) is consistent. · The row hit rate improvement tends to drop as the total amount of memory banks increase.
+
+The first and the second facts are the most important findings to prove our memory module is able to generate consistant results amoung different memory configurations - regardless the total amount of memory channels, if the total amount of memory banks is fixed, the memory row hit rate and memory row hit improvement should be consistent because the application's degree of locality is constant.
+
+47
+
+To explain the third finding, one can consider the multi bank main memory as an index of a set associative cache where the total amount of memory banks is the set associativity and each row latch is a cache block. If one keeps increasing the
+
+associativity or the memory bank count, it will eventually reach the limit of the set associative or multi bank design where additional set I bank will not benefit the overall hit rate. Therefore the row hit rate improvement will not double as the total Instead, the row hit rate improvement should be
+
+amount of memory banks doubles.
+
+a function of total amount of memory banks and the application's degree of locality. Hence it should converge to a value as the total amount of available row latches reaches the limit of the program's memory row request limit.
+
+Simulated performance and performance comparison under different memory configurations
+Simulated performance
+Performance (simulated processor cycles, smaller is better)
+
+I. performance 1
+
+4~ r-------------------------------------------------------~
+
+4710000000 4710000000 4700000000
+
+4670000000
+I channel,4 ..... ks(4 bonks in lolal) 2 channels, 2 bonks (4 bonks io lotal)
+I channel, S bonb (8 bonk. in tOlal)
+
+2 chunels. <4 bonks (&
+
+2 chlnnels, 8 bonks (16
+
+!
+
+boob in total)
+
+bonts in total)
+
+MetOOry configuration
+
+Figure 3.15: gee simulated performance
+
+48
+
+Performance improvement achieved by increasing the amount ofmemory channels
+
+Performance increase from 1 channel to 2 channels (%, bigger is better)
+0.50'''' 0.45". 0.40% 0.35%
+0.30~"
+
+r------------==================;1
+
+· Performance increase from 1 channel to 2 channels
+
+0.25% 0.20% 0.15% 0.10% 0.05%
+0.00". \ - - - - -
+
+increase from I cbannel to 2
+
+0.45%
+
+Figure 3.16: gce performance improvement achieved by increasing the amount of memory channels
+
+Performance improvement achieved by doubling the total amount of memory banks
+
+Performance improvement achieved by doubling the memory banks (%, bigger is better)
+· Performance improvement achieved by doubling the memory banks 0,25% 0.20% 0.15% 0.10% 0.05% 0.00%
+! ·
+
+1 channel, 4 to 8 banks 0.21%
+
+2 channels, 4 to 8 banks 2 channels 8 to 16 banks 0.21% 0.10%
+
+Performance improvement achieved
+banks
+
+Figure 3.17: gcc performance improvement achieved by doubling the total amount of memory banks
+
+49
+
+From the performance plots, we have made the following observations: · The performance gain of adding an additional memory channel is much bigger than doubling the amount of total memory banks; ·
+R~gardless
+
+of the total amount of channels, the performance gain of doubling the
+
+total amount of memory banks from 4 to 8 is consistent; · The benefits of doubling the total amount of memory banks are diminishing if one compares the improvement from 4 to 8 banks and from 8 to 16 banks.
+
+The first finding can be considered as the benefit of an extra memory data bus.
+
+With
+
+an additional memory data bus, the average amount of access to each data bus is reduced. Therefore, the average amount of memory access wait time caused by
+
+incomplete previous memory accesses can be reduced, yielding better performance than simply doubling the total amount of memory banks per memory channel.
+
+The second and third observations are, once again, proofs of the relationship between the total amount of memory banks and the limit of the multi memory bank design. As the row hit rate of the configurations with a total 4 memory banks should be consistent, one should expect to see the same amount of performance improvement achieved by doubling the total amount of memory banks, regardless the amount of memory channels present in the system. . Also, due to the fact that there exists a row hit improvement Iimitin the multi memory bank design, it is reasonable to have decaying performance benefit of as we continue doubling the total amount of memory banks.
+
+50
+
+To conclude, we have designed and tested our DDR3 memory model for the SimpleScalar simulator which is capable of producing consistent simulation results under different simulation configurations. following feature set: · · Support up to 2 memory channels and 16 memory banks; Support any reasonable input of processor clock speed, memory bus speed and memory latencies; · Generate consistent results amount different memory configurations. Our DDR3 memory model has the
+
+51
+
+Chapter 4
+The Cache Filtering Algorithm for Least Frequently
+
+Used Data
+In this chapter, we will propose the cache filtering algorithm for least frequently used
+data (cache filter algorithm). This algorithm allows the cache to identify and filter
+
+out rarely used and non-previously used memory addresses.
+
+The remainder of this chapter will be organized as follows: · · · · The background; The baseline system's memory hierarchy characteristics; The cache filtering algorithm and the components; Simulation and discussion.
+
+4.1 The background
+Our cache filtering algorithm builds on the basics of two patented works. The first
+
+work, Cache Filtering Method and Apparatus [21], provided us important insights about how does the memory row hit signal can be used to identified previously used memory rows/pages and addresses. And the second work, Methods and Apparatus
+
+for Accelerating Retrieval of Data from a Memory System with Cache by Reducing Latency [22], had given us a hint about the possibility of using a small buffer to hold
+non-previously used and rarely used data. After serious considerations and
+
+modifications to the two works, we were able to combine them together and harness their strengths.
+
+52
+
+Our cache filtering algorithm makes use of a small buffer to store the filtered cache blocks and determine whether a cache block is frequently or previously used by checking: · · the content of the buffer AND the memory row/page hit signal generated by the memory controller
+
+4.2 The baseline system's memory hierarchy characteristics
+We decided to take the simulated system from section 3.3 as our baseline system to implement the cache filtering algorithm. Therefore we ,will assume our baseline
+
+system to have the follow memory hierarchy characteristics: · · · 2 level cache hierarchy (separated instruction LI cache and data LI cache); No write buffer; No memory access reordering.
+
+4.3 The cache filtering algorithm and its components
+To ensure the data being fetched to the cache hierarchy are frequently/previously used, we will only allow data to be fetched to 0e cache hierarchy from the following sources: · · · the L2 cache (only applicable to the L1 cache); the filter buffer; an opened memory row/page.
+
+53
+
+The remaining access types that are not allowed to enter the cache hierarchy stored in the filter buffer,· These accesses include: · fetches that causes a miss in all Ll cache, L2 cache, filter buffer and memory rows/pages; · · writebacks from data L1 cache to L2 cache that causes a L2 cache miss; all L2 writebacks,
+
+Processor Instruction register
+
+Data register file
+
+"
+r-Filter data bus Filter buffer
+
+Word bus
+~
+
+Instruction L1 cache
+
+Data L 1 cache
+
+I
+
+Unified L2 cache
+
+row hit
+
+row miss
+
+Front side bus
+
+---"t
+
+I
+
+Row hit?
+
+.
+
+I
+
+'Front side bus
+
+Memory Controller
+
+Figure 4.1: Block diagram of the cache filtering scheme
+54
+
+Figure 4.1 shows the block diagram of the cache fi1tering scheme.
+
+This diagram
+
+shows the major components ofthe cache filtering algorithm: instruction register, data register file, instruction Ll cache, data Ll cache, L2 cache and the fi1ter buffer.
+
+4.3.1 The instruction register (IR) and data register file (DRs)
+Same as the IR and DRs of conventional memory hierarchies, our cache filtering scheme supplies data and instructions to the processor with the IR and DRs. The
+
+only difference is the IR and DRs can fetch/write data from/to the fi1ter buffer when cache filtering is used.
+
+4.3.2 The instruction and data Ll caches (I and D Ll caches)
+The design ofthe I and D Ll caches remains largely unchanged from the design of the conventional memory hierarchy's. The only. differences are the source of data
+
+fetching and destination of writebacks.
+
+Fetch: The default data fetching source of the I and D Ll caches is the L2 cache.
+
+However, when the required data is not found in the L2 cache, the I and D L 1 caches will fetch from the filter buffer.
+
+Writeback (Data Ll cache only): The data Ll cache will only perform writebacks to
+
+the L2 cache if and only if the L2 cache has the writeback block.
+
+If the writeback
+
+block is not found in the L2 cache, the Ll cache will write its writeback block to the filter buffer to avoid eviction of useful cache blocks stored by the L2 cache (filtered writeback).
+
+Note: Eviction of useful cache block happens when fetching block is replaced by the writeback block.
+55
+
+4.3.3 The L2 cache
+The L2 cache uses the same design as the conventional L2 cache except its fetching and writeback method.
+
+Fetch: The L2 cache fllSt tries to fetch from the filter buffer. If the fetch block is
+not found in the filter buffer, the L2 cache will fetch from the main memory.
+
+Writeback:
+
+In order to avoid unexpected closing of frequently accessed memory
+
+rows/pages, the L2 cache will always writeback to the filter buffer (filtered write back).
+
+4.3.4 The filter buffer
+The filter buffer is a new component introduced by the cache filtering scheme. It is a
+
+small and high speed SRAM device which is similar to conventional victim caches but implements the write through policy_ As an important component of the cache filtering algorithm, the filter buffer's purpose is to assist the cache filtering algorithm through the following ways: · · Provide an alternative path to supply data to the L 1 and L2 caches; Provide a temporary storage space for filtered data;
+
+Note: The simple write through policy was chosen due to its simplicity and its capability of maintaining most up-to-date values in both the filter buffer and the main memory. policy can generate extra memory accesses. However, the write through
+
+56
+
+Tbe fIlter data bus
+The filter data bus is a bi-directional connection between the filter buffer and the caches (the instruction LI cache, data L1 cache and the unified L2 cache). This bus
+
+is added to handle cache block transmissions between the caches and the filter buffer when cache fetching and filtered writebacks happen (to be discussed later).
+
+Tbeword bus
+The second bus connection between the filter buffer and the cache hierarchy is the word bus. The word bus allows the processor's instruction register and data register When filtered access (to be discussed later) happens,
+
+file to share the filter buffer.
+
+the word bus is used to transfer the processor requested instruction/data word between the filter buffer and the instruction/data registers.
+
+Tbe front side bus
+In our custom version of the Simplescalar simulator, the front side bus is being modeled as the data bus which allows the L2 cache, the filter buffer to share the main memory. It is important to note that this single bus is being routed to/shared by multiple components of the cache filtering scheme through the use of multiplexers and deultiplexers.
+
+Filter buffer accesses
+According to the cache filtering algorithm, there are several situations where the filter buffer will be accessed. These situations include filtered read/write when row miss,
+
+cache fetch from the filter buffer when L 1 and L2 cache miss, filtered writebacks.
+
+57
+
+Filtered access to/from main memory:
+When the processor requests for data that is not found in all cache levels, the filter buffer and all opened memory rows/pages, the cache filtering algorithm will perform a filtered read/write where the actions described by Figure 4.2 will happen:
+
+Processor readlwrite request Address decode Cache, filter buffer and memory row miss Select the least recently used (LRU) filter buffer entry and wait until it is ready-to-use Transfer the processor requested data (as a L2 cache block) from main memory to the buffer entry, set the entry as most recently used (MRU) Transmit the processor requested word through the word bus (Read) OR receive the processor written word through the word bus (Write) (For write only) Write the processor
+
+*
+
+*
+
+* *
+
+*
+
+tritten
+
+word to the LRU buffer entry
+
+and write the content of the buffer entry to main memory (satisfy DDR3's requirement of 8 data columns per transmission)
+
+Figure 4.2: Filtered read/write work flow
+
+Note: When handling filtered write, the buffer must first load the L2 cache block from main memory before writing the block back. This is because the processor has only one 32bits word to be written to
+
+the main memory, but the DDR3 standard requires at least 8 data columns (sixteen 32bits words) per transmission. Therefore, filtered write requires 2 memory accesses to happen.
+
+58
+
+Cache fetch from the filter buffer:
+When the following conditions are satisfied, a cache fetch from the filter buffer with the steps described by Figure 4.3 will happen: · · · processor requested data is not found in the cache hierarchy AND processor requested data is found in the filter buffer AND the LI cache does not need to write back OR L1 cache's writeback block is found in the L2 cache.
+
+Processor access request
+
+~
+Address decode L 1 Cache miss, no writeback to the filter buffer is required
+
+~
+
+Data found in a filter buffer entry
+
+~
+
+Wait until the filter buffer entry is ready-to-be-read. L 1 cache completes the write back (if needed) and filter data bus is idle Transmit the cache block from the buffer to the cache hierarchy via the filter data bus and set the entry as MRU
+
+~
+
+~
+
+Figure 4.3: Cache fetching from the filter buffer work flow
+
+Filtered writeback followed by cache fetch:
+Filtered writeback followed by cache fetch (Figure 4.4) happens when the following conditions are met: · · · The fetched block is found in the filter buffer (for cache fetching) AND The L1 write back block is not found in the L2 cache AND/OR The L2 requires a writeback to service the cache fetching.
+
+59
+
+Processor access request Address decode
+
+L1 Cache miss. L 1 writeback block is not found in L2 cache and/or L2 writeback required
+
+! !
+
+Processor requested data is found in filter buffer
+
+Filtered writeback blockls found in filter buffer? Yes
+
+! !
+I
+
+The content of the entry has been written to main memory? Yes
+
+1
+I
+
+1
+~
+
+No
+
+Mark the buffer entry with the processor requested data as MRU
+
++
+
+l No
+Wait for the filter data bus to be idle and write the filtered writeback block to that entry (write merging)
+
+wait for the entry to finish writing and filter data bus to become idle
+
+Select the LRUbuffer entry
+
+!.
+
+Write the the filtered writeback block to that entry
+
+!
+
+Wait until the filter data bus to becomes idle and write the filtered writeback block to the entry
+
+I
+.
+
+Transmit the processor requested data to the cache hierarchy via filter data bus Write the filtered writeback blockls to main memory
+
+l !
+
+1
+
+'.
+
+Figure 4.4: Filtered writeback followed by cache fetching work flow
+
+60
+
+Filtered writeback without cache fetching:
+Filtered write back without cache fetching (Figure 4.5) happens when the following conditions are met: · The fetching block is found in the L2 cach~ OR an opened memory row/page (the fetching block is not found in the L2 cache); · · The LI writeback block is not found in the L2 cache AND/OR The L2 requires a write back to service the cache fetching.
+Processoraccessrequem Address decode
+
+~
+
+. Cache miss, l1 writebtck block is not found in L2 cache and/or L2 writeback required
+
+Processor requested data is found in the L2 cache or an opened memory row/page
+
+t
+~ I
+
+Filtered writeback block/s found in filter buffer?
+
+Yes
+
+1
+I
+
+1
+~
+
+No
+
+The content of the entry has been written to the main memory? Yes
+
+Select the LRU buffer entry
+
+!
+
+~.NO
+Wait for the filter data bus to be idle and write the filtered writeback block to that entry (write merging)
+
+Wait until the filter data bus to become idle and write the filtered write back block lothe entry
+
+Wait for lhe entry to finish writing and filter data bus
+
+~ Write the filtered write back
+block to that entry
+
+to become idle
+
+Writeback the content of the entry/s that hoi s the filtered writeback block/s to main memory after the cache fetch (from the L2 cache or any opened memory row/page) and set the entry as MRU
+
+Figure 4.5: Filtered writeback without cache fetching work flow
+61
+
+4.3.5 The algorithm
+The cache filtering algorithm for least frequently used data was designed such that it is active when cache miss happens and to filter the cache hierarchy based on: the status of the cache hierarchy, the content of the filter buffer and the opened memory row/page. In this subsection, we will first revisit all possible cache miss situations
+
+and discuss how the cache filtering algorithm handles each of them.
+
+Conventional cache miss situations
+In the conventional two levels cache hierarchy, when Ll cache miss happens, the L1 cache can select either an empty, clean or dirty block to replace. If an empty or clean
+
+block is selected, one ofthe situations described by Figure 4.6 will happen:
+
+L1 cache fetch miss
+
+---+ L1 cache selects~ 12 cache fetch hit
+a clean/empty block to replace
+'-til> 12
+
+t
+
+cache fetch miss clean/empty replacem~nt
+
+block dirty replacement block, 12 writeback needed
+
+Figure 4.6: Possible outcomes for L1 fetch miss with L1 clean/empty replacement block
+
+If a dirty block is selected by the LI cache for replacement, one. of the situations described by Figure 4.7 will happen instead:
+
+62
+
+L 1 cache --+fetch miss
+
+L1 cache selects a dirty block to replace
+
+L2 cache writeback hit and fetch hit L2 cache write back miss, fetch hit
+
+t
+
+L2 clean/empty replacement block for L 1 writeback
+
+L2 cache dirty replacement block
+
+for L1 writeback, L2 writeback needed
+
+L2 cache writeback hit, fetch miss
+
+t
+
+L2 clean/empty replacement block for L 1 fetch
+
+L2 dirty replacement block
+
+for L 1 fetch, L2 writeback needed
+
+L2 cache writeback miss, fetch miss L2 clean/empty replacement blocks for both L1 fetch and writeback L2 clean/empty replacement block for L1 writeback, dirty replacement block for L 1 fetch, 1 L2 writeback needed L2 clean/empty replacement block for L 1 fetch, dirty replacement block for L 1 writeback, 1 L2 writeback needed L2 dirty replacement blocks for both L 1 fetch and writeback, 2 L2 writebacks needed
+
+Figure 4.7: Possible outcomes for Ll fetch miss with L1 dirty replacement block
+
+Note: Situations involving L1 and L2 writebacks can lead to eviction of useful L2 cache blocks and/or unexpected closing of frequently used memory rows/pages. Therefore, filtered writebacks are added as part of the cache filtering algorithm to avoid those unnecessary cache/row misses.
+
+63
+
+Cache filtering algorithm's cache miss handling
+With all possible cache miss situations properly defined, we can now demonstrate how the cache filtering algorithm handles each of the situations. If the cache
+
+filtering algorithm is implemented on a I level cache hierarchy or the algorithm is handling L2 cache misses of a 2 level cache hierarchy. the algorithm described by Figure 4.8 (decision tree) and Figure 4.9 (psuedo code) will be used:
+
+One level cache filtering OR Lowest level cache Meringfor2 level cache hierarchy
+Cache miss Clean replace blOCk (no writeback required. cache fetch only)
+
+1
+
+caChe fetch - - - -.... Fetch requested block from memory ¥rith fast page row OR mode OR from filter buffer buffer hit Cache fetch row - - - - + .. Filtered read/write. keep the liltered and buffer miss read/write block in the filter butfer and keep requested memory row open
+
+Dirty replace block (writeback needed)
+
+Both writeback and felch ---+Writeback and felch ¥rith memory ¥ia fast generate memory row OR page mode OR filler buffer buffer hit Wrileback row OR buffer hit. -+ Filtered read/write. keep the filt&red fetch row AND butfl!r miss read/write block in the filter buffer and keep requested memory row open Wrileback rowANO buffer _Wrileback to filter butferfirst, fetch requested block from miss, fetch row OR buffer hit memory ¥ia fast page mode OR from filter buffer, write the writeback block from filter buffer to main memory afterlhe fetchand keep the writeback row open Both writeback and fetch _Fillered readlwrite, keep the filtered readlwrite block in generate memory row AND the filler buffer and keep requested memory row open buffer miss
+
+Figure 4.8: One level cache filtering and lowest level cache filtering decision tree for two level cache hierarchies
+
+64
+
+LowerMissHandle(addr)
+
+if clean replace block
+then if (FilterBufferHit( add r) 0 R Mem RowHit(ad dr» then fetch(filter_buffer. addr) OR fetch(memory. addr) retum TRUE else filter( add r) return FALSE else if «(FilterBufferHit(write back_ad dr) OR MemRowHit(writeback_addr» AND (FilterBufferHit(addr) OR MemRo¥IHit(addr))) then writeback(filter_buffer, writeb ack_add r) fetch(filter_buffer. addr) OR fetch(memory. addr) return TRUE else if «(FilterBufferHit(writeback_addr) OR MemRo'NHit(writeback_sddr) AND (!FilterBufferHit(addr) AND IMemRowHit(addr») then filter(addr) retum FALSE else if (OFilterBufferHit(write back_ad dr) AND IMemRowHit(writeback_add r)) AND (FilterBufHit(addr) OR MemRowHit(add r») then writeback(filter_buffer. writeback_sddr) fetch(filter_buffer. addr) OR fetch(memory. addr) retum TRUE else filter(addr) retum FALSE
+
+Figure 4.9: One level cache filtering and lowest level cache filtering psuedo code for two level cache hierarchies
+
+65
+
+If the cache filtering algorithm is implemented on a two level cache hierarchy and the algorithm is handling L 1 cache misses, the following decision tree (Figure 4.10) and psuedo code (Figure 4.11) will be used:
+
+2 level cache fi~ering
+L1 miss
+
+M12 cache:
+
+Clean replace block (no IFetCh hit Cache fetch from 12 cache writeb ack requi red, cache fetch only) Fetch miss-----+. Follow the algorithm from the previous page, if the access is not Mered, update 12 and l1 caches' contents accordingly Dirty repl ace block (writeback needed) Both writeback and fetch - - . Writeback to 12 cache then fetch from 12 cache generate 12 cache hit
+
+-----+.
+
+Writeback 12 cache hit but ---Followlhe algorithm from the previous page. If fetch 12 cache miss algorithm decides to fitter, no write back is needed, otherwise, write back to 12 cache and fetch from memory via fast page mode or from finer buffer
+
+Writeback 12 cache miss -+ Writeback to tiHer buffer, fetch from 12 cache, then but fetch 12 cache hit write the writeback block from fifter buffer to main memory Both writeback and fetch - - . Follow the algorithm from the previous page, if the generate 12 cache miss access is fiHered, no writeback is needed, otherwise, writeback to filter buffer, fetch from the filter buffer OR from main memory via fast page mode, then write the writeback block from filter buffer to main memory
+
+Figure 4.10: Ll cache filtering decision tree for two level cache hierarchies
+
+66
+
+Upp erMissH and Ie(a dd r)
+
+if clean replace block
+then if l.2_hit(addr) then fetch(L2. addr) return TRUE else if LowerMissHandle(addr) then fetch(l2. addr) else filter(s ddr) return FAlSE else if (l.2_hit(addr) AND l.2_hit(writeback_addr» then writeback(l.2. writeback_addr) . fetch(L2. addr) else if (L2_hit(writeback_addr) AND !L2_hit(addr)) then if LowerMissHandle(addr) then writeback(L2. write back_3d dr) fetch(L2. addr) else if (!I.2_hit(write back_ad dr) AND L2_hit(addr» then writeback(filter_buffer. writeback_addr) fetch(12. addr) else if LowerMissHandle(addr) then writeback(filter_buffer. writeback_sddr) fetch(l.2. addr) else filter(ad dr)
+
+Figure' 4.11: L1 cache filtering psuedo code decision tree for tWo level cache hierarchies This concludes the description of our cache filtering algorithm for least frequendy used data. In the next chapter, we will provide the simulation and result analyze for
+
+our cache filtering scheme.
+
+67
+
+ChapterS Simulation and analysis of the cache filtering algorithm
+This chapter is divided into the following parts in order to analyze the performance of our cache filtering algorithm: · · The desktop/notebook computer environment and simulation settings; Simulation results and discussion (desktop/notebook environment);
+
+5.1 The desktop/notebook computer environment and simulation settings
+To explore the potential of our cache filtering algorithm, we will use our custom version of sim-outorder simulator, with our accurate DDRJ memory model and cache filtering algorithm, to simulate and compare a baseline desktop/notebook computer system (with cache filtering algorithm disabled) with a cache filtered
+
+desktop/notebook computer.
+
+We have also simulated the baseline and cache filtered
+
+system with four different L2 cache sizes (256KB, 512KB, 1MB and 2MB) to analyze our cache filtering algorithm's sensitivity to different L2 cache size.
+
+In our simulations, we will use the ammp, equake, gee, gzip, mcf, parser and vortex benchmarks from the SPEC CPU 2000 benchmark suite [19,20].
+
+Note: Other than the processor speed, cache and memory settings. all simulator settings will be left as default.
+
+68
+
+The following is a table of simulation settings:
+
+Table 5.1: Simulation settings for the desktop/notebook environment Processor speed L1 Instruction cache 3.2Ghz 32KB, 4 way set associative, 64B block size, access latency = 1 processor elock (elk) L1 data cache 32KB, 4 way set associative, 64B block size, access latency = 1 processor elk L2 cache Size varies (256KB, 512KB, 1MB and 2MB), 8 way set associative, 64B block size, access latency processor elks Memory bus DRAM 64bit (8B) wide, 800Mhz speed (DDR3 1600) 8 banks, 4KB row buffer, page interleaving
+
+= 10
+
+DRAM timing (in memory Tcas clocks)
+
+= 7, Trcd = 7, Trp = 7, Tras = 21, TbuTSt = 8, Twr
+
+= 5, Trtrs = 1, Tcmd = 1, Tcwd = 7, Tccd = 4
+
+Filter buffer size (filter buffer 64 entries x 64B (entry size, same as the L2 cache only present in cache filtered block size) = 4KB system) Filter buffer search latency Filter buffer transfer latency Filter data bus latency Word bus latency 1 cpu elk 2 cpu elks 1 cpu clk (Ceiling(0.24ns /3.2Ghz» 1 cpu elk (Ceiling(0.24ns /3.2Ghz»
+
+69
+
+5.2 Simulation results and discussion (desktop/notebook environment)
+We will break this sub-section into the followings : · · · · · · Cache filtering performance and performance gain; Filter count; Extra memory accesses; Memory row hit rate; Ratio of filtered write versus total memory accesses; Cache hit rate (L 1 and L2).
+
+Cache filtering performance and performance gain
+Figure 5.1 shows the cache fi ltered system 's performance gain (in percentage) com paring to the baseline system. Figure 5.2 - 5.5 shows the performance (in
+
+instruction per cycle) of the basline and cache filtered systems with different L2 cache s izes. Perform ance gain of the cache filtered systems
+Performa nce ga in (%. bigge r is be tte r) 20.00% 15 .00% 10.00% 5.00% 0.00% ·5.00% -10.00%
+r--f-
+
+o filte red. 256KB o filtere d. 512KB
+filtered , lMB · fi ltered . 2M B '--- - - --
+
+rTtl..
+am mp 15 .99% equake 4 . 11 %
+
+n-.
+
+=-
+
+1fT.ltt..
+mef 8.57% 11. 99% 11. 62% -4 .76% parser 9.22% vortex 0.69%
+
+rrn..
+average
+f-- --
+
+gee
+- i----=-
+
+gzip
+
+o fdlered. 256KB
+1MB
+
+o filtered. 512KB
+
+- -f-
+
+2.1 4% 1.1 4% 0.90%
+
+15.89" 10
+15. 19% 12. 55%
+
+4.00% 3.59%
+
+-
+
+-
+
+-0. 12%
+
+-0.78% -0.6 1% -0.63%
+
+-
+
+IQ filtered.
+
+- -
+
+7.29%
+
+4 .92% 2.62%
+
+-
+
+0.45 % 0.35% 0.30%
+
+-
+
+-
+
+5.80%
+
+-
+
+5.71% 5. 14%
+
+-
+
+· _fdlered. 2MB '-
+
+2.I ~L O .4 0%
+
+1.80%
+
+Bench mark
+
+Figure 5.1: Performance gain of the cache filtered :systems
+70
+
+Performance of the systems with 256KB L2 cache
+Perfunnance of256KB 12 cache (I(l<;truction per cycle (IPC), bigger is better) 0
+original
+
+2
+
+,-----------------------------------------~==~
+
+· fihered
+
+Benchmark
+
+Figure 5.2: Performance of the systems with 256KB L2 cache
+
+Performance of the systems with 512KB L2 cache
+Perimnance of 5I2KB 12 cache (I(l<;truction per cycle(IPC), bigger is better)
+
+o original
+· fIltered
+
+2~--------------------------------==~1
+1.5
+
+gee
+
+gzip
+
+0.9906 · filtered 0.5673 1.0302
+
+1.2445 1.2587
+
+1.7525 1.7388
+Benchmall
+
+0.3637
+004073
+
+1.1908 1.2776
+
+1.4516
+104581
+
+Figure 5.3: Performance ofthe systems with 512KB L2 cache
+
+71
+
+Performance of the systems with 1MB L2 cache
+Performance of 1MB L2 cache (Instruction per cycle (!PC), bigger is better)
+0 1MB original -lMBfiltered
+
+2r----------------------------------------=======~
+1.5
+
+vortex
+1.0135 1.0499 l.2845 1.296 1.7493 1.7386
+Benchman:
+
+0.5412 0.6041
+
+1.3
+1.364
+
+1.4989
+
+1.5041
+
+Figure 5.4: Performance of the systems with 1MB L2 cache
+
+Performance ofthe systems with 2MB L2 cache
+Performance of 2MB L2 cache (Instruction per cycle (IPC), bigger is better)
+2r---------~----------------------------------------~
+1.5
+
+0.5691
+
+1.0798 1.l029
+
+1.3252
+1.3305
+Benchmark
+
+1.3985
+0.7167 1.4351
+
+1.5168
+
+0.6405
+
+1.5213
+
+Figure 5.5: Performance of the systems with 2MB L2 cache
+
+72
+
+From the performance and performance gain figures, the following observations were made: · Our cache filtering algorithm is able to produce an average of 5.80%, 5.71 %, 5.14% and 1.80% of performance advantage over the baseline systems equiped with 256KB, 512KB, 1MB and 2MB L2 caches respectively. · The algorithm provides big performance gain for ammp, mcf (excluding 2MB L2 cache) and parser. · · The performance gain tends to drop as the L2 cache size increases. The performance of the cache filtered system with 256KB L2 cache running the ammp benchmark is better than the baseline system with 512KB and 1MB ofL2 cache. · The performance of the cache filtered system with 256KB L2 cache running the equake and parser benchmark is better than the baseline system with 512KB L2 cache.
+
+In the meantime, there is not enough information to explain the negative performance gains of gzip and mcf with 2MB L2 cache and the big performance gain for ammp, mcf and parser. We wilJ try to explain the performance drop in the upcoming plots.
+
+Filter access count
+After the performance gain of the cache filtering algorithm, we will start analyzing the performance by studying the behavior of the cache filter through the total cache filtering count The following plot shows the total amount of cache filtering
+
+happened throughout the runtime of the benchmarks.
+
+73
+
+Filter access count
+~ -c
+
+o filtered, 256K B
+1MB · tiltered, 2M B
+
+o filtered,
+
+o filtered, 512KB
+
+OIl
+
+400000000 300000000 200000000 [00000000 0 r-r-
+
+11 ~
+4-<
+
+-
+
+0
+
+..... Q)
+
+..0
+
+~
+--
+
+8 ;:I Z
+
+ftltered. 256KB 34:5:~01 18::~:;45 47::~15
+UKi3 332888~~~
+31359~
+-'---
+
+~ 11
+-
+
+l I---.--' rr--.. ---'='-=-----r-==-----
+
+Dftltered,2
+
+2310806
+16 1 ~
+
+~161 ~25 _ 2~55]4224
+10075941
+123 1 ~3878
+
+16:;:46 1 303:::369 2: : : :[50 138481 31
+
+~::26
+7~0552
+3422382 _
+
+ftltered, 1MB
+
+15 1452880
+
+8~296 7 _L
+
+· ftltered. 2MB
+
+-- - --
+
+267379554 110010058
+
+--
+
+882944 ---
+
+10051787 73661689 --
+
+3945416 1 1922747
+
+Benchmark
+
+Figure 5.6: Total amount of cache filtering throughout benchmark execution
+
+From the filter count plot, the following observation is made: · The amount of cache fi ltering decr~;ases as the L2 cache size increases.
+
+To explain this observation, one must consider the fac t that our cache filtering algorithm was designed as cache miss handl ing procedures - the fil ter only activates whenever cache miss happens. As the L2 cache size increases, the overall hit rate of
+
+the cache hierarchy will also increase, effectively reducing the total amount of cache filtering and rendering the cache filter less effective in systems equiped with bigger L2 cache configuratio ns. This outcome can also be used to explain the third
+
+observation made from the performance gain plot where the performance gain tends to drop as the L2 cache size increases.
+
+74
+
+Extra memory accesses
+The following plot shows the extra me mory accesses, compari ng to the baseline system, generated by the cache filte red syst m (particularly the write through fil ter buffer and the filtere d write accesses). Note that percentage is used to make it easier
+
+to compare results fro m different simulations (simulations with different L2 cache sizes).
+
+Extra memory a:x:ess (%, less is better)
+
+-roftlt~red, o
+
+256KB ftltered, 5 12KB o ftltered, 1MB · ftltered, 2MB
+----,
+
+40.00% 30.00% 20.00% 10.00% 0.00% -1000% -20.00% -30.00% ammp
+equake
+
+i
+gee 2.74% gzip 25 .76% 32.68% 29.44% 29.76% Benchmark mef 5.43% 1.24% -17.92% 15.97% prurer 14.60% 17.65% 19.69% 20.03% vortex 1.67% 4.09% 11.69% 19.39% average 8.01% 9.68% 7.81% 14.39%
+-
+
+!,,"",' o 256KE
+fi!t~, 512K.B
+Dfiltered ,~ ~ filtered,2MB _
+
+4.76% 4.78% 3.22% -D.27%
+
+1.12% 0.88% 0. 18% 0.10%
+
+-
+
+6.44% 8.37% 15.78%
+
+Figure 5.7: Extra memory accesses of the cache filtered systems From the extra memory access plot, the following observations were made: · ammp, equake and mcf(excluding 2MBL2 cach(;) are having a very small extra
+a~cess
+
+(for mcf with 1MB L2 cache, a negative extra memory access is
+
+recorded); · gzip has a big amount of extra memory accesses and the mcfwith 2MB L2 cache simulation has a relatively bigger amount of extra memory access than other mcf simulations. Considering the characteristics of the write through policy [1], one can conclude that the extra memory accesses were introduced by the filter buffer as memory writes_
+
+75
+
+Memory row hit rate
+Figure 5.8 shows the baseline's and the cache filtered system's memory row hit rate.
+Memory row hit rate (%, bigger is better) 70'()0% 60.00% 50.00% 40.00% 30.00% 20.00% 10.00% 0.00%
+i 0 original 256KB
+
+o original 256K B o original 512KB o original 1MB
+-liItcrcrl512KB ! -liltered 1MB o original 2MB i - liltered 2MB - filtered 256KB
+
+ammp 29.29% 38.99% 28.87% 38.69% 29.53% 38.34% 31.37% 36.59%
+
+equake 54.58% 55.18% 55.90% 56.26% 58.07% 58.10% 65.25% 65.28%
+
+gce 49.32% 52.46% 49.93% 52.99% 41.56% 46.08% 28.57% 38.28%
+
+gzip 14.80% 33.20% 20.33% 40.25%
+
+mef
+
+1
+
+parser 24.29%
+
+vortex 43.74% 45.57% 36.35% 39.62% 23.74% 30.98% 15.28% 28.24%
+
+32.18%
+
+· filtered 256KB
+.0 original 512KB
+
+38.24%1 34.67% 27.04% 20.75% 32.82% 33.41% 18.08% 32.23% 14.56% 29.42%
+
+I. filtered 5I2KB
+
+o original 1MB
+I. filtered 1MB
+· filtered 2MB
+
+~2MB
+
+20.48% 38.87% 20.60% 39.09%
+Benchmark
+
+I
+
+15.40% 18.22% 9.97% 10.74%
+
+Figure 5.8: The memory row hit rate of the cache filtered systems From the memory row hit plot, we have several important findings: · · No drop in memory row hit rate was found. The cache filtered system's row hit rate for ammp. gzip and parser are much higher than the baseline system. · gce, mcf excluding 2MB L2 cache and vortex are having
+
+noticeable-but-not-too-big gain in memory row hit rate.
+
+76
+
+·
+
+mcf with 2MB L2 cache has a much smaller row hit rate increase than other mcf simulations (0.77% vs. >2%)
+
+These findings suggest that our cache filtering algorithm is able to efficiently utilize the feature of the page interleaving scheme to yield better overall system performance.
+
+Cache hit rate (data Ll and L2)
+Data Ll cache hit rate
+Data Ll cache hit rate (%, bigger is better)
+original 256KB flItcn:d256KB original512K B filtt.'fCd 512KS onginailM B · filtcred J MS o original 2M B ·· ftltt.'fCd2MB o · o · o
+
+102.00% 100.00% 98.00% 96.00% 94.00% 92.00% 90.00% 88.00% 86.00% 84.00% ammp 94.52% 93.72% 94.52% 93.77% 94.52% 93.84% 94.52% 93.98% equake 98.03% 97.56% 98.03% 97.59% 98.03% 97.65% gee 98.58% 98.47% 98.58% 98.51% 98.58% gzip 97.69% mef 91.57% 90.02% 91.57% 90.34% 91.57% 90.95% 91.56% 91.00% parser 98.96% 98.72% 98.96% 98.79% 98.96% 98.86% 98.96% 98.91%
+
+vortex 99.50% 99.43% 99.50% 99.46% 99.50% 99.47% ..99.50% 99.48%
+
+o original 256KB
+· filtered 256KB
+
+o original SI2KB
+i·
+
+~
+97.65% 97.69% 97.66% Benchmark
+
+filtered 5I2KB
+
+o original 1MB
+· fIltered 1MB
+
+o original 2MB
+~t(:~d2MB
+
+98.03% I 98.58% 97.76% I 98.55%
+
+9853%+;=
+
+Figure 5.9: Data Ll cache hit rate
+
+77
+
+From Figure 5.9, we noticed small drop in data L1 cache rate from the benchmarks. This is because the data LI cache is very frequently accessed. In the baseline system,
+
+when LI cache miss happens, the L1 cache will fetch the processor requested data.
+
+The cache filtered system, on the other hand, is likely that cache miss will occur more than or equal to two times before the corresponding cache block is moved to the cache. This is because the cache filtering algorithm will filter out all first-time cache misses and place the cache block into the filter buffer. Therefore the average amount of
+
+cache missles before the data is found in the cache is greater than or equal to 2. However, this drop in L1 hit rate is only negligible since the cache filtering algorithm is able to compensate such problem by eliminating cache pollution caused by rarely used data blocks.
+
+Note: Due to the fact that there are no difference between the baseline's and cache filtered system's instruction L1 cache hit rate, we will omit the instruction L1 cache hit rate comparison.
+
+78
+
+L2 cache hit rate
+
+o original 256KB
+Unified L2 cache hit rate (%, bigger is better)
+
+o original512KB o original 1MB o original 2MB
+· filtered 1MB · filtered 2MB · filtered 512KB
+
+· filtered 256KB
+
+120.00% 100.00% 80.00% 60.00% 40.00% 20.00% 0.00%
+
+ammp 48.44% 52.93% 50.42% 55.44% 52.97% 59.28% 60.15% 68.77%
+
+equake 41.89% 41.48% 43.84% 43.44% 48.22% 47.86% 54.59% 54.28%
+
+gcc 93.05% 93.26% 96.61% 96.67% 98.01% 98.05% 99.15% 99.16%
+
+gzip 97.09% 97.11% 97.98% 98.00% 97.99% 98.01% 98.00% 98.01%
+
+mef 41.66% 41.55% 57.85% 63.03% 80.60% 88.71% 91.71% 92.89%
+
+parser 70.25% 70.64% 80.96% 81.16% 89.29% 89.35% 95.16% 95.18%
+
+vortex 91.87% 92.15% 96.45% 96.55% 98.60% 98.64% 99.30% 99.31 %
+
+o original 256KB
+· filtered 256KB o original 512KB · filtered 512KB o original 1MB · filtered 1MB o original 2MB · filtered 2MB
+
+Benchmark
+
+Figure 5.10: L2 cache hit rate From the L2 cache hit rate plot, we have the following findings: · ammp's L2 cache hit rate improvements have compensated the data LI cache's degraded hit rate and helped maintaining a small extra memory access rate. And becuase accessing the L2 cache is more than 10 times faster than accessing the main memory, the improved L2 cache hit rate is also very benifitial to the overall performance.
+
+79
+
+·
+
+mcfwith 512KB and 1MB L2 cache have bigger L2 cache hit rate (comparing to mcf with 256KB and 2MB L2) improvements, which yielded a very small and a negative extra memory access rate respectively.
+
+·
+
+mcf with 256KB and 2MB L2 cache are having slightly degraded and very small L2 cache hit rate improvement respectively. These are the main causes of the
+
+relatively bigger (comparing to mcfwith 512KB and 1MB) extra access rate.
+
+The special case: gzip and mcf
+According to the simulation results, we noticed two seemingly abnormal outcomes where the system with 1 and 2MB of L2 cache are slower than the same system with 512KB L2 cache and the cache filtered system with 2MB of L2 cache being slower than the baseline system and both the baseline. investigate and explain the cause of such outcome. In this subsection, we will try to
+
+gzip:
+
+To explain the gzip's situation, we must first point out that it is not unusual that a bigger cache is causing a slowdown, if and only if the simulated benchmark has reached the point of diminishing return at a certain cache size where other performance limiting factors such as memory bus activities start slowing down the system. To prove our point, we have included figure 5.11, extracted from [23];
+
+80
+
+Xlisp
+
+~ -
+
+L 1 data-cache size
+Figure 5.11: Xlisp simulation with varied I and D L1 cache size, extracted from [23] Figure 5.11 is a simulation plot extracted from [23], which tries to vary both the size of instruction and data Ll cache size, in order to find the relationship between performance and the L1 cache sizes. According to figure 5.11, when the instruction
+
+Ll cache is set to be 64KB in size, the system reaches its ., . peak performance when the data Ll cache reaches 512KB of size. . Ifone pay attention to the circled area in the
+' .
+
+plot, he/she will noticed that the performance of the system with 512KB of L 1 data cache is higher than the same system with 2MB ofLl data cache.
+
+We have also completed a set of gzip simulations with the original SimpleScalar simulator to look at the relationship between gzip's performance and L2 cache size:
+
+81
+
+gzip perfunmnce on original Sin1>leScalar Simulator (IPC, bigger is better)
+
+I .gzip I
+1.855
+
+cache confJguration
+
+'Figure 5.12: gzip simulations with varied L2 cache size on original SimpleScalar simulator
+
+As suggested by figure 5.12, under the original SimpleScalar simulator running gzip~ the effect of doubling the size of L2 cache after it reaches 512KB of size is minimal. This observation is supported by the following figure, which shows the 'total amount of memory accesses of each cache configuration:
+
+82
+
+gzip total melOOry access (less is better)
+
+45000000 40000000 35000000 .30000000 25000000 20000000 .· 15000000 10000000 5000000
+
+o
+access
+
+38262295
+
+25392332
+cache configuration
+
+25238770
+
+25211262
+
+Figure 5.13: Total amount of gzip memory accesses
+
+Therefore, we can conclude that gzip is reaching its peak perfonnance when the L2 cache size reaches 512KB. And once the system reaches the point of diminishing
+
+return, factors such as the memory row refresh time and memory bus activity will start affecting the perfonnance of the system, lowering the perfonnance.
+
+Throughout our study, we noticed that gzip generates a relatively large amount of overlapped memory accesses (as shown iIi' figure 5.14), which happens when the
+.
+. .
+
+cache is requesting data while the memory bus is busy servicing the previous memory access. This will cause the cache and processor to wait longer than regular memory
+
+accesses which happens when the memory data bus is idJe.
+
+83
+
+gzip ratio of overlapped DEDlOry access vs. total lreDlOry access (%, smaller is better)
+
+50.00% 40.00%
+
+I_ overlapped memory access% 1
+
+30.00% 20.00% 10.00% 0.00%
+· overlapped memory access%
+
+256KB 28.39%
+
+, 512KB 39.02% cache configuration
+
+1MB 39.21%
+
+2MB 39.25%
+
+Figure 5.14: gzip ratio of overlapped memory access versus total memory accesses
+
+Performance ofmefsimulations
+
+Figure 5.15 shows the performance of all mcf simulations in IPC:
+m:;fperfOrrnance (Instruction per cycle (IPC), bigger is better)
+
+o original
+
+-filtered 0.8 ,.------------------~=~
+0.6
+
+0.4
+
+0.2
+
+o f-...l.-mcf256KB 0.3093 0.3358 mcf512KB
+
+. mcflMB 0.5412 0.6041
+
+mcf2MB 0.7525 0.7167
+
+0.3637
+cacbe configuration
+
+Figure 5.15: mcfperformance in IPC
+84
+
+From the performance plot, the following observations were made: · Both the original and cache filtered systems are having performance gain as the L2 cache size increases. However, the cache filtered system with 2MB L2
+
+cache is showing negative performance gain comparing to the baseline.
+
+mc!total memory access count .
+Next, we will shift our focus towards the total amount of memory accesses and extra memory accesses happened throughout the execution of mcf (Figure 5.16 and 5.17).
+nx:ftotal memory access (smaller is better)
+700000000
+6OOOOOOOO
+
+o original
+-filtered
+
+500000000 400000000
+
+300000000 200000000 100000000
+0
+
+nx:f256KB 623952391
+
+m:f512KB 473531051 479398962
+
+m:flMB 215310120 176737050
+
+m:f2MB 79574972 92286123
+
+· fikered
+
+657802219
+
+Cacre configurafun
+Figure 5.16: mcftotal memory accesses
+
+85
+
+md extra memory access (%, smaller is better)
+20.00% , - - - - - - - - - - - - - - - - - - - - - - - - - - - - , 1
+15.00% 10.00% 5.00% 0.00% -5.00% -10.00% -15.00%
+
+Figure 5.17: mcf extra memory access rate
+
+According to figure 5.16 and 5.17, we can notice that: · The total amount of memory accesses decreases as the L2 cache size increases. This is caused by the fact that the memory usage pa~ern of mef is being
+,
+"
+
+classified by [23] to be having a very high degree of temporal locality. · The cache filtered system is able f9, maintain a very small to negative extra memory access rate.·: However, as the L2 cache reaches 2MB. the benefit of doubling the L2 cache size shown by the baseline system has defeated the benefit offered by our eache filtering mechanism.
+
+me!memory row hit rate and filtered read versus total memory access ratio
+Finally, due to the fact that our cache filter activates only when memory row misses (random accesses) happene, we will now show the memory row hit rate of the baseline and cache filtered systems in Figure 5.18:
+
+86
+
+m:f m::rrory row hit rate (0/0, bigger is better)
+
+10 original ·· mtered
+
+45.00% r - - - - - - - - - - - - - - - - - - - - - - - - - - - - - , 40.00% 35.00% 30.00% 25.00% 20.00% 15.00% 10.00% 5.00% 0.00% 1---'--mcf256KB
+
+mcf512KB
+
+mcflMB 15.40%
+
+mcf2MB
+
+Cache contiguratk>n
+
+Figure 5.18: mcfmemory row hit rate As shown in figure 5.18 for both the baseline and the cache filtered systems, when the L2 cache size increases, the memory row hit rate drops. This is caused by the join
+
+effect of mcf's memory access pattern and the memory access intercepting capability
+,
+'
+
+of the bigger L2 cache.
+
+According to [23], mcf's memory access pattern is not only
+
+representing a very high temporal locality, but also a relatively low spatial locality where its requested data are located far from each other in the memory.
+
+Therefore as the L2 cache is intercepting increasing amount of tern pornl accesses, the remaining address requests that are reaching the main memory will be located much further apart. If the size of the L2 cache maintains at a steady growth, eventually,
+
+memory address requests will always exceed the address range of the row latches, causing lowered row hit rate. This memory access pattern will also yield extra
+
+filtered read/write in our cache filtering scheme as the filter buffer with only 64 entries will also be unable to satisfy such largely diversified address requests.
+87
+
+With these findings, we can finalize our performance analyze with the followings: · The performance gain of ammp is a result of the improved L2 cache and memory row hit rate, relatively small amount of extra memory accesses and the low filter buffer access latency. · equake's performance gain is mainly contributed by the lo~ filter buffer access latency, which is able to minimize the cache miss penalty. · gee's slight performance improvement is mainly caused by the improved memory row hit rate, which is capable of compensate the extra memory accesses. · When running gzip, the cache filtered system will generate large amount of memory writes. However, the big gain in memory row hit rate had provided
+
+relieve to the situation, allowing the overall performance to be degraded slightJy. · mcfwith 256KB to 1MB L2 cache's performance gain are mainly contributed by the small to negative amount of extra memory accesses and significantly better memory row and L2 cache hit rates. · mcf with 2MB L2 cache's performance drop, relative to the other mef simulations, is the end result of relatively small memory row hit improvement and the memory access pattern generated by the large L2 cache, which, is not favoring the cache filtered system. · parser's performance gain is caused by the significantly better memory row hit rate. · vortex's small performance improvement is the result of the better memory row hit rate.
+i ·.
+
+88
+
+To conclude, we have designed a cache filtering algorithm which is capable of: · · · Distinguishing frequently used cache blocks from rarely used blocks; Filtering rarely used data out of the cache hierarchy; Improving the overall perfonnance of the computer systems.
+
+We suggest improving the filter buffer by changing the write through policy to the write back policy, which will reduce the total amount of memory accesses, memory bandwidth usage and power consumption (more memory access implies more row precharging and DRAM activity, which in return; will consume more power). This
+
+modification should produce greater perfonnance gain to the cache filtered system and allow the cache filtering algorithm to be implemented on value notebook computers where power consumption is a major concern.
+
+Note: To verify our simulation results, we have included a sample verification for the cache filtered desktop system with 2MB L2 cache gzip simulation result in the appendix on page 110
+
+89
+
+Chapter 6
+Overview and Comparison of Related Works
+In this chapter, we will provide an overview of the following works and compare them with our work (hereafter referred as CF-LFU): · Cache Filtering Techniques to Reduce the· Negative Impact of. Useless Speculative Memory References on Processor Performance (Spec) [5]; · Line Distillation: Increasing Cache Capacity by Filtering Unused Words in Cache Lines (Line distillation)[25]; · Reducing Cache Pollution via Dynamic Data Prefetch Filtering (prefetch filter) [26].
+
+Due to the fact that out of the three related works to be compared in this chapter, more than one of them were not using instruction per cycle (IPC) and cache hit rates as the performance measurement. We will compare our work with their efficiency by using
+
+rate of performance improvement in percentage.
+
+6.1 Cache Filtering Techniques to Reduce the Negative Impact of Useless Speculative Memory References on Processor Performance (Spec) [5]
+
+o. Mutl~ H. Kim, D.N. Armstrong and Y.N. Patt proposed a cache filtering algorithm
+which uses the Ll cache as a filter to a particular type of useless data out of the L2 cache [5]. According to their concept, when the processor loads data to the cache
+
+during speculative execution mode (when the processor executes a program branch, which the branch predictor determined to have a high chance of being taken by the
+90
+
+program), there is always a possibility that the branch predictor is making a wrong guess, rendering the data being loaded useless and causing cache pollution to both L 1 and L2 caches.
+
+To address this issue, they designed a filtering mechanism with two filtering policies, the no-spec-L2fill policy and the spec-L2 fillLRU policy, that only fetches data to the Ll cache during speCUlative execution.
+
+If the processor determines that the branch
+
+prediction was taken, the speculatively fetched block will be allowed to be written back to the L2 cache when the block is being replaced, otherwise, under no-spec-L2fill policy. the speculatively fetched block will simply be discarded if the branch was not taken. If their spec-L2fill LRU policy was used, then the
+
+speculatively fetched Ll block will be written to the L2 cache index's least recently used set.
+
+6.1.1 Performance improvement comparison (CF-LFU vs. Spec)
+In this subsection, we will have a comparison between our CF-LFU and the two filtering policies, the no-spec-L2fill and spec-L2fiIlLRU, of [5]'s Spec filtering technique. The following is a table of simulation settings used to compare our
+
+CF-LFU with no-spec-L2fill and spec-L2fillLRU:
+
+91
+
+Table 6.1: Simulation settings for comparison between CF-LFU, no-spec-L2 fill and spec-L2 fill LRU FetchllssuelRetire width 8 instructions, 8 functional units
+
+Instruction window size
+
+128 entry instruction window, 128 entry ld-st queue
+
+Branch predictor
+
+64K entry gshare, 64K entry PAs hybrid
+
+Ll Instruction Cache Ll Data Cache L2 Unified Cache
+
+64KB, 4-way, 64B block size, LRU replacement 64KB, 4-way, 64B block size, LRU replacement 512KB, 8-way, 64B block size, LRU replacement
+
+Processor clock
+
+3000Mhz
+
+Memory clock
+
+200Mhz
+
+Memory bank configuration Memory latency
+
+2 channels, 16 banks per channel
+
+6(CAS), 7(RCD), 7(RP), 21(RAS)
+
+Execution range
+
+Full execution
+
+Benchmarks
+
+gee, gzip, mer, parser
+
+92
+
+Perfonnan ce
+
+~roveme n t (%,
+
+bigger is better)
+
+I - CF-LFU o no-spec-L2fill I 0 spec-L2 fi}1 LRU
+
+30.0000% 25 .0000% 20.0000% 15.0000% 10.0000% 5.0000% 0.0000% -5.0000% -10.0000%
+
+r
+gee gzip
+~
+
+Ir -
+
+mcf
+23 .7482% -1 .4000%
+
+- - -
+
+I
+
+o
+
+CF-LFU no-spee-L2fill
+t
+
+3.1752% 3.1000%
+
+-5.9455% -0.7500% -0.2000%
+Benchmark
+
+l~p_ee-qJi ll LRUl -.-lQQOO~
+
+J
+
+_ 0.0025% _
+
+±
+
+parser 11.8359% 3.6000% .!6000%
+
+Figure 6.1 : Performance improvement comparison between CF-LFU, no-spec-L2fill and spec-L2fill LRU Figure 6. 1 shows that our cache filtering algorithm is able to keep a comparable performance gain in gcc, maintain significantly better performance gain in mcf and parser but a performance slowdown in gzip, comparing to O. Mutlu, H. Kim 's, D.N. Armstrong's and Y.N. Patt's work. From the previous chapter, we are aware of the
+
+significant performance gains of the mcf and parser benchmark caused by the improved memory row hit rate at 512KB ofL2 cache, as well as the performance drop of the gzip, which is a result of the big amount of filtered writes. Therefore, the
+
+results of figure 6.1 are proven to be consistent to our results shown in the previous chapter.
+
+93
+
+Figure 6.1 also suggests that out of the four benchmarks being compared, [5]'s work was only capable of producing positive perfonnance gain in gcc and parser, and their spec-L2 fiU LRU policy is capable of generating slightly better than the no-spec-L2
+
+fill policy. According to [5], gcc and parser suffer most from L2 cache pollution;
+hence their work is capable of producing better results with those two benchmarks.
+
+Our CF-LFU, on the other hand, was capable of producing better perofnnance gain by following the traditional focus of cache designs - to improve temporal and spatial locality. Support by figure 6.1, we can conclude that the benefit of filtering less
+
+frequently used data is much bigger than filtering out useless speculatively fetched data from the L2 cache.
+
+6 ..2 Line Distillation: Increasing Cache Capacity by Filtering Unused Words in Cache Lines (Line distillation) [25]
+M.K. Qureshi, M. A. Suleman and Y. N. Pall proposed a new technique (hereafter referred as Line distillation) which improves L2 cache's capacity by partitioning the L2 cache and only keep the useful words of a cache block upon eviction[25]. In
+
+their work, they pointed out that caches are organized into blocks where each block contains a sequence of consecutive words. This design is most suitable when However,
+
+applications are having high spatial locality in their memory usage pattern.
+
+if the application's spatial locality is low. most of the words in the cache block are not used and hence the cache capacity is not utililized efficiently.
+
+94
+
+To solve this problem, they
+
+h~ve
+
+a new cache design, known as distill cache, which
+
+partitions the cache into line organized cache (LOC) and word organized cache (WOC). The LOC is used to store standard cache blocks and has a footprint bit array The WOC, on the other hand, is used to When a cache miss
+
+to track the word usages of the cache block.
+
+store the previously used words of an evicted cache block. reaches the L2 distill cache, the LOC is flrst checked.
+
+If the LOC generates a hit, the If the
+
+block will be transferred to the LI cache and the footprint array is updated. LOC generates a miss, the WOC is examined.
+
+lfthe WOC generates a hit, the WOC
+
+will transmit the word it contains to the Ll cache, together with a valid bit vector in order to mark which word of the L1 cache block is valid. However, if both the LOC
+
+and WOC are generating misses, the LOC will select a LRU block and the WOC will randomly select a block to replace. Upon replacement, the LOC will flfSt wait for
+
+WOC to flnish the writeback if needed, then the LOC will replace the LRU block with the request data and at the same time, transfer the previously used words to the WOC.
+
+6.2.1 Performance improvemnet comparison between CF-LFU and Line distillation
+In this section, we will perform the same effiCiency comparison between our CF·LFU and [25]'s Line distillation. Note that [25] simulated their work with an execution
+
+range of 250 million instructions, i.e. from instruction 1 to instruction 250M, we will also simulate our work with the same range. Therefore, one should expect the result
+
+of our CF·LFU to be largely different from the previous sections where the entire program execution was simulated.
+
+95
+
+Table 6.2: Simulation settings for comparison between CF·LFU and Line disti1lation FetchlIssuelRetire width 8 instructions, 8 functional units
+
+Instruction window size
+
+128 entry instruction window, 128 entry Id-st queue 64K entry gshare, 64K entry PAs hybrid
+
+Branch predictor
+
+.
+
+'
+
+L 1 Instruction Cache
+
+16KB, 2-way, 64B block size, LRU replacement
+
+L 1 Data Cache L2 Unified Cache
+
+16KB, 2-way, 64B block size, LRU replacement
+
+1MB; 8-way, 64B block size, LRU replacement
+
+Processor clock
+
+2000Mhz
+
+Memory clock Memory bank configuration
+
+IOOMhz
+
+2 channels, 16 banks per channel
+
+Memory latency
+
+6(CAS), 7(RCD), 7(RP), 21(RAS)
+
+Execution range
+
+250M instructions
+
+Benchmarks
+
+gee, parser
+
+96
+
+Performance iIqlro~elnlnt ('Yo. bigger is better)
+
+.CF-LRJ o tine distillation
+
+8.0000%
+6.0000% 4.0000%
+
+2.0000% 0.0000% -2.0000% -4.0000%
+·· CF-LFU
+
+gee
+1.4638% -3.0000%
+Benchmark
+
+parser
+6.2196%
+
+-1.0000%
+
+Figure 6.2: Performance improvement comparison between CF-LFU and Line distillation Figure 6.2 shows that our CF-LFU is capable of outperforming Line distillation with gee and parser. According to [25], instructions on the wrong path can cause bigger usage of words stored in the cache block and reduce their Line distillation's performance. More importantly, [25] also mentioned that gcc is an instruction cache intensive benchmark, which caused their Line distillation algorithm to show slight performance drop. Our CF-LFU considers the entire cache block as a filtering unit and provides a filter buffer to hold more cache blocks. This approach, backed up by figure 6.2, is proven to yeild much better results when running the gcc and parser benchmarks.
+
+97
+
+6.3 Reducing Cache Polution via Dynamic Data Prefetch Filtering (prefetch filter) [26]
+In their work, Recuding Cache Polution via Dynamic Data Prefetch Filtering [26], X. Zhuang and H.S.Lee. pointed out that traditional cache prefetching mechanisms suffer from cache pollution caused by overly aggressive prefetches. To solve this problem,
+
+they introduced a new way of controlling cache prefetches through the use of branch predictors as prefetch pollution filters. According to [26], three types of branch
+
+predictors were used - bimodal predictors, two level bimodal predictors and gshare predictors. The predictors are organized as aID (bimodal) or 2D (2 level bimodal
+
+and gshare) array of 2bit counters and can be addressed by the least significant bits of either the missing cache block address (PA) or the program counter (PC), with the assistance of a branch histry register (for 21evel bimodal and ghsare). Whenever a
+
+cache block is being evicted, the filter checks whether the cache block is being prefetched (indicated by a prefetch indicator bit) and whether the block was previously referenced (determined by a reference indication bit). If both conditions
+
+are true, the corresponding counter of the predictor will be increatmented and if the block was a prefetched block but has never been referenced, the corresponding counter will be decremented. Eventually, a prefetch history table is formed and the
+
+prefetcher can filter useless prefetches according to the table.
+
+98
+
+6.3.1 Performance improvement comparison between CF-LFU and Prefetch filter
+In this section, we will perform the same efficiency comparison between our CF-LFU and [26]'s prefetch filter with both PA and PC branch prediction table addressing. Note that [26] simulated their work with an execution range of 300 million instructions, i.e. from instruction 1 to instruction 300M, we will also simulate our work with the same range.
+
+Table 6.3: Simulation settings for comparison between CF-LFU and Prefetch filter FetchlIssuelRetire width Instruction window size
+,
+,.
+
+8 instructions per cycle 128 entries instruction window, 64 entries load/store queue 32K entry gshare, 32K entry PAs hybrid 32KB, 4 way, 32B block size, LRU replacement 32KB, 4 way, 32B block size, LRU replacement S12KB. 4 way, 32B block size. LRU replacement 2000MhZ
+,
+
+Branch predictor Ll Instruction Cache Ll Data Cache L2 Unified Cache
+.
+,
+~.
+
+"
+
+Processor clock Memory'clock'
+
+200Mhz
+
+«.
+
+Memory bank configuration· 2 channels, 16 banks per channel
+,
+
+Memory latency Execution range Benchmarks
+
+1 (CAS), 1 (RCD), 1 (RP), 14 (RAS) 300M instructions gcc, gzip
+
+99
+
+Perfonnance in1'rovement (%, bigger is better)
+100.00%
+
+90.00%
+
+80.00%
+70 .00%
+
+60 .00%
+
+50.00%
+40.00%
+
+30.00% 20.00%
+10.00%
+
+o.00%
+CF-LFU
+
+Prefetch
+filter, lLv.(pA) 0%
+
+Prefetch
+fIlter, 2Lv.(pA)
+
+Prefetch
+fIlter, gshare(PA) 0%
+
+Prefetch
+filter, lLv.(PC)
+
+Prefetch
+fIlter, 2Lv.(pc) 0%
+
+Prefetch
+fIlter, gshare(PC) 0%
+
+I.i!cc
+
+1.07%
+
+0%
+
+0%
+
+gee
+
+Figure 6.3: Performance improvement comparison between CF-LFU and prefetch filter for gce
+Perfonnance in1'rovement ('Y... bigger is better)
+20.00%
+15.00% 10.00%
+
+5.00%
+
+0.00%
+
+-5.00%
+
+gzip
+
+Figure 6.4: Performance improvement comparison between CF-LFU and prefeteh filter for gzip
+
+100
+
+Figure 6.3 and 6.4 shows the performance improvement comparison between our CF-LFU and prefetch filter with both PC and PA settings. In terms of gcc, [26]
+
+mentioned that their pre fetch filter happened to be reducing large amount of useful prefetches, which in tum, rendered no performance gain in gcc. Our CF-LFU, on the
+
+contrary, was able to keep a small performance gain which was attributed to the improvement of the memory row hit rate. Under gzip. prefetch filter showed
+
+significant improvement due to its nature of educated prefetching technique, especially when 2 level bimodal predictors are used. Our CF-LFU, however, was
+
+known to be generating extra memory accesses as large amount of filtered writes were involved. Therefore, we must agree that the prefetch filter is capable of producing
+
+better results when running gzip.
+
+6.4 Summary of the comparison
+In this chapter, we compared our Cache Filtering Algorithm for Least Frequently Used Data (CF-LFU) with other three related works, namely Cache Filtering Technique to Reduce the Negative Impact of Useless Speculative Memory Reference on Processor Performance (Spec), Line Distillation: Increasing Cache Capacity by Filtering Unused words in Cache Lines (Line distillation) and Reducing Cache Pollution via Dynamic Data Prefetch Filtering (prefetch filer). Our CF-LFU focuses
+
+on filtering cache blocks that are not previously used and generate memory row misses. Spec tries to filter data fetches that are requested by untaken program branches out of the L2 cache. The Line distillation technique attemps to keep the previously accessed data words of evicted cache blocks in a separate partition of the L2 cache. Finally, Prefetch filter incorporates already well developed branch
+
+101
+
+prediction techniques to determine whether a prefetch should be made.
+
+Although
+
+each of the related works is a true pioneer in the research field of cache design, we strongly believe, as proven by the simulated results, our Cache Filtering Algorithm for Least Frequently Used Data is comparable to them in terms of efficiency.
+
+102
+
+Chapter 7
+Conclusion and future work
+In this chapter, we will summarize our contributions and will propose the possible directions of the future work.
+
+This thesis has successfully made two contributions - the Page Interleaved DDRJ Memory model for the SimpleScahir Si~ulator and Cache Filtering Algorithm for Least Frequently Used Data. The Page Interleaved DDR3 Memory model is a
+
+replacement for the SimpleScalar simulator's closed page SDRAM simulation model. By following the behavior of the DRAM and the DDR3 specification, our memory model is capable of generating consistent simulation results that resembles a real world computer system installed with dual channel DDR3 memory modules.
+
+The cache filtering algorithm for least frequently used data is a performance optimization to the entire computer memory hierarchy. Its principle is to identify
+
+whether the processor requested data is frequently or rarely used, based on the contents of the filter buffer and the status of the memory rows. With the resu]t of
+
+such analysis, the cache filtering algorithm will then make the decision to allow the data to be fetched to the cache hierarchy or to filter the data in order to prevent cache pollution.
+
+103
+
+As an extension to this thesis work, there are several directions that we are particularly interested in pursuing: · Implement a filter buffer that uses a write back policy to replace the write through scheme implemented by our current filter buffer model. With a writeback
+
+policy, the filter buffer should be able to eliminate majority of the memory accesses generated by the write through filter buffer. Hence, the filter buffer
+
+can conserve more bandwidth, reduce the overall power consumption of the cache filtering algorithm and allows the cache filtering algorithm to be more suitable for embedded and desktop systems with bigger amount of caches. · Adding cache coherence and memory, consistency protocols to the cache filter and filter buffer. By adding such protocols, the cache filter can be made
+
+compatible to modem shared memory multi processor systems. · Implement a victim cache, write buffer and data prefetching unit - victim caches, write buffers and data prefetching units are fundamental elements of modem memory hierarchies. Adding these components allows us to complete
+
+SimpJeScaJar's memory hierarchy and simplify future computer architecture and memory system researches involving the Simple Scalar simulator.
+
+104
+
+Bibliography
+[1] J. L Hennessy and D. A. Patterson. Computer architecture: A quantitative
+
+approach, 4th Ed. Morgan Kaufmann Publishers, In, 2007
+
+[2] B. Jacob, S. W. Ng and D. T. Wang. Memory systems: Cache, DRAM, Disk. Morgan Kaufmann Publishers, In, 2008
+
+[3] D. Burger, J. R. Goodman andA. Kagi. "Memory bandwidth limitations of future microprocessors." Proc. 2r' Int 'I Symp. Computer Architecture (ISCA 96),ACM Press, 1996, pp. 90-101
+
+[4] N. Mekhiel. "Multi-level cache with most frequently used policy: a new concept in cache design." In International Conforence on Computer
+
+Applications in Industry and Engineering, Nov 1995.
+
+[5] O. Multu, R Kim, D. N. Armstrong and Y. N. Patt. "Cache filtering technique to reduce the negative impact of useless speculative memory references on processor performance," In 1rJh Sympo;ium on Computer Architecture and High
+
+Performance Computing, Oct 2004.
+
+[6] B. Jacob, "A case for studying DRAM issues at the system level." IEEE Micro 23(4): 44-56 July -Aug2003
+
+105
+
+[7] Z. Zhang, Z. Zhu and X. Zhang. "A permutation-based page interleaving scheme to reduce row-buffer conflicts and exploit data locality." In Proceedings of the
+
+33rd Annual International Symposium on Microarchitecture (Micro-33),
+
+Monterey, California, December 10-12,2000, pp 32-41.
+
+[8] N. Mekhiel, "Methods for improving main memory performance." ISCA
+International Conference on Computer Applications in Industry and Engineering Honolulu, Hawaii, December 15-17, 1993.
+
+[9] V. Cuppu, B. Jacob, B. Davis and T. Mudge. "A performance comparison of contemporary DRAM architectures."
+Proc. 26th International Symposium on
+
+Computer Architecture (ISCA 1999), pp. 222-233. Atlanta GA, May 1999.
+
+[10] V. Cuppu, B. Jacob, B. Davis and T. Mudge. "High performance DRAMs in workstation environments." IEEE Transactions on Computers, vol. 50, no. 11, pp. 1133-1153. November 2001. (TC Special Issue on High-Performance Memory Systems)
+
+[11] N. Mekhiel.
+
+"LHA: Latency hiding algorithm for DRAM."
+
+2nd Annual
+
+Workshop on Memory Performance Issue (WMPI2002). Held in conjunction
+
+with the ISCA 2002, May 25, 2002, Anchorage, Alaska.
+
+[12] D. Burger and T. M. Austin. "The SimpleScalar Tool Set, Version 2.0." In
+Computer Architecture News, 25 (3), pp. 13-25, June, 1997.
+
+106
+
+[13] I. Kim. "Macro-op scheduling and execution." Ph.D. diss., Wisconsin-Madison, United States, 2004.
+
+University of
+
+[14J R. Srinivasan. "Techniques for accelerating microprocessor simulation." thesis, New Mexico State University, United States, 2004.
+
+M.Sc.
+
+[15] Brigham Young University Trace Distribution Center, (http://tds.cs.byu.edultdsl)
+
+[16] J. Xiao. "Location-based key management, data authentication and aggregation in wireless sensor networks". 2006. MASe. thesis, Ryerson University, Canada,
+
+[17] D. E. Culler, J. P. Singh and A. Gupta. Parallel computer architecture: A
+
+hardware I software approach. Morgan Kaufmann Publishers, In, 1999
+
+[18] M. Gries and A. Romer: "Performance Evaluation of Recent DRAM Architectures for Embedded Systems." TIK Report Nr. 82, Computer Engineering and Networks Lab (TIK), Swiss Federal Institute of Technology (ETH) Zurich, November, 1999
+
+[19] M. Postiff, D. Greene, C. Lefurgy, D. Helder and T. Mudge. The MIRV
+
+SimpleScalarlPlSA Compiler. University of Michigan EECS Department Tech.
+Report CSE-TR-421-00. April 2000.
+
+107
+
+[20] Standard Performance Evaluation Corporation. SPEC CPU2000 version 1.30, January 2005
+
+[21] N.
+
+Mekhie~
+
+"Cache Filtering Method and Apparatus", Patent Application
+
+1301-0IUS-00-75. September 2008.
+
+[22] N. Mekhiel, "Methods and Apparatus for Accelerating Retrieval of Data from a Memory System with Cache by Reducing latency", Patent No. US7318123, Jan 08, 2008, Patent No. US 6,892,279 B2 May 10, 2005.
+
+[23] K. Skadron, P. S. Ahuja, M. Martonosi, and D. W. Clark,
+
+"Branch prediction,
+
+instruction-window size, and cache size: Performance tradeoffs and simulation techniques", IEEE Trans. Comput., vol. 48, pp. 1260 - 1281, 1999
+
+[24] R. C. Murphy and P. M. Kogge, "On the Memory Access Patterns of Supercomputer Applications: Benchmark Selection and Its Implications", IEEE
+Trans. Comput. vol. 56, pp. 937 - 945, 2007
+
+[25] M. K. Qureshi, M. A. Sand Y. N. Patt, "Line Distillation: Increasing Cache Capacity by Filtering Unused Words in Cache Lines", 13th International
+Symposium on High Performance Computer Architecture (HCPA 2007), pp.250 .:...
+
+259, Scottsdale, AZ, Feb 2007.
+
+[26] X. Zhuang and H. H. S. Lee,
+
+"Reducing cache pollution via dynamic data
+
+prefetch filtering", IEEE Trans. Comput., vol. 56, pp. 182007.
+
+108
+
+[27] S. H. Chitra and P. T. Vanathi, "Design and Analysis of Dynamically Configurable Bus Arbiters for SoCs", Journal of Programmable Devices,
+Circuits and Systems (ICGST-PDCS 2008), vol. 8, Issue 1, pp. 45 - 52, Dec
+2008.
+
+109
+
+Appendix A.I Sample verification of cache filtered desktop system with 2MB L2 cache running gzip
+To prove the simulator's output and our performance analyze conclusions are correct, we have included a cache filtered gzip simulation with 2MB L2 cache simulation output file (Figure A.1) on page 116:
+
+From the file, we are able to extract the following information: Total memory random reads = 10051787 Total memory random writes = 9874222 Total memory fast page reads::::; 5233822 Total memory fast page writes = 7554673 Total memory reads = 10051787 + 5233822 ::::; 15285609 Total memory writes::::; 9874222 + 7554673 = 17428895 Total filter buffer reads = 9917372 Total filter buffer memory fetches (DLI filtered read + III filtered read)::::; 2497325 Total filter buffer memory writes::::; 17428895 I Ll misses::::; 111476 ILl filtered accesses = 4959 D Ll misses = 607825571 D Ll writebacks = 164522187 D Ll filtered accesses (D Ll filtered read + D Ll filtered write) = 10046828 L2 accesses = 762407441 L2 misses = 15151194 L2 writebacks = 9874427
+110
+
+First, we must
+
+p~ove
+
+that the numbers extracted from the simulation file are correct.
+
+According to the cache filtering algorithm, only data LI cache's filtered writebacks and the L2 cache's writebacks are written directly to the filter buffer then to the mai.... memory. Hence, we must first compare the filter buffer's memory write with the
+
+total memory write:·
+
+To~al filter
+
+buffer memory writes = 17428895
+
+Total memory writes
+
+= total memory random writes + total memory fast page writes
+
+=9874222 + 7554673 = 17428895
+Since the value of total memory write equals to the value of total filter buffer memory writes, we can conclude that these two numbers are correct
+
+Secondly, we must check whether the total L2 fetches from the main memory equals to the total amount of fast page reads. Since the L2 cache is the entry point for data
+'
+~
+
+to enter the cache hierarchy, if the values are . equal, then the simulator's operation is , following the cache filtering algorithm's criteria: only data from an opened memory page or from the filter buffer can enter the cache hierarchy.
+
+L2 fetches from main memory= L2 misses - total filter buffer reads
+
+= 15151194 -9917372 = 5233822
+Total fast page memory reads = 5233822
+*Note: since the filter buffer and cache are defined in the cache.c source file and the main memory is defined in the memory.c source file, if we can prove the values are equal. it will automatically implies that the program code written in both of the files are correct.
+III
+
+As the value of the L2 fetches from main memory is matching the total amount of fast page memory reads, it is reasonable to state that the value of L2 cache miss. filter buffer read and total fast page memory reads are all correct.
+
+Next, we must prove that the total filtered fetch is equal to the total amount of random read. Note that filtered fetch happens in both filtered read and filtered write. This
+
+is because all filtered write must start by performing a random read as discussed earlier. Also. the instruction Ll cache can only perform reading. hence we can
+
+conclude that the I Ll filter count is 100% filtered read.
+
+Totalfilteredfetch
+
+= DLI filtered read + D Ll
+=
+
+filtered write + I Ll filtered read
+
+DL1 filter count + ILl filter count
+
+= 10046828+4959= 10051787
+Total memory random read = 10051787
+
+This allows us to conclude that the total random read and the total amount of cache filtering are correct. all correct At this point. the data extracted by the simulation output file are
+
+112
+
+We must now determine the total amount of data Ll
+
+cache's filtered
+
+readlwrite/writebacks, data Ll cache's writeback to the L2 cache, data Ll cache's fetch from the L2 cache, instruction Ll cache's fetch from L2 cache and the total amount of fast page writes that is not a part of a filtered write (pure fast page write):
+
+Data Ll cache sfiltered read = total filter buffer memory fetch - I Ll filtered (read)
+=
+
+2497325 - 4959 = 2492366
+
+Data Ll cache sfiltered write (also a part of the total fast page. write and random reads)
+= total D Ll filtered (access) - data Ll cache's filtered read = 10046828 - 2492366 = 7554462
+
+Instruction. Ll cache sfetch from L2
+
+= ILl miss - totalIL 1 filtered (read)
+
+= 111476-4959= 106517
+
+Total L2 accesses that are requested by data Ll cache
+= L2 access - IL 1 cache's fetch from L2
+
+= 762407441-106517 = 762300924
+Total data L1 cachefetchfrom L2 = DLl misses - DLl filtered access
+= 607825571-10046828 = 597778743
+
+Total data L1 cache write backs that s written to L2
+=
+
+total L2 accesses that are requested by DLl - total DLl cache fetch from L2
+
+= 762300924 - 597778743 = 164522181
+113
+
+Total data L1 cache l filtered writebacks
+= total DLI writebacks - total DLl writebacks that's written to L2
+= 164522187 -164522181
+
+=6
+
+Pure fast page writes
+
+= Total fast page writes - DLI filtered write
+=
+
+7554673 -7554462 = 211
+
+With these values, we can once again check whether the total amount of each memory access types (random read/write and fast page read/write) are matching the total amount of each filter access (data Ll cache's filtered readlwrite/writeback, instruction Ll cache's filtered read and L2 cache's filtered writebacks).
+
+According to the cache filtering algorithm's defmition. the total amount of memory writes should equal to the total amount of filter buffer memory writes. At the same time, it should also equal to the following:
+
+The total amount of data L1 cache:S- filtered write + data L1 cache l filtered writebacks + L2 cache s (filtered) write backs = 7554462 + 6 + 9874427 = 17428895.
+
+Comparing this value to the total amount of memory writes, which is 17428895, we can conclude that the total amount of data Ll cache's filtered writeslwritebacks and L2 cache's filtered writebacks are correct.
+
+114
+
+Finally, if we add the total amount of random writes and pure fast page writes, the value should equal to the sum of the total amount of L2 writebacks and data LI cache's filtered writebacks:
+
+Total amount ofrandom writes + total amount ofpure fast page writes
+= 9874222 + 211 = 9874433
+
+Total amount of L2 write backs + total amount ofdata L1 cache 3' filtered write backs
+= 9874427 + 6 = 9874433
+
+Since the results of the above calculations are matched, we can finally conclude that our simulation result is totally correct.
+
+To prove our statement about the gzip having a massive amount of filtered writes in the desktop/notebook perfonnance analyze, we did the same calculation to find out the total amount of filtered write of the cache filtered system with 2MB L2 cache running equake (equake has a close~to-zero filter buffer entry wait time) and the total amount of equake's filtered write is 537676. Comparing such value with gzip's 7554462 filtered writes, one can conclude that gzip's filtered write count is 14 times bigger than equake's, which can justify our statement immediately.
+
+115
+
+sim-outorder: SimpleScalarlPISA Tool Set version 3.0 of August, 2003. Copyright (c) 1994-2003 by Todd M. Austin,Ph.D. and Simple Scalar, LLC. All Rights Reserved. This version of SimpleScalar is licensed for academic non-commercial use. No portion of this work may be used by any commercial entity, or for any commercial purpose, without the prior written pennission ofSimpJeScalar, LLC (info@simplescaJar.com). sim: command line: .Isim-outorder -cache:il1 iIl:128:64:4:I-cache:dll dl1:128:64:4:1 -cache:dI2 u12:4096:64:8:I-cache:i12 dl2 -cache:illlat 1 -cache:dlliat 1 -cache:dI21at
+
+1O-c
+ache:ill_filterTRUE -cache:dll_filter TRUE -cache:i12_filter TRUE -cache:d12_filter TRUE -filtbuf:size 64 -filtbuf:searchlat 1 -filtbuf:transferlat 2 -cpu:clk 3200 -mem:clk 800mem:lat 77721 -mem:width 8 -mem:channell -mem:bank 8 -mem:map 2 -mem:type 2 -tlb:itlb itlb:l:4096:128:1-t1b:dtlb dtlb:l:4096:128:I-tlb:lat 30 -res:ialu 3 '-res:imult 2 -res:m emport 2 -res:fpalu 4 -res:fpmult 1 -fetch:ifqsize 64 -fetch:mplat 2 -fetch:speed 1 -bpred bimod -bpred:bimod 4096 -bpred:21ev 11024 120 -bpred:comb 1024 -bpred:ras 32 -bpred:bt b 2048 2 -decode:width 4 -issue:width 4 -issue:inorder false -issue:wrongpath true -commit:width 4 -ruu:size 16 -lsq:size 8 -redir:sim out]esults/memmod/filter/gzipn 1_12/cache/g zip_sim_2M_channell_bank8_buf64.out -redir:prog out]esults/memmod/filter/gziplI 1J2/cache/gzipyrog_2M_channel 1_bank8_buf64.o ut SPEC/gzip_train/gzip.ss SPEC/gzip_trainlinput.comb ined 32 sim: simulation started @ Sun Oct 25 12:21 :322009, options follow: sim-outorder: This simulator implements a very detailed out-of-order issue superscalar processor with a two-level memory system and speculative execution support. This simulator is a perfonnance simulator, tracking the latency of all pipeline operations.
+# -config # -dumpconfig
+# load configuration from a file # dump configuration to a file false # print help message false # verbose operation
+116
+
+#-h # -v
+
+# -d # -i -seed seed) #-q # -chkpt # -redir:sim
+
+false # e~able debug message false # start in Dlite debugger 1 # random number generator seed (0 for timer , false # initialize and tenninate immediately <null> # restore EIO trace execution from <fname>
+
+outJesultslmemmodffilter/gziplll_12lcachelgzip_sim_2M_channel 1_bank8_buf64.ou t # redirect simulator output to file (non-interactive only) # -redir:prog ' " , ,
+outJesultslmemmodffilter/gziplll_12/cache/gzipJ>ro~2M_channell_bank8_buf64.0 . '. . '
+
+ut # redirect simulated program output to file 0# simulator scheduling priority -nice o# maxim'um number of inst's to execute -max:inst o# number of insts skipped before ~iming starts -fastfwd <null> # generate pipetrace, i.e., <fnamelstdoutlstderr> # -ptrace <range> 64 # instruction fetch queue size (in insts) -fetch:ifqsize 2 # extra branch mis-prediction latency -fetch:mplat 'I # speed of front-end of machine relative to -fetch:speed
+"
+'
+
+execution core -bpred bimod # branch predictor type {nottakenltakenlperfectlbimodI21evlcomb} 4096 # bimodal predictor config «table size» -bpred: bimod 1 1024 '12 0 # 2-level predictor config «11 size> <12size> -bpred:2Iev <hist size> <xor» -bpred:com~ , 1024 # combining predictor con fig «meta_table_size» 32 # return address stack size (O for no return stack) -bpred:ras 2048 2 # BTB config «num_sets> .. <associativity» .bpred:btb # -bpred:spec_update <null> # spec~~ative predictors update in {IDIWB}
+)'
+
+(default non-spec) -decode:width -issue:width -issue:inorder, -issue:wrongpath -commit:width -ruu:size -lsq:size
+
+, , 4 # instructio~ decode BIW (instslcycle) 4 #,instruction issue BIW (instslcycIe) false # run pipeline with in-order issue " true # i~~ue in~truct,ions' down wrong execution paths 4 # instruction commit BIW (insts/cycle) 16 # regIster update unit (RUU) size 8 # loadlsto~ que,ue (LSQ) size
+117
+
+-cache:dll -cache:dlilat -cache:dI2 -cache:dI2Iat -cache:ill -cache:ililat -cache:il2 -cache:il2lat -cache:flush -cache:icompress equivalents -mem:lat -mem:lat2 -mem:width -mem:channel -mem:bank -mem:map -mem:type -cpu:clk -mem:clk -cache: iI I_filter FALSE) -cache:dll_filter -cache:il2_filter FALSE) -cache:dI2_filter -filtbuf:size -filtbuf:searchlat
+
+dl1:128:64:4:1 # 11 data cache config, i.e., {<config>lnone} 1 # 11 data cache hit latency (in cycles) uI2:4096:64:8:1 # 12 data cache config, i.e., {<config>lnone} 10 # 12 data cache hit latency (in cycles)
+
+ill: 128:64:4:] # 11 inst cache config, i.e., {<config>ldllld]2Inone} 1 # 11 instruction cache hit latency (in cycles) dl2 # 12 instruction cache config, i.e.,
+6 # 12 instruction cache hit latency (in cycles) false # flush caches on system calls false # convert 64-bit inst addresses to 32-bit inst 77721 # memory access latency (<Tcas> <Trcd><Trp><Tras>) 85 1 1 74 # memory access'latency (<Tburst>, <Twr>, <Trtrs>, 8 # memory access bus width (in bytes) 1 # memory controller channel (lor 2) 8 # amount of memory banks (1 - 16) 2 # memory address-bank mapping method, (1 for 2 # memory type. 1 for SDR, 2 for DI?R3 3200.0000 # processor clock. 800.0000 # memory clock. true # Activateinstruct~on Ll cache filtering (TRUE or true # Activate data Ll cache filtering (TRUE or FALSE) , true # Activate instruction L2 cache filtering (TRUE or ' true # Adti~ate
+
+{<config>ldI21none}
+
+<Tcmd>, <Tcwd>, <Tccd»
+
+simple linear, cons~cutive rows are mapped to the same bank;2 for page interleaving
+
+~ta L2 c~h~ filtering (~RUE or FALSE)
+
+64 # Size of filter buffer 1 # filter buffer's latency for searching for an empty or 2 # filter buffer's transfer latency dtlb:l:4096:128:1 # data TLB config,
+
+earliest finish entry -filtbuf:transferlat -tlb:itlb -tlb:dtlb -tlb:lat -res:ialu -res:imult itlb: 1:4096: 128:1 # instruction TLB con!1g, i.e., {<config>lnone}
+
+i.e., {<config>lnone}
+
+30 # inst/data TLB miss latency (in cycles) 3 # total number of integer ALU's available 2 # total number of integer multiplier/dividers
+118
+
+available -res:memport (to CPU) -res:fpaJu -res:fpmult avai1able # -pestat -bugcompat testing only)
+
+2 # totaJ number of memory system ports availnbl~
+
+4 # total number of floating point ALU's available 1 #I total number of floating point multiplier/dividers
+<null> #I profile stat{s) against text addr's (mult uses ok) false #I operate in backward-compatible bugs mode (for
+
+Pipetrace range arguments are formatted as follows:
+{{@I#}<start>}:{ {@!#!+}<end>}
+
+Both ends of the range are optional, if neither are specified, the entire execution is traced. Ranges that start with a '@' designate an address' range to be traced. those that start with an '#' designate a cycle count range. All other range values represent an instruction count range. The second argument, if specified with a '+', indicates a value relative to the first argument, e.g., ] 000:+ 100 = 1000: J ] 00. Program symbols may be used in all contexts.
+Examples: -ptrace Foo.tre #0:#1000 -ptrace BAR.tre @2000;
+-ptrace BLAH.tre :1500 -ptrace UXXE.tre
+
+:
+
+-ptrace fooBAR.trc @main;+278
+
+Branch predictor configuration examples for 2-level predictor. Configurations: N, ~ W, X N #I entries in fust level (II of shift register(s» W width ofsbift registeT(s) M # entries in 2nd bel (# of counters, or other fSM) X (yes-llno-O) xor history and address for 2nd level index Sample predictors:
+GAg GAp PAg : I, W, 2AW, 0 : I, W.M(M>~'W).O : N. W. 2A'W, 0
+
+PAp gshare
+
+: N, W, M (M = 2"(N+W», 0 : 1, W, 2 A W, 1
+
+Predictor 'comb' combines a bimodal and a 2-level predictor. The cache config parameter <config> has the following format: <name>:<nsets>:<bsize>:<assoc>:<repl> <name> <nsets> <bsize> <assoc> <rept> - name of the cache being defmed - number of sets in the cache - block size of the cache - associativity of the cache - block replacement strategy, 'r-LRU, 'f-FIFO, 'r'-random -cache:dll dll :4096:32:1:1 -dtlb dtlb:128:4096:32:r Cache levels can be unified by pointing a level of the instruction cache hierarchy at the data cache hiearchy using the "dll" and "dl2" cache configuration arguments. Most sensible combinations are supported, e.g.,
+
+Examples:
+
+A unified 12 cache (il2 is pointed at dI2): -cache:iI1 ill: 128:64: 1:1-cache:il2 dl2
+:
+\
+
+-cache:dll dl1:256:32:1:I-cache:dI2 uI2:1024:64:2:1 Or, a fully unified cache hierarchy (ill pointed at dB): -cache:iI1 dB -cache:dll ul1:256:32:1:I-cache:dl2 ul2:1024:64:2:1
+
+sim: .. starting performance simulation .. sim:
+
+*.
+
+simulation statistics .. 77693332344 # total number of instructions committed 26629788025 # total number of loads and stores 19265035676 # total number of loads committed
+
+sim_numjnsn sim_num_refs committed sim_num_Ioads
+
+120
+
+,
+
+sim_num_stores sim_num_branches sim_elapsed_time sim inst rate sim _total_insn sim_total_refs sim_total_Ioads sim_total_stores sim_totaebranches sim_cycle sim IPC sim_CPI sim_exec_BW committed) per cycle sim IPB IFQ_count IFQJcount ifCLoccupancy ifCLrate ifCLlatency ifCLfull RUU count RUU fcount ruu_occupancy ruuJate ruu_latency ruu full LSQ.count LSQ.fcount ISCLoccupancy ISCLrate ISCLlatency ISCLfull sim_slip avg_sim_slip retirement bpred_bimod.lookups bpred_bimod.updates
+
+7364 752349.0000 # total number of stores committed 11519867492 # total number of branches committed 96247 # total simulation time in seconds 807228.6133 # simulation speed (in instslsec) 84601667750 # total number of instructions executed 29095252565 # total number of loads and stores executed 21117777015 # total number of loads executed 7977475550.0000 # total number of stores executed 12502422295 # total number of branches executed 44717071765 # total simulation time in cycles 1.7374 # instructions per cyc Ie 0.5756 # cycles per instruction 1.8919 # total instructions (mis*spec + 6.7443 # instruction per branch 1566892957508 # cumulative IFQ occupancy 13518869642 # cumulative IFQ full count 35.0402 # avg IFQ occupancy (insnts) 1.8919 # avg IFQ dispatch rate (insnlcycle) 18.5208 # avg IFQ occupant latency (cycle's) 0.3023 # fraction oftime (cycle's) IFQ was full 614946697909 # cumulative RUU occupancy 28473471729 # cumulative RUU fun count 13.7519 # avg RUU occupancy (insnts) 1.8919 # avg RUU dispatch rate (insnlcycle) 7.2687 # avg RUU occupant latency (cycle's) 0.6367 # fraction oftime (cycle's) RUU was full 225685433941 # cumulative LSQ occupancy 8038603209 # cumulative LSQ full count 5.0470 # avg LSQ occupancy (insn's) 1.8919 # avg LSQ dispatch rate (insnlcycle) 2.6676 # avg LSQ occupant latency (cycle's) 0.1798 # fraction of time (cycle's) LSQ was full -2578299233055046588 # total number of slip cycles .33185592.0614 # the average slip between issue ~d 15674898831 # total number ofbpred lookups 11519867492 # total number of updates
+121
+
+bpred_bimodaddr_hits bpred_bimod.dir_hits (includes addr-hits) bpred_bimod.misses bpred_bimod.jr_hits JR's bpred_ bimod.jr_seen hits for non-RAS IR's
+
+10644257456 # total number of address-predicted hits 10661282975 # total number of direction-predicted hits 858584517 # total number of misses 324501052 # total number of address-predicted hits for 341522178 # total number of JR's seen 52348 # total number of address-predicted 160704 # total number ofnon-RAS JR's 0.9240 # branch address-prediction rate (Le., 0.9255 # branch direction-prediction rate (i.e., 0.9502 # JRaddress-prediction rate (i.e., JR 0.3257 # non-RAS JR addr-pred rate (ie,
+
+bpred_bimod.jr_nonJas_hits.PP
+
+bpred_bimodjr_~on_rasjeen.PP
+seen bpred_bimod.bpred_addr_rate addr-hitslupdates) bpred_bimod.bpred_dir_rate all-hits/updates)
+bpred_bimod.bpredjr_rat~
+
+addr-hitslJRs seen) bpred_bimod.bpredjr_non_ras_rate.PP non-RAS JR hits/JRs seen) bpred_ bimod.retstack.,pushes ret-addr stack bpred_ bimod.retstack.,pops ret-addr stack bpred_bimod.used_ras.PP bpred_bimod.ras_ hits.PP bpred_bimod.ras_rate.PP iILaccesses ilI.hits ill.misses ill.replacements 341361474 # total number ofRAS predictions used 324448704 # total number ofRAS hits 0.9505 # RAS prediction rate (i.e., RAS hits/used RAS) 104219153196 # total number of accesses 104219041720 # total number of hits 111476 # total number of misses 106005 # total number of replacements 454526877 # total number of address popped off of 469998938 # total number of address pushed onto
+
+ill. writebacks
+il1.invalidations ill.miss..,rate .. ill.repl_rate
+
+o# total number of writebacks o# total number of invalidations
+0.0000 # miss rate (i.e., misses/ref) 0.0000 # replacement rate (Le., repJs/ref) 0.0000 # write back rate (i.e., wrbks/ref) 0.0000 # invalidation rate (i.e., invs/ref) 4959 # total filtered access
+
+ill. wb_rate
+ill.inv_ rate iIl.filtered ill.filtered_read
+
+o# total filtered read
+122
+
+ill.filtered write dll.accesses dll.hits dll.misses dll.replacements dll. writebacks dll. invalidations dll.miss_rate dll.replJate dll.wbJate dll.inv rate dlLfiltered dll.filtered read dll.filtered_write u12.accesses uI2.hits ul2.misses ul2.replacements u12. write backs u12.invaIidations ul2.miss_rate uI2.repl_rate uI2. wb_rate u12.inv rate u12.filtered uI2.filtered-, read u12.filtered_write uI2.buf.access u12.buf.read from the filter buffer uI2.buf. write to the filter buffer uI2.buf.mem_write performed a write to memory. uI2.buf.mem_fetch data from memory. uI2.buf.merge perform a write merge
+
+o# total filtered write
+25920318799 # total number of accesses 25312493228 # total number of hits 607825571 # total number of misses 597778231 # total number of replacements 164522187 # total number of writebacks
+
+o# total number of invalidations
+0.0234 # miss rate (i.e., misses/ref) 0.0231.# replacement rate (i.e., repls/ref) 0.0063 # writeback rate (Le., wrbkslref) 0.0000 # invalidation rate (i.e., invs/ref) 10046828 # total filtered access
+
+o# total filtered read
+
+o# total filtered write
+762407441 # total number of accesses 747256247 # total number of hits 15151194 # total number of misses 15118426 # total number of replacements 9874427 # total number of write backs
+
+o# total number of invalidations
+0.0199 # miss rate (i.e., misses/ref) 0.0198 # replacement rate (i.e., repIs/ref) 0.0130 # writeback rate (i.e., wrbks/ref) 0.0000 # invalidation rate (i.e., invs/ref)
+
+o# total filtered access
+
+o# total filtered read
+o# total filtered write
+29843592 # total filter buffer accesses 9917372 # total amount oftime for any cache to read 17428895 # total amount of time for any cache to write 17428895 # total amount of time the filter buffer 2497325 # total amount of time the filter buffer fetch 0 # total amount of time for the filter buffer to
+
+123
+
+u12.buf.wait uI2.buf. wait_cycle an empty buffer entry itlb.accesses itlb.hits itlb.misses itlb.replacements itlb. writebacks itlb.invalidations itlb.missJate itlb.repLrate itlb. wbJate itlb.inv rate itlb.filtered itlb.filtered read itlb.filtered_write dtlb.accesses dtlb.hits dtlb.misses dtlb.replacements dtlb. writebacks dtlb.invalidations dtlb.missJate dtlb.replJate dtlb. wbJate dtlb.inv rate dtlb.filtered dtlb.filtered_read dtlb.filtered_write sim_invalid_ addrs (debugvar) ld_text_base ld_text_size
+
+6690054 # total amount of of time that the processor 2811554458 # total amount of cycle spent on waiting for 104219153196 # total number of accesses 104219153159 # total number of bits 37 # total number of misses
+
+must wait for a buffer entry to be cleared
+
+o # total number of replacements
+. 0 # total number of writebacks
+
+o# total number of invalidations
+0.0000 # miss rate (i.e., misseslret) 0.0000 # replacement rate (i.e., repIs/ret) 0.0000 # writeback rate (i.e., wrbkslret) 0.0000 # invalidation rate (i.e., invs/ret)
+
+o# total filtered access o# total filtered read
+o# total filtered write
+27694826537 # total number of accesses 27694517323 # total number of hits 309214 # total number of misses 309086 # total number of replacements
+
+o# total number of writebacks o# total number of invalidations
+0.0000 # miss rate (i.e., misseslret) 0.0000 # replacement rate (i.e., replslret) : 0.0000 # writeback rate (Le., wrbkslret) 0.0000 # invalidation rate (i.e., invs/ret)
+
+o # total filtered access o # total filtered read o# total filtered write o # total non~speculative bogus addresses seen
+Ox00400000 # program text (code) segment base 230448 # program text (code) size inbytes Ox} 0000000 # program initialized data segment base 351008 # program init'ed '.data' and uninifed '.bss' Ox7fffcOOO # program stack segment base (highest
+
+ld_data_base
+Id_data_size size in bytes ld- stack- base
+
+124
+
+address in stack) ld_stack_size ld-prolLentry Id_environ_base Id_ target_bilLend ian big endian mem.page_count mem.page_mem mem.ptab_misses memo ptab_accesses mem.ptab_missJate mem.access_count mem.unoverlaped_fpJead_clk mem.unoverlaped_fp_write_clk mem.unoverlaped_filtered_read_clk mem.unoverlaped_filtered_write_clk mem.unoverlaped_randomJead_clk mem.unoverlapedJandom_write_clk mem.channel[O].access_count this channel mem.channet[O].row_hit mem.channel[O].fpJeads 24867 # total number of pages allocated 99468k # total size of memory pages allocated 53882 # total first level page table misses 597696304327 # total page table accesses 0.0000 # first level page table miss rate 32714504 # Total amount of memory access 173328584 # Total amount of unoveriaped fast 362619455 # Total amount ofunoverlaped fast 0 # Total amount ofunoverlaped 0 # Total amount ofunvoerlaped 843035395 # Total amount ofunoverlaped 973462985 # Total amount ofunoverlaped 16384 # program initial stack size Ox00400140 # program entry point (initial PC) Ox7ffI8000 # program environment base address address
+
+o# target executable endian-ness, non-zero if
+
+page read delay across the channels in processor clock page write delay across the channels in processor clock filtered read delay across the channels in processor clock filtered write delay across the channels in processor clock random read delay across the channels in processor clock random write delay across the channels in processor clock 32714504 # Total amount of memory access to 12788495 # Total amount of row hits for this channel 5233822 # Total amount of fast page reads to this 173328584 # Total amount of 77894872 # Total amount of
+
+channel mem.channel[O].channel_unoverlaped_fp_read_clk mem.channel[O].channetoverlaped_fpJead_clk mem.channeUO].fp_writes
+
+unoverlaped fast page read to this channel in processor clock cycles overlaped fast page read to this channel in processor clock cycles 7554673 # Total amount of fast page writes to this 362619455 # Total amount 4849 # Total amount of channel mem.channeI[O].channel_unoverlapedJp_write_clk mem.channel[O].channel_overlaped_fp_write_clk
+125
+
+ofunoverlaped fast page write to this channel in processor clock cycles
+
+overIaped fast page write to this channel in processor clock cycles mem.channel[O].filteredJeads channel mem.channel[O].channel_unoverlaped_filtered_read_clk mem.channel[OJ.channel_overlaped_filteredJead_clk of overlaped filtered read to this channel in processor clock cycles mem.channel[O].filtered_writes this channel mem.channel[O] .channetunoverlaped_filtered_write_ clk mem.channel[O].channel_overlaped_filtered_write_clk mem.channel[O].random_reads channel 843035395 # Total amount of unoverlaped random read to this channel in processor clock cycles mem.channel[O].channetoverlapedJandom_read_c1k mem.channel[O].random_writes this channel mem.channel[ 0] .channel_unoverlapedJandom_write_elk mem.channel[O] .channel_overlapedJandom_write_ clk 973462985 # Total 53456103 # Total amount of unoverIaped random write to this channel in processor clock cycles amount of overlaped random write to this channel in processor clock cycles Figure A.I: A gzip sim-outorder simulation output file 202350453 # Total amount of overlaped random read to this channel in processor clock cycles 9874222 # Total amount of random writes to 0# Total 0 # Total amount of unoveriaped filtered w~ite to this channel in processor clock cycles amount of overlaped filtered write to this channel in processor clock cycles 10051787 # Total amount of filtered reads to this 0 # Total amount of filtered writes to 0# Total 0 # Total ~ount amount of unoverlaped filtered read to this channel in processor clock cycles 0 # Total amount of filtered reads to this
+
+126
+
+A.2 Memory simulation result verification
+Referring to the sample simulation output file from appendix A.I on page 116, the following memory related statistics are found:
+
+Processor clock = 3200MHz Memory bus speed = 800MHz Tcas= 7 Trcd= 7 Trp=7 Tcmd= 1 Tcwd=7 Total memory accesses = 32714504 Total row hit = 12788495 . Total fast page read = 5233822 Total unoverlapped fast page read latency = 173328584 Total overlapped fast page read latency = 77894872 Total fast page write = 7554673 Total unoverlapped fast page write latency = 362619455' Total overlapped fast page write latency = 4849 Total random read = 10051787 Total unoverlapped random read latency = 843035395 Total overlapped random read latency = 202350453 Total random write =9874222 Total unoverlapped random write latency = 973462985 Total overlapped random write latency = 53456103
+127
+
+First, we must prove that the total amounts of different types of memory accesses are correct. From the statistics, the total amount of memory accesses should equal to the
+
+sum of the total amount of fast page read/write and random read/write.
+
+Total amount ofmemory accesses Total amount ofrow hits
+
+= 32714504
+
+= 12788495
+
+Total amount offast page accesses
+
+= total amount of fast page read + total amount of fast page write
+= 5233822 + 7554673 = 12788495
+
+Total amount ofrandom accesses
+
+= total amount of random read + total amount of random write
+= 10051787 + 9874222 = 19926009
+
+Total amount ofmemory accesses
+
+=Total amount of fast page accesses + total amount of random accesses = 1288495 + 19926009 = 32714504
+From the calculation results, we can see that the total amount of fast page accesses is matching the total amount of row hits, and the total amount of memory accesses calculated from the sum of all fast page and random accesses is correct.
+
+128
+
+Next, we must check whether the latecies recorded by the simulation file is correct This is achieved by first calculating the expecte~ fast page read/write latency and random read/write latency:
+
+The processor to memory clock ratio is: 3200(processor clock)/800(memory clock) = 4
+
+The data transmission (data burst) is: (64B (cache block size) 18B (data bus width»)/2 (DDR) = 4 memory clocks
+
+Random access read/write latency in processor clock cycles: 4(processor to memory clock ratio) X (1 (Tcmd) + 7(Trp) + 7(Trcd) + 7(Tcas for read) OR 7(Tcwd for write) + 4(data burst» = 104 processor clocks
+
+Fast page read/write latency in processor cloc~ cycles: 4(processor to memory clock ratio) X (I(Tcmd) + 7(Tcas for read) OR 7(Tcwd for write) + 4(data burst» == 48 processor clocks.
+
+From the statistics, the total amount of fast page read is 5233822, the total am~unt of unoverlapped fast page read latency is 173328584 and the total amount of overlapped fast page read latency is 77894872. By calculating the total amount of fast page read
+
+latency and compare it with the overlapped and unoverlapped fast page read latency,
+
+.
+
+,
+
+we can then prove that the fast page read latency statistical values are correct:
+
+129
+
+Total fast page read latency:
+= fast page read latency x total amount of fast page reads
+
+= 48 x 5233822 = 251223456
+
+Sum ofoverlapped and unoverlapped fast page read latency:
+=
+
+173328584 + 77894872 = 251223456
+
+Since the total fast page read latency is matching the sum of overlapped and unoverlapped fast page read latency, we can conclude that the fast page read statistical values are correct
+
+We will also perform the same check for fast page write and random read/write:
+
+Total fast page writes = 7554673 Total unoverlappedfast page write latency = 362619455 Total overlapped fast page write latency = 4849
+
+Total fast page write latency:
+=
+
+fast page write latency x total amount of fast page writes
+
+= 48 x 7554673 = 362624304
+
+Sum ofoverlapped and unoverlapped fast page write latency:
+= 362619455 + 4849 = 362624304 = Total fast page write latency
+
+130
+
+Total random reads = 10051787 Total unoverlapped random read latency = 843035395 Total overlapped random read latency = 202350453
+
+Total random read latency:
+
+= random read latency x total amount of random reads
+
+= 104 x 10051787 == 1045385848
+Sum of unoverlapped and overlapped random read latency:
+
+= 843035395 + 202350453
+
+1045385848 ::: Total random read latency
+
+Total random writes = 9874222 Total unoverlapped random write latency = 973462985 Total overlapped random write latency = 53456103
+
+Total random write latency:
+
+= random write latency x total amount of random writes
+
+= 104 x 9874222 = 1026919088
+Sum of unoverlapped and overlapped random write latency:
+= 973462985 + 53456103 == 1026919088 = Total random write latency
+
+Since all calculated fast page read/write and random read/write latencies are matching the sum of the overlapped and unoverlapped latencies of the corresponding memory access type, we can now conclude that our custom version of sim-outorder is generating correct statistical values.
+131
+
+
