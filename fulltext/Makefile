@@ -27,4 +27,7 @@ key: $(patsubst %.xml,%.key,$(wildcard */*.xml))
 %.key: %.xml
 	xsltproc subjects.xslt $< > $(addprefix $(dir $@), $(subst Bag-RULA_,,$(notdir $@)))
 
+# sed -i '' '/^\s* *$/d' *.key
+# sed -i '' 's/ -- /--/g' *.key
+
 .PHONY: all pdf txt xml key
