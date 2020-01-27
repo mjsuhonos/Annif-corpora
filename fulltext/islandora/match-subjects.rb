@@ -16,13 +16,13 @@ subjects = Hash.new
 
 File.readlines(tsv_file).each do |line|
   fields = line.split("\t")
-  subjects[fields[1].strip] = fields[0]
+  subjects[fields[1].strip] ||= fields[0]
 end
 
 # iterate over files matching pattern
 files.each do |filename|
   # create output file
-  new_tsv = File.open("#{filename}.tsv", "w")
+  new_tsv = File.open("#{filename.chomp(File.extname(filename))}.tsv", "w")
 
   # open file, iterate over subject strings
   File.readlines(filename).each do |line|
@@ -35,7 +35,7 @@ files.each do |filename|
       new_tsv.puts "#{dict}\t#{line}"
     else
       # if not found, mint a URN using SHA sum
-      new_tsv.puts "urn:rula:#{Digest::SHA256.hexdigest(line)}\t#{line}"
+      new_tsv.puts "<urn:rula:#{Digest::SHA256.hexdigest(line)}>\t#{line}"
     end
 
   end
@@ -43,36 +43,3 @@ files.each do |filename|
 end
 
 exit
-
-=begin
-
-
-File.open("trimmed.ttl", "w") {|f| f << graph.dump(:turtle)}
-
-# list of (interned) predicate URIs to strip from statements
-invalid_predicates = [RDF::URI.intern('http://www.w3.org/2004/02/skos/core#changeNote'),
-                      RDF::URI.intern('http://purl.org/vocab/changeset/schema#creatorName'),
-                      RDF::URI.intern('http://purl.org/vocab/changeset/schema#createdDate'),
-                      RDF::URI.intern('http://purl.org/vocab/changeset/schema#changeReason'),
-                      RDF::URI.intern('http://purl.org/vocab/changeset/schema#subjectOfChange')]
-
-# open the input file for reading
-RDF::Reader.open("authoritiessubjects.nt.skos") do |reader|
-
-  RDF::Writer.open("output.nt", format: :ntriples) do |writer|
-      reader.each_statement do |statement|
-        next if invalid_predicates.include? statement.predicate
-        next if RDF::URI.intern('http://purl.org/vocab/changeset/schema#ChangeSet') == statement.object
-
-        # write the statement to the output buffer
-        writer << RDF::Repository.new do |repo|
-          repo << statement
-        end
-
-        # flush the buffer to disk
-        writer.flush!
-      end
-  end
-end
-
-=end
