@@ -1,0 +1,2887 @@
+k-MACE Clustering for Gaussian Clusters
+by Edward Wyndel Nidoy Bachelor of Engineering, Ryerson University, 2015 A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Applied Science in the Program of Electrical and Computer Engineering Toronto, Ontario, Canada, 2017 c Edward Wyndel Nidoy 2017
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS
+
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my dissertation may be made electronically available to the public.
+
+ii
+
+k-MACE Clustering for Gaussian Clusters Master of Applied Science 2017 Edward Wyndel Nidoy Electrical and Computer Engineering Ryerson University
+
+Abstract
+Conventional clustering approaches require a preprocessing step that estimates the correct number of cluster prior to the cluster center allocation step. In these approaches, the preprocessing step minimizes one objective function while the second step concentrates on optimization of another objective function. Inspired by MACE-means, we use a single objective function to simultaneously estimate the Correct Number of Cluster (CNC) and acquire the cluster centers. Similarly, we use the Average Central Error (ACE) as our cost function. The proposed method, denoted by k-minimum ACE (k-MACE), improves MACE-means by rigorous calculation of probabilistic estimate of ACE. While MACEmeans (Minimum ACE) only concentrates on Independent Indentically Distributed (IID) clusters, k - MACE is a solution for Gaussian clusters with any covariance structure. Simulation results show superiority of k - MACE over MACE means and over conventional clustering methods such as G-means, DBSCAN, and validity indices methods such as Calinkski Harabaz, Silhoutte, and gap index. Performance is evaluated in terms of iii
+
+accuracy of CNC estimation, adjusted random index and normalized variation information.
+
+iv
+
+Acknowledgements
+First and foremost, I would like to express my sincerest gratitude to Dr. Soosan Beheshti for all her support through my MASc study and other research endeavors. Her immense knowledge, patience and motivation has been a vital part of this work and had greatly helped me in the research and writing of this thesis. I am truly grateful for having such an amazing mentor. I would also like to thank the members of my thesis committee: Dr. Reza Sedaghat, Dr. Lian Zhao, and Dr. Alagan Anpalagan as well as Dr. Assad Sahabelam, for their insightful comments and encouragement that inspired me to widen my research from various perspectives. I also want to thank my fellow lab-mates in the Signal and Information Processing Lab as well as my friends at Ryerson University for the stimulating discussions. Last but not the least, I would like to thank my family: my brothers, and my aunt and uncle who serve as our guardian. Their support through out all these years made this accomplishment possible.
+
+v
+
+Dedication
+To the loving memory of my mom and dad.
+
+vi
+
+Contents
+Declaration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Abstract . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dedication . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Tables . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of Figures . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ii iii v vi x xi xiv 1 5 5 6 7 10 10 11 13 14 15
+
+List of Abbreviations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1 Introduction 2 Background 2.1 Partitional Clustering Methods . . . . . . . . . . . . . . . . . . . . . . . 2.1.1 2.1.2 2.2 K-means . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Fuzzy-C means . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Index Validity Methods . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.2.1 2.2.2 2.2.3 2.2.4 2.2.5 Xie-Beni Index . . . . . . . . . . . . . . . . . . . . . . . . . . . . Silhouette Index . . . . . . . . . . . . . . . . . . . . . . . . . . . . Dunn Index . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Calinski-Harabasz index . . . . . . . . . . . . . . . . . . . . . . . Davies-Bouldin Index . . . . . . . . . . . . . . . . . . . . . . . . .
+
+vii
+
+2.2.6 2.3
+
+Several Validity Index Behavior With Respect to k . . . . . . . .
+
+16
+
+Information-Theoretic Approach to Signal Denoising and Best Basis Selection 20 2.3.1 Estimation of Reconstruction Error from Data Error . . . . . . . 23 27 28 28 32 32 34 35 39 42 45 46 49 51 52 53 54 55 56 57 59 60
+
+3 k-MACE Clustering 3.1 Preliminaries and Notations . . . . . . . . . . . . . . . . . . . . . . . . . 3.1.1 3.1.2 3.1.3 3.1.4 3.2 Data Model . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Clustering the Available Data Into m Clusters . . . . . . . . . . . Average Central Error . . . . . . . . . . . . . . . . . . . . . . . . Data Error . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+k-MACE Approach . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.2.1 Estimating Amj cxmj
+2 F
+
+. . . . . . . . . . . . . . . . . . . . . . .
+
+3.3
+
+Estimating xi . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.3.1 3.3.2 Obtaining m ^0 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Why Use GMM for Estimation of Covariances . . . . . . . . . . .
+
+3.4
+
+Computational Complexity of k-MACE . . . . . . . . . . . . . . . . . . .
+
+4 k-MACE Clustering 4.1 k-MACE  k-MACE When Clusters are IID . . . . . . . . . . . . . . . 4.1.1 4.1.2 4.1.3 4.2 4.3 4.4 4.5 Average Central Error . . . . . . . . . . . . . . . . . . . . . . . . Data Error . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+2 Estimating w . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Computational Analysis of k-MACE . . . . . . . . . . . . . . . . . . . . An Example of k-MACE and k-MACE on Clusters That Are IID . . . . Smart k-MACE Validation . . . . . . . . . . . . . . . . . . . . . . . . . Smart k-MACE Clustering . . . . . . . . . . . . . . . . . . . . . . . . .
+
+viii
+
+4.5.1 4.5.2
+
+Indentifying Touching Clusters
+
+. . . . . . . . . . . . . . . . . . .
+
+62 62 67 67 75 81 84 86 88 88 89 91 92 92 94
+
+Unimodality Test for Touching Clusters . . . . . . . . . . . . . . .
+
+5 Simulations and Result 5.1 5.2 Artificial Data Sets . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Real World Bench Mark Data Sets . . . . . . . . . . . . . . . . . . . . .
+
+6 Conclusion and Future Work Appendices A Average Central Error A.1 Expected Value of ACE . . . . . . . . . . . . . . . . . . . . . . . . . . . A.2 Variance of ACE . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2 Idxd . . . . . . . . . . . . . . . . . A.3 Average Central Error When Xi = w
+
+B Data Error B.1 Expected Value of Data Error . . . . . . . . . . . . . . . . . . . . . . . . B.2 Variance of Data Error . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2 B.3 Average Central Error When Xi = w Idxd . . . . . . . . . . . . . . . .
+
+ix
+
+List of Tables
+2.1 3.1 3.2 5.1 Advantages and disadvantages of k-means and FCM . . . . . . . . . . . . Table of symbols used in k - MACE and k - MACE formulations Part 1 Table of symbols used in k - MACE and k - MACE formulations Part 2 Artificial data set. Result is generated from the average of 50 runs. Results are in the form of E [m ^ ] ± std[m ^] . . . . . . . . . . . . . . . . . . . . . . . 5.2 5.3 5.4 Real data set 1. Result is generated from the average of 50 runs. . . . . . Real data set 2. Result is generated from the average of 50 runs. . . . . . Real data set 3. Result is generated from the average of 50 runs. . . . . . 73 78 79 80 9 29 30
+
+x
+
+List of Figures
+2.1 Validity index on data set with IID clusters, uniform variance and uniform proximity. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.2 Validity index on data set with IID clusters, unique variance and inconsistent proximity. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.3 Validity index on data set with general Gaussian clusters, unique distribution and uniform proximity. . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.4 Validity index on data set with general Gaussian clusters, unique distribution and inconsistent proximity. . . . . . . . . . . . . . . . . . . . . . . . . . . 2.5 2.6 2.7 3.1 Validity index on Aggregation data set [29] . . . . . . . . . . . . . . . . . Validity index on R15 data set [30] . . . . . . . . . . . . . . . . . . . . . Validity index on D31 data set [30] . . . . . . . . . . . . . . . . . . . . . Example of clustering solution and its corresponding estimated centers (^ cmj ) as well as the true cluster centers (cj ) . . . . . . . . . . . . . . . . . 3.2 3.3 Example behavior of Zsm and Ysm on general Gaussian clusters . . . . . . Expected value and variance of Zsm for a range of m derived from data set depicted on Figure 3.2-a . . . . . . . . . . . . . . . . . . . . . . . . . 3.4 Expected value and variance of Ysm for a range of m derived from data set S1 depicted on figure 1a . . . . . . . . . . . . . . . . . . . . . . . . . . . 40 38 33 36 18 18 19 19 17 17 16
+
+xi
+
+3.5
+
+Behavior of Zsm and ml and its derived bounds derived from data set depicted in Figure 3.2-a . . . . . . . . . . . . . . . . . . . . . . . . . . . 43 43 47 48 52 58 59
+
+3.6 3.7 3.8 4.1 4.2 4.3 4.4
+
+Clustering result when m > m (here, m = 2, d = 2, N = 21) . . . . . . . . Clustering solution: GMM vs K-means . . . . . . . . . . . . . . . . . . . Behavior of Zsm and Ysm : GMM vs K-means . . . . . . . . . . . . . . . . Example behavior of Zsm and Ysm on IID clusters . . . . . . . . . . . . . Example Clustering Solution: k - MACE vs k - MACE on IID clusters k-MACE on D31 data set . . . . . . . . . . . . . . . . . . . . . . . . . . Example Clustering Solution: k - MACE vs k - MACE on general Gaussian clusters . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+61 64 64 64 64
+
+4.5 4.6 4.7 4.8 5.1
+
+Touching clusters formed by splitting of a unimodal cluster . . . . . . . . Two generally distributed touching clusters . . . . . . . . . . . . . . . . . Two touching IID clusters . . . . . . . . . . . . . . . . . . . . . . . . . . Clusters connected through a neck . . . . . . . . . . . . . . . . . . . . .
+
+IID clusters, uniform variance and uniform proximity (data set characteristic: ^ MM = 9) m = 9, d = 2, N = 900 (result: m ^ k-MACE = 9, m ^ k-MACE = 9, m 68
+
+5.2
+
+IID clusters, unique variance, unique proximity (data set characteristic: m = 5, d = 2, N = 1731) (result: m ^ k-MACE = 4, m ^ k-MACE = 9, m ^ mm = 6) 69
+
+5.3
+
+General Gaussian, unique covariance, uniform proximity (data set characteristic: m = 9, d = 2, N = 900) (result: m ^ k-MACE = 9, m ^ k-MACE = 14, m ^ mm = 13) 69
+
+5.4
+
+General Gaussian, Unique covariance, varying proximity (data set characteristic: m = 9, d = 2, N = 900) (result: m ^ k-MACE = 9, m ^ k-MACE = 13 , m ^ mm = 15) 70
+
+5.5
+
+Aggregation data set (data set characteristic: m = 7, d = 2, N = 787) (result: m ^ k-MACE = 11, m ^ k-MACE = 14 , m ^ mm = 23) . . . . . . . . . . . 71
+
+xii
+
+5.6
+
+R15 data set (data set characteristic: m = 15, d = 2, N = 600) (result: m ^ k-MACE = 15, m ^ k-MACE = 15 , m ^ mm = 15) . . . . . . . . . . . . . . . . 71
+
+5.7
+
+D31 data set (data set characteristic: m = 31, d = 2, N = 3100) (result: m ^ k-MACE = 22, m ^ k-MACE = 31 , m ^ mm = 31) . . . . . . . . . . . . . . . . 72 77
+
+5.8
+
+Dimension reduced abalone data set
+
+. . . . . . . . . . . . . . . . . . . .
+
+xiii
+
+List of Abbreviations
+CNC . . . . . . . . . Correct Number of Cluster ACE . . . . . . . . . . Average Central Error IID . . . . . . . . . . . Independent Indentically Distributed GMM . . . . . . . . Gaussian Mixuture Model NVI . . . . . . . . . . Normalized Variation Index ARI . . . . . . . . . . Adjusted Random Index BIC . . . . . . . . . . . Bayesian Information Criterion AD . . . . . . . . . . . Anderson-Darling WGSS . . . . . . . . Within-Group Scatter BGSS . . . . . . . . Between Group Scatter WTP . . . . . . . . . Water Treatment Plant WDBC . . . . . . . Wisconsin Diagnostic Breast Cancer
+
+xiv
+
+Chapter 1 Introduction
+Clustering is the process of grouping observed data samples based on their similarities and dissimilarities such that objects from the same group exhibits more similar properties compared to objects from a different group. Clustering has a wide variety of application in the fields of engineering, statistics, academics, image processing, bioinformatics, business, medicine, psychiatry, psychology, geography and computer science, to name a few [1]. In adaptive image denoising, clustering can be utilized to identify patches of an image that exhibits similar geometric and photometric characteristic. This improves the exploitation of image redundancy since identification of similar patches are not limited by a search window [4]. In market research, clustering is used to group customers based on their Internet search results, be it in the form of text, image or audio data. Using such information, product recommendations can be made making it beneficial for both the customer and the seller. In the field of academics, a class's academic performance can be monitored by grouping students based on their performance levels with the use of clustering [2]. In health sciences, clustering was used to determine underlying characteristic of cancerous data. Known cancerous and non cancerous data is mixed into one data
+
+1
+
+CHAPTER 1. INTRODUCTION set and several clustering methods were employed to partition this data set. It was found that non-linear clustering methods were able to provide an accurate partition between the cancerous and the non-cancerous data concluding the non-linear nature of cancerous data [3]. Clustering algorithm can be sub-categorized by the following [5]: partitional clustering and hierarchical clustering. Partitional clustering attempts to partition the data into non-overlapping clusters and evaluate such partition based on an objective function. Hierarchical clustering algorithm is done by repeatedly dividing larger clusters into smaller ones or merging smaller clusters into larger ones. By doing so, a hierarchy of clusters, known as a dendogram, is produced. Depending on the level at which the dendogram is cut, different clustering solution can be obtained. A priori assumption of the cluster structure plays an important role in clustering since it determines which clustering algorithms are more suitable for a specific data set. For example, data sets that follow an arbitrary shape are better dealt with using hierarchical clustering as oppose to partitional clustering. Partional clustering is more applicable if the cluster distribution is known (i.e Gaussian, uniform, etc). Majority of partitional clustering method requires a priori knowledge of the CNC. Overestimating the number of clusters typically result into inappropriate separations from one good compact cluster into smaller clusters that are close to each other. Underestimating the number of clusters, on the other hand, results into combining compact clusters to form a loose cluster. In real life applications, CNC is not available and an optimum estimation is difficult to be intuitively determined beforehand. Pioneer methods of estimation of correct number of clusters involves formulation of validity indexes. Validity indexes provide a quantitative measurement of the wellness of the clustering result based on the estimated number of clusters. Examples of these validity
+
+2
+
+CHAPTER 1. INTRODUCTION indexes are Xie-Beni index [7], Silhouette index [8], Dunn index [9], Calinski-Harabasz index [10], Davies-Bouldin index[11], Krzanowski-Lai index [12], weighted inter-to-intracluster ratio [13], Fukuyama-Sugeno index [14], the partition density [15] and the PBM index [16] just to name a few. In general, the process of these validity indexes method involves clustering the data, typically with k-means [6], into k clusters in a predetermined range k = [kmin , kmin + 1, ..., kmax ]. For each k -clustering result, validity indexes are evaluated. The k value in which the validity index is optimized is chosen as the estimated correct number of clusters. Another approach of estimating the correct number of clusters are X-means [17] and G-means [18] which are typically used as wrapper to k-means. The difference between the two is the statistical test that each method uses to asses whether or not a single cluster should be further divided. For both cases, the algorithm starts with clustering the data using k-means with k amount of clusters. A statistical test is then run for each cluster in order to determine whether a cluster is already compact or if it needs to be split further. In the case of X-means, Bayesian Information Criterion (BIC) [19] is the choice of statistical test whereas in G-means, Anderson-Darling (AD) [20] is used. Similar to the clustering methods mentioned above, MACE-means [23] clustering tackles the problem of estimating the correct number of clusters but in a probabilistic approach. MACE means algorithm is suitable when all the cluster structures are assumed to have an IID. It also serves as a wrapper to k-means clustering. In MACE means, the criterion that is being optimized as a function of m is called the ACE which is the average distance between the estimated centers and the true cluster centers. The calculation of ACE requires the knowledge of the cluster's true center which is unavailable in real applications. MACE means provide a probabilistic approach, derived from [21], to estimate the expected value of the unobservable ACE using the available cluster
+
+3
+
+CHAPTER 1. INTRODUCTION compactness. MACE means shows weaknesses when data is composed of clusters that follow a general Gaussian distribution. In addition to this, MACE means only use the estimated expected value of ACE and disregard ACE's variance which affects the accuracy of ACE's estimation.[21].
+
+Our Objectives: In this thesis, our main focus is to improve MACE-means through rigorous calculation of probabilistic bounds of ACE. We also aim to extend the applicability of MACE means by making it suitable for Gaussian clusters with any covariance structure.
+
+Thesis Outline: This thesis is organized as follows: In Chapter 2, brief background of several widely used clustering methods as well as the data denoising technique that inspired MACE means is provided. k-minimizing Average Central Error (k - MACE) for estimating CNC for general Gaussian Clusters is proposed in Chapter 3. The role of probabilistic bounds on ACE's estimation is also introduced in Chapter 3. Chapter 4 presents a special case of k - MACE denoted by k - MACE that is applicable when data set is composed of clusters that are IID. Smart k - MACE , a method that can validate whether clusters are IID is also discussed in Chapter 4. Discussion of our simulation results is shown on Chapter 5 and finally, Chapter 6 presents concluding remarks and suggestions for future works.
+
+4
+
+Chapter 2 Background
+In this Chapter, we review some of the widely used clustering algorithms as well as the signal denoising scheme that inspired the k - MACE clustering. In section 2.1, we discuss the two most common partitional clustering methods which are K-means and Fuzzy C-means. We compared the performance of these two clustering scheme and highlight their strengths and weaknesses. Validity indexes such as Xie-Beni, Silhouette, Dunn, Calinkski-Harabasz and DaviesBouldin which can be used to assess the wellness of a clustering solution is discussed in section 2.2. The role of these indexes in estimation of CNC is also discussed. In section 2.3, we discuss a signal denoising scheme that inspired k - MACE. Signal denoising is achieved through best subspace selection and through estimation of an unobservable error.
+
+2.1
+
+Partitional Clustering Methods
+
+Partitional clustering divides a data set into a set of disjoint clusters. Given a data set of length N , xN = [x1 , x2 , ..., xN ], partitional clustering algorithms constructs k (k < N ) 5
+
+CHAPTER 2. BACKGROUND clusters. The value k , number of clusters, is usually provided by the user. It is important to note that partitional clustering works best when the clusters are distance separated and follows some distribution (i.e. Gaussian). However, it is weak against data where clusters follow an arbitrary shape. For this type of data, hierarchical clustering or spectral clustering would be more appropriate.
+
+2.1.1
+
+K-means
+
+k-means is one of the most well-known and widely used clustering methods mainly due to its simplicity and reasonable convergence speed. The procedure aims to classify the data with a certain number of clusters (k ) given apriori. k-means iteratively looks for the optimum location of k cluster centers, cj ([j = 1, ..., k ]), so that the following objective function is optimized:
+k
+
+J (c) =
+j =1 xi Cj
+
+( xi - cj )2
+
+(2.1)
+
+where cj is the center of cluster Cj , xi  Cj pertains to all elements in cluster Cj , nj is the number of elements in cluster Cj and  calculates for the Euclidean distance. The algorithm for k - means are as follows: Consider a data set of length N , xN = [x1 , x2 , ....., xN ]T where xi  R1×d . Each element xi is a vector of length d, and each scalar element of xi represents the observed feature. The goal is to partition the data samples into k clusters in a way that the internal distance of a sample to its cocluster members are smaller compared to its distances to samples that belongs to a different cluster. Let c = [c1 , ..., ck ] be the set of centers of each cluster where cj  R1×d . 1. In d dimensional space, randomly select the location of k cluster centers, c. 2. Calculate the Euclidean distance between all data samples and each of the cluster 6
+
+CHAPTER 2. BACKGROUND center. 3. For each data sample xi , find the cluster whose center is closest to xi and assign xi to that cluster. 4. Recalculate each of the cluster center by taking the mean of all data samples that belongs to that cluster. cj = 1 nj  xi nj i=1 (2.2)
+
+5. Recalculate the distance between the new cluster centers and each data sample. 6. Reassign each sample's cluster membership based on the recalculated center. 7. If no data sample was reassigned or the maximum number of iteration is reached, then stop. If not, go back to step 4.
+
+2.1.2
+
+Fuzzy-C means
+
+Fuzzy clustering is a clustering algorithm in which a sample is given a weighted membership to all the clusters. This alleviates one of the weaknesses of k-means that comes from exclusive assignment. In Fuzzy C means, the clustering solution is achieved by optimization of the following objective function:
+N k
+
+J (c) =
+i=1 j =1
+
+µij ( xi - cj )2
+
+(2.3)
+
+where k is the number of clusters, uij is the degree of membership of xi to the j th cluster. (Note that
+m j =1
+
+µij = 1).
+
+Similar to k-means, fuzzy-C means is also carried out through an iterative optimization of the objective function in (2.3). The step-by-step process is described below:
+
+7
+
+CHAPTER 2. BACKGROUND Consider a data set of length N , xN to be clustered into k groups. We let xi be an element of the data set and cj be the center of the j th cluster. 1. Randomly initialize cluster membership U = [µij ], an (N × k ) matrix where each column represents the cluster membership of each row element. 2. Based on the cluster membership U , calculate the k cluster center vector c1 , . . . , ck .
+N m i=1 µij xi N i=1 µij
+
+cj =
+
+(2.4)
+
+3. Update the cluster membership matrix U based on the cluster centers c
+
+µij =
+k j =1
+
+1
+xi -cj xi -ck
+2 m-1
+
+(2.5)
+
+4. If the maximum number of iteration is reached or if there is no significant change from the recalculated cluster membership U , then the algorithm is finished.1 Otherwise return to step 2. Table 2.1 compares the two partitonal clustering algorithm discussed previously and highlights their advantages and disadvantages.
+
+insignificant change of cluser membership matrix U can be detected by the following: Uold - Unew < a where a is a small threshold value.
+
+1
+
+8
+
+CHAPTER 2. BACKGROUND
+
+Table 2.1: Advantages and disadvantages of k-means and FCM
+Advantages Disadvantages (1) The learning algorithm requires apriori specification of the number of,cluster centers. (2) The use of,Exclusive Assignment - If,there are two highly overlapping data then k-means will not be able to resolve that there are two clusters. (3) Euclidean distance measures can unequally weight underlying factors. (4) The learning algorithm provides the local optima of the squared error function. (5) Sensitive to the initial value of the cluster centers which are chosen randomly. (6) Applicable only when mean is defined i.e. fails for categorical data. (7) Unable to handle noisy data and outliers. (8) Algorithm fails for non-linear data set. (1) Requires apriori assumption of the number of clusters. (2) Euclidean distance measures can unequally weight underlying factors. (3) Less sensitive to the random initialization of U (0) compared to k-means. (4) Requires more complex computation compared to k-means. (5) With lower value for m (degree of fuzziness), we can get better result but at the expense of more number of iteration. (6) Provides inconsistent clustering solution when dealing with overlapping clusters
+
+k-means
+
+(1) Fast, robust and easier to understand. (2) Relatively efficient: O(tkN d), where t is the maximum number of iterations. (3) Gives best result when data set are distinct or well separated from each other.
+
+9
+FCM (1) FCM tries to deal with the problem where points are somewhat equally close to two separate clusters. (2) Relatively efficient: O(tkN d), where t is the maximum number of iterations. (3) In step 2 of FCM, the recalculation of the new center involves all data samples as opposed to just data samples that belongs to a specific cluster (case of k-means). As a result, the cluster centers tends to converge to the optimal solution faster.
+
+CHAPTER 2. BACKGROUND
+
+2.2
+
+Index Validity Methods
+
+Pioneer methods of estimation of correct number of clusters involves formulation of validity indexes. In order to find the best partition of the data, one usually executes a clustering algorithm with different values of number of clusters k from a given range (kmin  k  Kmax ). Most common choice of the clustering algorithm is the k-means algorithm. One then computes a validity index Qk from the clustering result.. The k value that leads to the partition with the most optimized Qk is then identified as the estimate of CNC. Few examples of these validity indexes are: Xie-Beni index [7], Sillhoutte index [8], Dunn index [9], Calinski-Harabasz index [10], and Davies-Bouldin index[11].
+
+2.2.1
+
+Xie-Beni Index
+
+The Xie-Beni index is defined as the quotient between the average Within-Group Scatter (WGSS) and the minimum distance between two clusters. In this case, the distance between two clusters, Ci and Cj is given by the distance between their respective centers, ci and cj . The Xie-Beni index can be written like the following: W GSS 1 N min d(ci , cj )
+i,j k,i=j k nj
+
+XBk = and
+
+(2.6)
+
+W GSS =
+j =1 i=1
+
+xi j - cj
+
+2
+
+(2.7)
+
+th the notation xi element of the j th cluster and cj is the center of j points to the i
+
+the j th cluster. The denominator term of 2.6 is the smallest distance from the distances between all cluster centers. For Xie-Beni index, the numerator term is a decreasing function of k (the number of
+
+10
+
+CHAPTER 2. BACKGROUND clusters). Overestimation of the number of cluster is punished by the denominator term. If one compact cluster is divided into two clusters that are more compact but not well separated, the denominator term of the Xie-Beni index will decrease making the overall validity index bigger. This being said, the optimum number of cluster is estimated by finding the k in that minimizes the Xie-Beni index.
+
+^ = arg min(XBk ) k
+k
+
+(2.8)
+
+2.2.2
+
+Silhouette Index
+
+Consider for each element xi  xN , its within-cluster average distance a(xi ) which is the average distance of xi to all the other elements of the cluster that xi belongs to. For example, given xi  Cj , then 1 nj - 1 x
+
+a(xi ) =
+
+d(xi , xk )
+k Cj ,i=k
+
+(2.9)
+
+where d(xi , xk ) denotes the distance between elements xi and xk and nj is the number of elements in cluster Cj . For each element xi we also evaluate its distance to other elements that belongs to a different cluster. For example, element xi distance to cluster Cj , given that xi  Cj , is given by 1 nj
+
+ (xi , Cj ) =
+
+d(xi , xk )
+xk Cj
+
+(2.10)
+
+where nj is the number of elements in cluster Cj . Letting b(xi ) denote the smallest of the average distances of xi to all other clusters
+
+11
+
+CHAPTER 2. BACKGROUND (Noting Cj as the cluster in which element xi belongs to),
+
+b(xi ) = min  (xi , Cj )
+Cj =Cj
+
+(2.11)
+
+For each element xi , one then forms the ratio s(xi ) where b(xi ) - a(xi ) max(a(xi ), b(xi ))
+
+s(xi ) =
+
+(2.12)
+
+s(xi ) is also known as the silhouette width of the element xi . It is a quantity between -1 and 1. A value near -1 indicates that xi should be a member of another cluster and a value of +1 indicates that element xi rightfully belongs to its current cluster. The cluster mean silhouette is the average of all its elements silhouette width. This is denoted by S (Cj ) where 1 nj
+
+S (Cj ) =
+
+s(xi )
+xi Cj
+
+(2.13)
+
+Finally, the overall silhouette index is the average of the cluster mean silhouette 1 k
+k
+
+SILk =
+
+S (Cj )
+j =1
+
+(2.14)
+
+Minimizing the overall silhouette will require minimizing the individual silhouette for every single element xi  xN . If the number of cluster is underestimated, loose clusters will be formed and when such thing happens, the term a(xi ) will be large and at the same time, the term b(xi ) will be smaller, therefore, making s(xi ) have a negative value. On the other hand, when the number of clusters is overestimated, it will result into clusters that are not well-separated from each other. The elements that are located on the boundary between two touching clusters will have s(xi )  -1 and will therefore make the overall
+
+12
+
+CHAPTER 2. BACKGROUND silhouette smaller. The number of cluster can be estimated by maximizing the silhouette index,
+
+^ = arg min(SILk ) k
+k
+
+(2.15)
+
+2.2.3
+
+Dunn Index
+
+The distances between two clusters, Cj and Cj , is measured by the distance between their closest points:
+
+d(Cj , Cj ) =
+
+xi Cj ,xk Cj
+
+min
+
+xi - xk
+
+(2.16)
+
+and dmin is the minimum of these distances,
+
+dmin = min (d(Cj , Cj ))
+Cj =Cj
+
+(2.17)
+
+For each cluster Cj (j = 1, ..., k ), let Dj be the distance between two elements of that cluster that are furthest apart. Note that this is sometimes denoted as the diameter of the cluster.
+
+Dj =
+
+xi ,xk Cj ,xi =xk
+
+max
+
+k xi j - xj
+
+(2.18)
+
+and dmax is the largest of such distances,
+
+dmax = max (Dj )
+j =1,..,m
+
+(2.19)
+
+In short, denoted by dmin is the smallest of the distance between two elements that belongs to different clusters and dmax as the maximum distance between two elements in
+
+13
+
+CHAPTER 2. BACKGROUND one cluster. The Dunn index is defined as the ratio between dmin and dmax , dmin dmax
+
+Dunnk =
+
+(2.20)
+
+Underestimating the number of clusters will result into loose clusters where the samples are dispersed. This will result into a large value of dmax making the Dunn index small. On the other hand, when the number of cluster is overestimated, it will result into unnecessary splitting of one good compact clusters into two clusters that are very close to each other making dmin small and the Dunn index small as well. The optimum number of clusters is therefore identified by finding the k value that maximize the Dunn index.
+
+^ = arg max(Dunnk ) k
+k
+
+(2.21)
+
+2.2.4
+
+Calinski-Harabasz index
+
+The Calinkski-Harabasz index is defined by the following: N - k BGSS k - 1 W GSS
+
+CHk =
+
+(2.22)
+
+where W GSS was defined in (2.7) and the term BGSS is known as between group dispersion. BGSS is a measure of how disperse the clusters that are formed. More specifically, BGSS is defined as the total distance of all the estimated cluster centers to the overall center of the whole data set. Letting µx be the center of the data set, BGSS is given by:
+k
+
+BGSS =
+j =1
+
+n j cj - µ x
+
+2
+
+(2.23)
+
+14
+
+CHAPTER 2. BACKGROUND where nj is the number of elements in cluster Cj and µx is 1 N
+
+µx =
+
+xi
+xi  xN
+
+(2.24)
+
+Typically, an ideal clustering solution provides a high BGSS which would happen if the clusters are well separated. It should also have a low WGSS which means that each cluster are compact. This being said, the optimum k is estimated by maximizing CHk
+
+^ = arg max(CHk ) k
+k
+
+(2.25)
+
+2.2.5
+
+Davies-Bouldin Index
+
+The average distance of elements in cluster Cj to its center cj is denoted by j . 1 nj
+
+j =
+
+x i - cj
+xi Cj
+
+(2.26)
+
+Denoted by ( . Cj , Cj ) is the distance between centers of cluster Cj and Cj where j=j. ( . Cj , Cj ) = cj - cj Using (2.26) and (2.27), the Davies-Bouldin Index is given by the following: 1 DBk = k The quotient term
+j +j
+jj
+
+(2.27)
+
+k
+
+max
+j =1 j =j
+
+j + j
+jj
+
+(2.28)
+
+can increase in two ways. The first one is by having sparse
+
+clusters which will effectively yield large values for j . Such case will happen when the number of clusters is underestimated. The second way that this quotient will increase
+
+15
+
+CHAPTER 2. BACKGROUND is by making ( . Cj , Cj ) smaller, in other words, making two clusters close to each other, which is an effect of overestimation of number of clusters. This being said, the optimum k is achieved by minimizing the Davies-Bouldin index.
+
+^ = arg min(DBk ) k
+k
+
+(2.29)
+
+2.2.6
+
+Several Validity Index Behavior With Respect to k
+
+In this part, we analyze the behavior of validity indexes discussed on the previous section when applied to data set with varying characteristics. For Figure 2.1 and 2.2, where the data set is composed of IID clusters, optimization of the 5 validity indexes leads to a sensible estimate of the number of clusters.
+
+Figure 2.1: Validity index on data set with IID clusters, uniform variance and uniform proximity. Figure 2.3 is the case when the clusters have a general Gaussian distribution and each cluster has a unique variance. The clusters in this cases are still distance-separated. 16
+
+CHAPTER 2. BACKGROUND
+
+Figure 2.2: Validity index on data set with IID clusters, unique variance and inconsistent proximity.
+
+Figure 2.3: Validity index on data set with general Gaussian clusters, unique distribution and uniform proximity.
+
+17
+
+CHAPTER 2. BACKGROUND
+
+Figure 2.4: Validity index on data set with general Gaussian clusters, unique distribution and inconsistent proximity.
+
+Figure 2.5: Validity index on Aggregation data set [29]
+
+18
+
+CHAPTER 2. BACKGROUND
+
+Figure 2.6: Validity index on R15 data set [30]
+
+Figure 2.7: Validity index on D31 data set [30] The Calinkski-Harabasz index failed to give a proper estimate of the correct number of clusters but the other 4 validity indexes were able to. 19
+
+CHAPTER 2. BACKGROUND Figure 2.4 covers the case where each clusters has a unique Gaussian distribution and some of the clusters are overlapping. Aside from Calinski-Harabasz, the other 4 validity index method underestimated the number of clusters since it considered the overlapping clusters as 1 even though these overlapping clusters has a unique distribution. CalinskiHarabasz, is still unable to handle general Gaussian distributed clusters which explains why it inappropriately overestimated the number of clusters. From these result, it is evident that the 5 validity indeces method discussed works well for IID clusters but cannot handle General Gaussian clusters. Figures 2.5 - 2.7 depicts data set introduced in [29] and [30]. The 5 validity indexes method only provided sensible number of cluster estimate for data set S15 and D31 where all the clusters follows an IID distribution with the same variance. On the other hand, all 5 validity indexes performed poorly on the aggregation data set where all the clusters does not follow the same distribution and with some clusters connected through a thin neck.
+
+2.3
+
+Information-Theoretic Approach to Signal Denoising and Best Basis Selection
+
+The observed noisy data y N = [y1 , ..., yN ] of length N is available
+
+y [n] = y [n] + w[n]
+
+(2.30)
+
+where y N is a unknown noiseless data of length N and w[n] is an additive white Gaussian noise that is a sample of the zero mean random variable W (n) with variance
+2 w . 2 w[n]  N (0, w )
+
+(2.31)
+
+20
+
+CHAPTER 2. BACKGROUND Expressing the observed data y N as well as the noiseless data y N in terms of a desired orthonormal basis, we have:
+
+[i] =< si , y N >
+
+,
+
+[i] =< si , y N > ,
+
+i = 1, 2, ..., N
+
+(2.32)
+
+where < ,  > is the inner product between two vectors and the orthonormal basis vectors sN = [s1 , s2 , ..., sN ] has the following properties.    
+
+1 i=j
+
+< si , sj >=
+
+  0 i = j The observed data as well as the unknown noiseless data can be reconstructed using the following:
+N N
+
+y =
+i=1
+
+N
+
+[i]si
+
+,
+
+y =
+i=1
+
+N
+
+[i]si
+2
+
+(2.33) are also IID
+
+Due to orthonormality of the basis vectors, the noise coefficients v [i]
+
+2 random variables with zero mean and variance of w . The relationship between these 3
+
+coefficients are as follows:
+
+[i] = [i] + v [i]
+
+(2.34)
+
+Under the assumption that the noiseless signal is recoverable from the observed noisy signal, it is implied that the noise variance is small meaning noise coefficients v [i] are tightly distributed around its mean which is zero. As a result, noise coefficients v [i], will tend to have small values as compared to the noiseless signal coefficients [i]. Consider sm which is a subspace of sN that is spanned by m elements (m < N ). An
+2
+
+v [i] =< si , wN >,
+
+i = 1, 2, ..., N
+
+21
+
+CHAPTER 2. BACKGROUND estimate of the noiseless data in this subspace can be given by
+m N y ^s m
+
+=
+i=1
+
+^sm [i]si 
+
+(2.35)
+
+^sm [i] is derived from [i] such that and the estimated coefficient     
+
+^Sm [i] = 
+
+[i] if si  sm otherwise
+
+  0
+
+Denoising is achieved by selecting subspace sm  sN . In other words, we project the observed noisy signal in subspace sm with the hopes that such projection will result into elimination of noise coefficients. The objective is then to find this subspace sm . To approach this problem, the following two error measurement is defined: 1 N yN - y ^s m N
+
+Data Error : ysm =
+
+2 2
+
+(2.36)
+
+Reconstruction Error : zsm =
+
+1 N yN - y ^s m N
+
+2 2
+
+(2.37)
+
+The difference between the observed noisy signal y N and the estimated signal y ^sm , which is observed signal's projection to subspace sm , is referred to as the the data error ysm . The Reconstruction error zsm on the other hand, is the difference between between the estimated signal and the noiseless signal. The minimization of zsm error leads to an optimum solution of subspace selection. In real life however, the noiseless signal is unavailable making zsm an unobservable error. Through probabilistic validation, this unobservable error can be estimated using the available data error.
+
+22
+
+CHAPTER 2. BACKGROUND
+
+2.3.1
+
+Estimation of Reconstruction Error from Data Error
+
+The data error ysm is a sample of random variable Ysm . Expected value and variance of the data error can be derived (Refer to [22] for more details). N -m 2 1 w + N N N -m N
+
+E [Ysm ] =
+
+2 Sm 2
+
+(2.38)
+
+V ar[Ysm ] = where the term
+2 sm 2
+
+2 N
+
+2 2 (w ) +
+
+2 4w N2
+
+2 Sm 2
+
+(2.39)
+
+is a component that is due to the noiseless signal. The
+
+calculation of this term in unavailable since information about the noiseless signal is required. Refer to (22) for more details. Although Ysm follows a Chi-square distribution, central limit theorem can be applied which means that with a large value for N , both Ysm and Zsm can be estimated by a Gaussian distribtuion. This allows for derivation of mathematical expressions for the bounds on the ysm and zsm . Through probabilistic validation, the term
+2 Sm 2
+
+is esti-
+
+mated using the observed data error ysm . The probabilistic validation assumes that the observed ysm is always worst case of Ysm meaning the following:
+
+E [Ysm ] - 
+
+V ar[Ysm ] = ySm
+
+(2.40)
+
+The parameter  is chosen based on validation probability P2 such that ysm is always within  V ar[YSm ] away from its mean with a probability P2 .
+
+P (|E [YSm ] - ySm |  
+
+V ar[YSm ]) = P2
+
+(2.41)
+
+Plugging in (2.38) and (2.39) in (2.40) and by choosing an appropriate  so that
+
+23
+
+CHAPTER 2. BACKGROUND P2  1, an estimate of the bounds of the unknown term observed ysm .
+2 Sm 2
+
+is obtained from the
+
+1 N 1 N and
+
+2 Sm 2 2 2
+
+= y sm - = y sm
+
+Sm
+
+2 2 22 w (N - m)w + + Ksm () N N 2 2 (N - m)w 22 w - + - Ksm () N N
+
+(2.42)
+
+w Ksm () = 2  N
+
+2 2 (N - m)w 2 w + y sm - N 2N
+
+(2.43)
+
+Similarly, the reconstruction error zsm is a sample of the random variable Zsm whose mean and variance are as follows: m 2 1 w + N N
+
+E [Zsm ] =
+
+2 Sm 2
+
+(2.44)
+
+V ar[Zsm ] =
+
+2m 2 2 ( ) N2 w
+
+(2.45)
+
+The first term of E [Zsm ] is due to the noise component and is an increasing function of m. The second term on the other hand is a decreasing function of m. This relationship is traditionally called the bias-variance trade off. The actual reconstruction error zsm is within  a desired probability P1 . V ar[ZSm ] away from its mean with
+
+P (|E [ZSm ] - zSm |  
+
+V ar[ZSm ]) = P1
+
+(2.46)
+
+where P1 is referred as the confidence probability and it is desired that P1  1. To
+
+24
+
+CHAPTER 2. BACKGROUND cater to this requirement, the parameter  is controlled. The actual reconstruction error zsm is therefore bounded such that
+
+ZSm  zsm  ZSm
+
+(2.47)
+
+ZSm = E [ZSm ] +  ZSm = E [ZSm ] -  The term
+2 Sm 2
+
+V ar[ZSm ] V ar[ZSm ]
+
+(2.48)
+
+is needed to calculate for the expected value of reconstruction
+2 Sm 2
+
+error from (2.44). But by using the estimated bounds of
+
+derived from (2.42),
+
+the bounds of zsm is estimated using only the available data error ysm .
+
+ZSm ZSm
+
+m 2 = w + N m 2 = w + N
+
+1 N 1 N
+
+Sm
+
+Sm
+
+ 2  2 2 2m 2+ N  2 2 2m 2 2- N
+
+(2.49)
+
+Using (2.49), the unobservable error Zsm can be estimated on any subspace sm .
+
+25
+
+Chapter 3 k-MACE Clustering
+Clustering methods that attempts to estimate the correct number of clusters have to deal with two optimization problems simultaneously. One of which is estimating the optimum number of cluster and the other one is finding the optimum partition based on the estimated number of clusters. Algorithms such as k-means and Fuzzy-C means deals with the latter but requires the number of clusters as an input. We define the average central error as the difference between the true cluster center and the estimated cluster center. Minimization of this error allows for simultaneous optimization of the partitioning problem as well as the estimation of number of clusters. However, to be able to solve for this error, one would need the true cluster center which is unavailable. Inspired by [21], we provide a probabilistic approach to estimate this unobservable error and use such estimate to find the optimum number of clusters. This chapter is organized as follows: Section 3.1 concentrates on preliminaries and notations that were used. Section 3.2 concentrates on our propose clustering method denoted by k - MACE. Section 3.3 presents our method for estimating covariances that are required in k - MACE clustering. Finally, Section 3.4 analyzes k - MACE compu-
+
+27
+
+CHAPTER 3. K-MACE CLUSTERING tational complexity.
+
+3.1
+3.1.1
+
+Preliminaries and Notations
+Data Model
+
+Tables 3.1 and 3.2 provides a list of symbols that were used for formulations of k - MACE and k - MACE . Consider an observed data of length N , xN = [x1 , x2 , . . . , xN ]T where xi  R1×d . Each element xi is a vector of length d, and each scalar element of xi represents an observed feature. The observed data xi is a sample of random vector Xi , with the following statement:
+
+Xi = cXi + W Xi
+
+(3.1)
+
+W Xi is a random vector that describes the variation of element Xi around its center cXi . We assume that this variation follows a zero mean Gaussian distribution, therefore:
+
+Xi = cXi + N (0, Xi ) where Xi is a d × d covariance matrix.
+
+(3.2)
+
+The data set is generated by m cluster model such that
+
+X N = C 1  C 2  ...  C m and
+
+(3.3)
+
+C i  C j = , 28
+
+i=j
+
+(3.4)
+
+CHAPTER 3. K-MACE CLUSTERING
+
+Table 3.1: Table of symbols used in k - MACE and k - MACE formulations Part 1 Symbol Description xN N d xi m cXi W Xi Data set to be clustered Length of Data Set Dimension of data / Number of Features The ith element of data Set xN . Sampled from Random vector Xi Correct number of cluster Center of Random Variable Xi A dependent random vector that is describes variation of Xi around its center. W Xi is z zero mean Gaussian Distribution Covariance of Random Vector W Xi Diagonal matrix whose elements are the eigenvalues of Xi j th cluster of the true clustering partition Center of cluster C j Covariance of true cluster C j Diagonal matrix whose elements are the eigenvalues of j Modal matrix of j Number of clusters j th cluster in m-clustering step Center of cluster Cmj
+
+Xi Xi Cj cj j j Qj m Cmj c ^mj
+
+29
+
+CHAPTER 3. K-MACE CLUSTERING
+
+Table 3.2: Table of symbols used in k - MACE and k - MACE formulations Part 2 Symbol nmj xmj xi mj Zsmj Ysmj cxmj cmj Zsm Zsm , Zsm Ysm Amj cmj Amj cmj ^ xi W mj
+2 F 2 F
+
+Description Number of Elements in cluster Cmj All the elements of cluster Cmj ith element of cluster Cmj Central error of cluster Cmj Data error of cluster Cmj True center of all the elements in cluster Cmj Estimated center of all the elements in cluster Cmj Average central error of m-clustering step Upper bound and lower bound of Zsm , respectively Average data error of m-clustering step Unknown term that is necessary for calculation of ACE. , Amj cmj
+2 F
+
+Upper bound and lower bound of Amj cmj
+
+2 F,
+
+respectively
+
+Independent random vector that describes variation of xi mj around its true center ^ xi Covariance matrix of W mj Variance of uniform IID clusters. An estimate of  2 w. Estimated number of clusters.
+
+xi mj 2 w
+2  ^w
+
+m ^
+
+30
+
+CHAPTER 3. K-MACE CLUSTERING Consider cluster C j  [C 1 , C 2 , . . . , C m ], we can write down its elements as follows:      N (0, j ) X1 cj           .  . . . . . + =   .  .  .       cj Xnj N (0, j ) 
+
+(3.5)
+
+where nj is the number of elements in cluster C j , cj and j are the center and the covariance of cluster C j , respectively. Note that the covariance matrix j is a symmetric matrix and j = Qj j Qj where j is a diagonal matrix whose elements are the eigenvalues of j . Qj is an orthonormal matrix that is the eigenvector of j . W j , can therefore be simplified in terms of an ^ j Qj where W ^ j  N (0, j ). ^ j such that W j = W independent Gaussian random vector W Rewriting (3.5) in terms of diagonal matrix j , we have     N (0, j )Qj X c  1   j      .    . . .  .  . =. .+ .       Xn j cj N (0, j )Qj  
+T
+
+(3.6)
+
+From (3.3) and (3.4), it is stated that all elements of the data set X N should come from either one of the m clusters. It should follow that:
+
+cXi  [c1 , . . . , cm ]T , Xi  [1 , . . . , m ]T , Xi  [1 , . . . , m ]T Xi  X N
+
+(3.7)
+
+31
+
+CHAPTER 3. K-MACE CLUSTERING
+
+3.1.2
+
+Clustering the Available Data Into m Clusters
+
+Clustering the available data into m clusters results in m cluster centers. Each of these m cluster center is denoted by c ^mj . The j th cluster is denoted by Cmj , (j = 1, . . . , m).
+1
+
+Clustering the data using k-means, the cluster center is calculated by averaging all the elements that belongs to that cluster such that: 1 nmj
+
+c ^mj =
+
+xi
+xi Cmj
+
+(3.8)
+
+where nmj is the number of elements in Cmj . Note that c ^mj is a vector of length d (same dimension as xi ). In our formulation, we denote the elements in cluster Cmj by the term xmj and the ith element of cluster Cmj is denoted by xi mj . Consequently, the data set xN , when split into m clusters, can be expressed as follows:
+
+xN = xm1  xm2  ...  xmm xmi  xmj = , i=j
+
+(3.9)
+
+Figure 3.7 depicts an example that shows variables C j , cj , Cmj and c ^mj
+
+3.1.3
+
+Average Central Error
+
+Estimating the CNC is approached by comparing clustering result when the data set is split into m clusters for a given range of m ([mmin : mmax ]). The goal is to have the estimated CNC, m ^ as close as possible to the true number of clusters m. For this comparison, we proposed to use the ACE for each m clustering and the m that minimizes
+1
+
+the subscript mj pertains to the j th cluster of the m-clustering result
+
+32
+
+CHAPTER 3. K-MACE CLUSTERING
+
+(a) Actual Clusters
+
+(b) m=3 Clustering Step
+
+Figure 3.1: Example of clustering solution and its corresponding estimated centers (^ cmj ) as well as the true cluster centers (cj ) ACE is the estimated CNC.
+2
+
+The average central error is the error measurement that we desire to use in evaluating a clustering solution. k-Minimizing Average Central Error (k-MACE) as the name suggest aims to look for k (number of cluster input in k-means) in which the average central error is minimized. The ACE, denoted by Zsm , is described as the average distance between the estimated cluster center and the true cluster center. ACE is a function of m and is
+2 1 nmj
+
+k-MACE formulation of the ACE is a variation of what was defined in [24] where Zsmj = cxmj - cmj
+2 F
+
+and Zsm =
+
+1 m
+
+m j =1
+
+Zsmj
+
+33
+
+CHAPTER 3. K-MACE CLUSTERING formulated as follows: Zsm and Zsmj = cxmj - cmj
+2 F
+
+1 = N
+
+m
+
+Zsmj
+j =1
+
+(3.10)
+
+(3.11)
+
+where cxmj is an (nmj × d) matrix that will be formed by taking the true cluster center associated with all the elements in cluster xmj .
+
+cxmj = [cx1 , . . . , cxnmj ]T
+
+| xi  xmj
+
+(3.12)
+
+The term cmj = 1nmj c ^mj , and 1nmj is a column vector of ones with length nmj , c ^mj is from (3.8) and the term ||()||F refers to the Frobenius norm. The calculation of the Average central error requires the knowledge of the true cluster centers. For this reason, the ACE is said to be unobservable. On the other hand, the data error, as will be introduced in the next section, is observable for all m. In Section 3.2, we propose a method for estimating ACE by using the available data error that is defined in the following section.
+
+3.1.4
+
+Data Error
+3
+
+The Data error denoted by Ysm
+
+can also be referred as the cluster compactness. It
+
+is a measure of how far the samples of a cluster are to the cluster's estimated center. Data error, commonly known as WGSS are also used in other index validation techniques such as Xie-Beni and intra-cluster correlation coefficient [24], as it provides a measure of
+k-MACE definition of data compactness is a variation of what was defined in [23] where Ysmj = 2 m 1 j =1 Ysmj nmj xmj - cmj F and Ysm = m
+1 3
+
+34
+
+CHAPTER 3. K-MACE CLUSTERING cluster cohesion, that is, how closely the objects are related in one cluster. The data error is a decreasing function of m and on the extreme case where m = N (i.e each sample is its own cluster) Ysm is equal to 0. Ysm is given by the following formula: 1 = N
+m
+
+Ysm
+
+Ysmj
+j =1
+
+(3.13)
+
+and Ysmj = xmj - cmj
+2 F
+
+(3.14)
+
+Figure 3.2-b shows an example of the behavior of both data error and the ACE, when the data set on Figure 3.2-a is clustered from m = 1 . . . , 30. As can be seen from this figure, the minimum of ACE happens when m = 9 which is the CNC and data error is evidently a decreasing function of m.
+
+3.2
+
+k-MACE Approach
+
+The observed average central error zsm is a sample of the random variable Zsm . Adjoining (3.11) and (3.1), Zsmj can be written as follows: (refer to Appendix 1 for details): 1 + nmj
+nmj
+
+Zsmj =
+
+Amj cmj 2 F
+
+^ xi W ^ Ti W xmj mj
+i=1
+
+1 + nmj
+
+nmj
+
+^ xi W ^ Tk W x mj
+i=k
+
+(3.15)
+
+mj
+
+where
+
+Amj
+
+ 1 1 - nmj   -1  =  nmj  ...  
+-1 nmj
+
+... 1-
+1 nmj
+
+-1 nmj
+
+        
+
+... ... 1-
+1 nmj
+
+(3.16)
+
+... ... 35
+
+CHAPTER 3. K-MACE CLUSTERING
+
+Figure 3.2: Example behavior of Zsm and Ysm on general Gaussian clusters ^ xi is a random vector that represents the variation of ith element of xmj around W mj its true center. We derive the expected value and the variance of Zsmj (for details, refer to Appendix 1) 1 + nmj
+nmj
+
+E [Zsmj ] = Amj cxmj
+
+2 F
+
+tr(xi ) mj
+i=1 nmj
+
+(3.17)
+
+V ar[Zsmj ] =
+
+2 nmj 2
+
+nmj
+
+) )+ tr((xi mj
+i=1
+
+2
+
+2 nmj 2
+
+tr(xi  xk ) mj mj
+i= k
+
+(3.18)
+
+where tr() is the trace function of a matrix and xi is the diagonalized eigenvalues mj ^ xi 's covariance matrix. of W mj 36
+
+CHAPTER 3. K-MACE CLUSTERING Consequently, the expected value and variance of Zsm is given below: 1 E [Zsm ] = N
+m
+
+E [Zsmj ]
+j =1
+
+(3.19)
+
+1 V ar[Zsm ] = 2 N
+
+m
+
+V ar[Zsmj ]
+j =1
+
+(3.20)
+2 F,
+
+From (3.17), the expected value of Zsmj , has two terms. The first term, Amj cmj
+
+is a function of the unknown true cluster center. This term is a decreasing function of m. The second term is a function of the cluster covariance and is monotonically proportional to m. As a result, there is a point in which Zsm will reach its minimum value at a finite m. This is traditionally called the bias-variance trade-off [21]-[22].
+
+Figure 3.3 shows an example of the behavior of E [Zsm ] and V ar[Zsm ] measured on the data set depicted on Figure 3.2-a. It can be seen that the variance of Zsm is negligible as compared to its expected value. Because of this property, it can be concluded that the distribution of Zsm is highly dense around E [Zsm ]. However, the actual ACE, zsm , is only a sample of the random variable Zsm , knowing the pdf of Zsm cannot give us directly the value of the zsm but it can be used to derived the probabilistic bounds of Zsm . Confidence probability P1 is incorporated so that
+
+P (|E [Zsm ] - zsm |  N
+
+var[Zsm ]) = P1
+
+(3.21)
+
+P1 represents the probability that the actual average central error zsm is within ±N V ar[Zsm ] from E [Zsm ]. Naturally, we would want the confidence probability P1
+
+to be as large as possible. In order to achieve such goal, it requires N to be proportional
+
+37
+
+CHAPTER 3. K-MACE CLUSTERING to N . We define the upper bound and the lower bound for Zsm , respectively.
+
+Zsm = E [Zsm ] + N
+
+var[Zsm ]
+
+(3.22)
+
+Zsm = E [Zsm ] - N such that given confidence probability P1
+
+var[Zsm ]
+
+(3.23)
+
+Zsm  zsm  Zsm
+
+(3.24)
+
+The estimated CNC is found by finding m where minimum of ACE's upper bound occurs.
+
+m ^ = arg minm (Zsm )
+
+(3.25)
+
+Figure 3.3: Expected value and variance of Zsm for a range of m derived from data set depicted on Figure 3.2-a The upper-bound of ACE is derived using the expected value of ACE which can only 38
+
+CHAPTER 3. K-MACE CLUSTERING be solved if one knows the true cluster center. In the following section, we would show how to estimate the unknown term, Amj cxmj
+2 F
+2 , F
+
+from the data error.
+
+3.2.1
+
+Estimating Amj cxmj
+
+The obseved data error ysm is a sample of the random variable Ysm . The data error is the average distance of all the elements on the data set to its estimated cluster center. Combining equations (3.1) and (3.14), (refer to Appendix 2 for details)
+2 F
+
+Ysmj = Amj cxmj
+
+nmj - 1 + nmj
+nmj
+
+nmj
+
+^ xi W ^ Ti W xmj mj
+i=1
+
+1 - nmj
+d nmj
+
+nmj
+
+^ xi W ^ Tk W x mj
+i= k nmj
+
+mj
+
+(3.26) cd xi )
+mj
+
+2
+i=1
+
+^ Ti cxi W x mj
+
+mj
+
+2 - nmj
+
+(
+d =1 i=1
+
+^ di W x
+
+mj
+
+i=1
+
+^ di where W x
+
+mj
+
+and cd xi
+
+mj
+
+are the variation and the true center of the ith element of xmj
+
+in the d component, respectively. ^ xi , Similar to Zsmj , the cluster compactness is also a function of the random vector W mj we derived its expected value and variance (refer to Appendix 2 for details). (nmj - 1) + nmj
+nmj
+
+E [Ysmj ] = Amj cxmj
+
+2 F
+
+tr(xi ) mj
+i=1
+
+(3.27)
+
+2(nmj - 1)2 V ar[Ysmj ] = n2 mj
+
+nmj
+
+i=1
+
+1 tr((xi ) ) + mj n2 mj
+2
+
+nmj
+
+tr(xi xk ) mj mj
+i= k nmj 2 F i=1
+
+(3.28) ) tr(xi mj
+
+4 Amj cxmj d nmj
+
+39
+
+CHAPTER 3. K-MACE CLUSTERING The expected value and variance of Ysm is given below: 1 E [Ysm ] = N 1 V ar[Ysm ] = 2 N
+m
+
+E [Ysmj ]
+j =1
+
+(3.29)
+
+m
+
+V ar[Ysmj ]
+j =1
+
+(3.30)
+
+Depicted on Figure 3.4 is an example of the behavior of the expected value and the variance Ysm as a function of m.
+
+Figure 3.4: Expected value and variance of Ysm for a range of m derived from data set S1 depicted on figure 1a We use the pdf of Ysmj to provide confidence region for validation probability P2 such that, Amj cxmj
+2 . F
+
+Given the
+
+P (|E [Ysm ] - ysm |  N
+
+var[Ysm ]) = P2
+
+(3.31)
+
+we can provide bounds for Amj cmj Amj cmj
+2 F
+
+2 F
+
+through probabilistic validation. Validation of
+
+is such that ysmj is in the neighborhood of Ysmj 's mean with a probability 40
+
+CHAPTER 3. K-MACE CLUSTERING of P2 . Similar to P1 , we would want the validation probability P2 to be large since this will give us bigger confidence region for ysmj . In order to achieve this, N should be proportinal to N . To find the upper bound of Amj cxmj
+2 , F
+
+we should solve for the following inequality:
+
+E [Ysmj ] - N
+
+var[Ysmj ]  ysmj
+2 F
+
+(3.32) = mlj , mwj =
+
+Plugging-in (3.27) and (3.28) to equation (3.32), and letting Amj cxmj
+(nmj -1) nmj nmj i=1
+
+), we get tr(xi mj mlj + mwj - ysmj 
+
+N
+
+2(nmj - 1)2 n2 mj
+
+nmj
+
+tr((xi mj
+i=1
+
+)2 )
+
+2 + 2 nmj
+
+nmj
+
+i=k
+
+4 tr(xi xk ) + mlj mj mj dnmj
+
+nmj
+
+tr(xi ) mj
+i=1
+
+(3.33) To solve for the boundary, (i.e. when two sides of the inequality are equal), we square both sides of the equation
+
+m2 lj
+2 (mwj - ysmj )2 - N
+
++ mlj
+
+2(mwj - ysmj ) -
+2 nmj
+
+2 N
+
+4 dnj
+
+nmj
+
+tr(xi ) + mj tr(xi xk ) mj mj =0 (3.34)
+
+2(nmj - 1) n2 mj
+
+tr((xi )2 ) + mj
+i=1
+
+2 n2 mj
+
+i=1 nmj
+
+i= k
+
+(3.34) is a quadratic equation in terms of mlj . Solving for the roots of mlj can give us both the upper-bound and the lower-bound , denoted by mlj and mlj , respectively. The higher root of mlj is considered its upper bound. Note that the roots mlj is only a 41
+
+CHAPTER 3. K-MACE CLUSTERING function of the observed data compactness ysm , N , and the covariance of random vector ^ xi , xi . W mj mj After solving for the upper-bound of mlj , we substitute this to (3.17), such that mlj = mlj in order to solve for the expected value of ACE. 1 E [Zsmj ] = mlj + nj 2 nmj 2
+nmj nj
+
+) tr(xi mj
+i=1 nmj
+
+(3.35)
+
+V ar[Zsmj ] =
+
+) )+ tr((xi mj
+i=1
+
+2
+
+2 nmj 2
+
+ xk ) tr(xi mj mj
+i= k
+
+(3.36)
+
+Plugging in (3.35) to (3.19) and (3.36) to (3.20), we can solve for the expected value and variance of the overall average central error. The upper-bound of the overall average central error Zsm can then be solve using (3.22).
+4
+
+Figure 3.5 shows the actual Zsm and its estimated bounds as well ml as a function of m. The actual Zsm and actual ml shown on this figure is calculated using the true cluster center. 5 . The upper bound and the lower bound of both Zsm and Amj cxmj
+2 F
+
+are calculated only using the observable cluster compactness as well as an estimate of xi for i = 1, 2.., N . mj
+
+3.3
+
+Estimating xi
+
+The upper-bound of the average central error is estimated by relating the expected value and the variance of the observable data error to that of the unobservable ACE. And as seen from (3.17), (3.18), (3.27), and (3.28), these statistics are functions not only of the
+4 5
+
+The ACE lower-bound, Zsm , can be solved by using mlj instead of mlj in (3.35).
+2 . F
+
+1 m ml is equivalent to N j =1 Amj cxmj 1 m all mlj such that ml = N j =1 mlj
+
+The upper-bound of this term is solved by summation of
+
+42
+
+CHAPTER 3. K-MACE CLUSTERING
+
+Figure 3.5: Behavior of Zsm and ml and its derived bounds derived from data set depicted in Figure 3.2-a unknown true data center Amj cmj
+2 F
+
+. but as well as the unknown data covariance xi mj
+
+Consider figure 3.6 which shows clustering result when the data is split into m clusters such that m > m. In the case when m = 4, we have 4 clusters denoted by the colors red, purple, blue and yellow. It can be observed that in this case, a single cluster is further divided into multiple clusters. Examining the 1st cluster (red cluster, j = 1) in m = 4 clustering, we have
+
+Figure 3.6: Clustering result when m > m (here, m = 2, d = 2, N = 21)
+
+43
+
+CHAPTER 3. K-MACE CLUSTERING
+
+Ysmj = xmj - cmj
+
+2 F
+
+(3.37) Ysmj = xmj - Bmj xmj where Bmj is an averaging matrix 
+1 2 F
+
+Bmj
+
+ nmj   1  =  nmj . . .  
+1 nmj
+
+...
+1 nmj
+
+1
+
+
+
+... ...
+
+ ...    ...   
+1 nmj
+
+nmj 
+
+(3.38)
+
+Notice that all members of the red clusters belongs to the true cluster C 2 .
+
+Ysmj = (c2 + W Xi ) - Bmj (c2 + W Xi ) Since Bmmj c2 = c2
+2 F
+
+2 F
+
+(3.39)
+
+Ysmj = Amj W Xi
+
+(3.40)
+
+Ysmj
+
+nmj - 1 = nmj
+
+nmj T W Xi W Xi i=1
+
+1 - nmj
+
+nmj
+
+W Xi W Xk
+i=k
+
+T
+
+(3.41)
+
+From (3.41), it can be noticed that when m > m, the cluster compactness Ysmj becomes only a function of the random vector WXi . Therefore, in order to estimate the unknown data covariance, we determine an initial estimate of number of cluster, m ^ 0 , such that m ^ 0 > m. Cluster the data set with m ^ 0 clusters using Gaussian Mixuture Model
+
+44
+
+CHAPTER 3. K-MACE CLUSTERING ^ xi . (GMM) clustering, and finally using this clustering solution to obtain an estimate of  The following process is explained in detail in the following: ^ 0, C ^ 0, . . . , C ^ 0 0 be the m Let C ^ 0 clusters determined by GMM clustering. Calculate 1 2 m ^
+0 ^j and take its eigenvalues and form a diagonal matrix the covariance of each cluster C
+
+whose elements are these eigenvalues. We denote these matrices by 1 , 2 , ..., m ^ 0 , with
+0 ^j . For each element xi  [x1 , x2 , ..., xN ], we determine its cluster j corresponding to C
+
+membership and
+
+0 ^j ^ xi =  j | x i  C 
+
+(3.42)
+
+3.3.1
+
+Obtaining m ^0
+
+From figure 3.4, it can be observed that as soon as m > m, Ysm stops decreasing drastically. By taking the point m in which Ysm does not show significant changes, we would have an idea of when m surpasses m. Although ysm cannot give us a good estimate of the correct number of clusters, we can examine its behavior as a function of m and use it to obtain m ^ 0 . Note that it was stated that m ^ 0 can take any m value as long as m > m ^. To obtain m ^ 0 , one would need to locate the point in which log (ysm ) starts showing insignificant changes. To do this, we take a derivative of log (ysm ) with respect to m ysm = log (ysm ) d(ysm ) = ysm  [-1 1] dm d(ysm ) d (ysm ) dm = dm max( d(ysm ) )
+dm
+
+(3.43)
+
+where (a  b) is convolution of vectors a and b. We also normalize
+
+d(ysm ) dm
+
+so that its
+
+45
+
+CHAPTER 3. K-MACE CLUSTERING maximum value is 1. d (ysm )  T )) dm
+
+m ^ 0 = min(argm (
+
+(3.44)
+d (ysm ) dm
+
+sm <= T ) is obtained by taking all the m values for which The term argm ( dY dm
+
+<
+
+T . T is a hard threshold that should have a value close to 0. In our algorithm, we use T = 0.1.
+
+3.3.2
+
+Why Use GMM for Estimation of Covariances
+
+GMM is used in calculating the covariance since it is better in detecting clusters that are general Gaussian distributed compared to k-means. The crisp clustering assignment of element xi in k-means is based on the l2-norm between xi and the cluster centers. Due to this, k-means is only capable of detecting clusters that are spheroidal. An example of this case is depicted on Figure 3.7b From Figure 3.7a, notice that the even though the data is clustered with m = 10, GMM clustering solution is able to provide 6 major clusters which are very close to the true clustering solution. Almost all of the elements of the data set belongs to these 6 major clusters which will allow for a more accurate estimation of covariances of random vectors W xi , i = [1, ..., N ]. On the other hand, examining top right part of Figure 3.7b, we noticed the following: 1) There are 3 clusters, each cluster has an ellipsoidal shape but with different orientation. 2) k-means clustering solution grouped elements from different clusters forming loose clusters. Because of the reasons stated above, using k-means clustering solution will get us unreliable estimate of the cluster covariance. Although GMM gives a better clustering solution when dealing with data whose 46
+
+CHAPTER 3. K-MACE CLUSTERING
+
+(a) GMM clustering (m ^ 0 = 10, m = 6, d = 2, N = 6000)
+
+(b) k-means clustering (m ^ 0 = 10, m = 6, d = 2, N = 6000)
+
+Figure 3.7: Clustering solution: GMM vs K-means clusters have general Gaussian distribution, we are unable to use this in place of k-means for evaluations of Zsm and Ysm . This is because GMM does not provide robust clustering solution when m < m. This is supported by Figure 3.8. It can be noticed that both the average central error and the data error has huge variance when GMM is used instead of k-means. Our formulations assumes that the variance of these errors are much smaller compared to its expected value which is true for the case when k-means is used. The clustering solution of GMM starts to become more robust when m > m (signified by low Zsm and Ysm variance), thus, we can use it to help us estimate xi .
+
+47
+
+CHAPTER 3. K-MACE CLUSTERING
+
+(a) Average central error on data set from Figure 3.2
+
+(b) Average data error on data set from Figure 3.2
+
+Figure 3.8: Behavior of Zsm and Ysm : GMM vs K-means 48
+
+CHAPTER 3. K-MACE CLUSTERING
+
+3.4
+
+Computational Complexity of k-MACE
+
+K-means computational complexity is O(mN dl), where N is the number of elements in the data set, d is the dimension of the data, m is the number of clusters that the data should be partitioned to and l is the maximum number of iteration for k-means. k - MACE serves as a wrapper to k-means where we try to estimate the upperbound of Zsm from the ysm for each m  [mmin , . . . , mmax ]. This means that for each m, we cluster the data into m clusters using k-means which requires us to run k-means m = mmax - mmin times. The estimation of Zsm from ysm does not impose a significant computational time on k - MACE. Therefore, k - MACE computational complexity is given by:
+
+O(m ) × O(mN dl) where m = mmax - mmin . The k - MACE Algorithm is explained below.
+
+(3.45)
+
+49
+
+Algorithm 1 k-MACE Algorithm Require: Estimate the number of cluster m ^ and provide a clustering solution. Input: Data set x = [x1 , x2 , ..., xN ], range of m, [mmin , mmax ] ^1 , C ^2 , .., C ^m Output: Estimated number of cluster m ^ , and the clustering solution [C ^] 1: for (m = mmin ; m  mmax ; m++ ) do 2: [Cm1 , Cm2 , .., Cmj ] = kmeans(x, m) 3: for each cluster Cmj j = 1, .., m do 4: Solve cluster compactness ysmj of cluster Cmj using (3.14) 5: end for 6: Solve for total cluster compactness ysm using (3.13) 7: end for 8: From ysm , obtain m ^ 0 using (3.44) 0 ^0 ^1 ^ 0 0 ] = GMM(x,m 9: [C , C2 , .., C ^ 0) m ^ 0 ^1 ^ 0 0 ] using (3.42) ^ xi from clustering solution [C 10: Solve for  , .., C m ^  ^ xi and set  = 3 nmj to solve for the upperbound of Amj cmj 2 11: Use  F , mlj by solving for the roots of (3.34) ^ xi to solve for E [Zsmj ] using (3.35) and V ar[Zsmj ] using 3.18 12: Use  13: Set N = N . The upperbound of Zsmj , Zsmj , can then be found using (3.22). 14: m ^ = arg minm (Zsm ) ^1 , C ^2 , .., C ^m 15: [C ^) ^ ] = GM M (x, m
+
+Chapter 4 k-MACE Clustering
+The proposed k - MACE method estimates the correct number of clusters through estimation of the average central error. Our formulations assumes that the data set is composed of clusters with possibly different covariance structure. In this section, we develop a special case of k - MACE for when the data set is composed of clusters that are independent and identically distributed IID and share the same variance. This method, denoted by k - MACE , allows for simplification of the formulations of k - MACE. This chapter is organized as follows: Section 4.1 shows how k - MACE is derived from k - MACE by having the assumption of IID clusters. Section 4.2 shows computational complexity of k - MACE . Section 4.3 compares performance of k - MACE and k - MACE for clusters that are IID. Section 4.4 offers a validation step that helps determine whether k - MACE is preferable than k - MACE for estimating CNC of a given data set. Smart k - MACE clustering is proposed on section 4.5 that is an extension of k - MACE and has the capability of partitioning general Gaussian clusters.
+
+51
+
+CHAPTER 4. K-MACE CLUSTERING
+
+Figure 4.1: Example behavior of Zsm and Ysm on IID clusters
+
+4.1
+
+k-MACE  k-MACE When Clusters are IID
+
+Assuming that all clusters are IID around its center, it will imply that the variation of
+2 all the elements W Xi  N (0, w Id×d ) for i = 1, 2, ...., N . An example of this type of data
+
+is depicted of Figure 4.1a. For this case, we can directly solve for the upper-bound of
+1 N m j =1
+
+Amj cmj
+
+2 F
+
+from the total observed cluster compactness ysm and from there, we
+
+can solve the upper-bound of the overall average central error Zsm . 1 N
+m
+
+ysm 
+
+Amj cmj
+j =1
+
+2 F
+
+ Zsm
+
+(4.1)
+
+52
+
+CHAPTER 4. K-MACE CLUSTERING
+
+4.1.1
+
+Average Central Error
+
+The expected value and the variance of Zsmj can be simplified under the assumption that
+2 W Xi  N (0, w Id×d ) for i = 1, , , N such that (see Appendix 1 for details)
+
+E [Zsmj ] = Amj cmj
+
+2 F
+
+2 + dw
+
+(4.2)
+
+4 V ar[Zsmj ] = 2dw
+
+(4.3)
+
+Applying equations (4.2) and (4.3) to (3.19) and (3.20) respectively, the expected value and variance of the overall average central error is given as follows: 1 E [Zsm ] = N
+m 2 d mw N
+
+Amj cmj
+j =1
+
+2 F
+
++
+
+(4.4)
+
+V ar[Zsm ] =
+
+4 2m dw N2
+
+(4.5)
+
+We can define the bounds on Zsm using equations (4.4) and (4.5) and by letting N = N (See Appendix 1 for details). 1 = N
+m 2 F 2  m dw 2 2m d + w N
+
+Zsm
+
+Amj cmj
+j =1
+
++
+
+(4.6)
+
+Zsm
+
+1 = N
+
+m
+
+Amj cmj
+j =1
+
+2 F
+
++
+
+2  m dw 2 - w 2m d N
+
+(4.7)
+
+where Zsm and Zsm are the upper-bound and lower-bound of zsm , respectively.
+
+53
+
+CHAPTER 4. K-MACE CLUSTERING
+
+4.1.2
+
+Data Error
+
+2 Similarly, Ysm can be simplified if we apply the assumption that W Xi  N (0, w Id×d ) for
+
+i = 1, 2, ...., N . The expected value and variance of Ysmj is given below
+
+E [Ysmj ] = Amj cmj
+
+2 F
+
+2 + d (nmj - 1)w
+
+(4.8)
+
+2 V ar[Ysmj ] = 4w Amj cmj
+
+2 F
+
+4 + 2d(nmj - 1)w
+
+(4.9)
+
+The expected value and variance of the overall data error is given by: 1 E [Ysm ] = N
+m 2 F 2 d(N - m)w N
+
+Amj cmj
+j =1
+
++
+
+(4.10)
+
+2 4w V ar[Ysm ] = 2 N 1 N m j =1 2 F
+
+m
+
+Amj cmj 2 F
+j =1
+
+4 2d(N - m)w + N
+
+(4.11)
+
+Letting ml =
+
+Amj cmj
+
+and mw =
+
+2 d(N -m)w , N
+
+the bounds on ml are as follows
+
+(See Appendix 2 for details).
+2 2 w + ksm () N
+
+ml = ysm - mw + 2
+
+(4.12)
+
+ml = ysm - mw + 2 and 2w ksm () =  N
+
+2 2 w - ksm () N
+
+(4.13)
+
+2 2 w 1 + ysm - mw N 2
+
+(4.14)
+
+Equation (4.6) and (4.7) provides the bounds for Zsm assuming that ml is known, in
+
+54
+
+CHAPTER 4. K-MACE CLUSTERING real applications however, this variable is unknown. To estimate the upper-bound and the lower-bound of Zsm , we combine equations (4.6) with (4.12) and (4.7) with (4.13) respectively.
+2  mdw 2 + w 2md N
+
+Zsm = ml +
+
+(4.15)
+
+Zsm = ml +
+
+2  mdw 2 2md - w N
+
+(4.16)
+
+And similar to k - MACE , the estimate of correct number of cluster is given by
+
+m ^ = arg minm (Zsm )
+2 Estimating w
+
+(4.17)
+
+4.1.3
+
+As seen from Section 3.3, when m > m ^ , the data error becomes only a function of the
+2 random vector W Xi . Under the assumption that all clusters are IID with variance w , the
+
+expected value and variance of Ysm can be easily derived as follows (Refer to Appendix 2): d(N - m) 2 w N 2d(N - m) 4 w N2
+
+E [Ysm ] =
+
+| m>m
+
+(4.18)
+
+V ar[Ysm ] =
+
+| m>m
+
+(4.19)
+
+For large values of N , the expected value of cluster compactness will be much higher compared to its variance. We can therefore assume that the observed cluster compactness ysm is a good representation of E [Ysm ] (ysm  E [Ysm ]). With this information, we would
+
+55
+
+CHAPTER 4. K-MACE CLUSTERING be able to solve for the variance.
+mmax 2  ^w
+
+=
+m=m ^0
+
+N y sm d(N - m)
+
+(4.20)
+
+where m ^ 0 is obtained using the process explained on Section 3.3.1.
+
+4.2
+
+Computational Analysis of k-MACE
+
+The computational complexity of k - MACE is similar to that of k - MACE. Although estimation of bounds on zsm is simpler for k - MACE , it is still the calculation of ysm , that gives majority of computational complexity. This being said, the computational complexity of k - MACE is also O(m ) × O(mN dl). The over-all algorithm of k - MACE is described below. Algorithm 2 k - MACE Algorithm Require: Estimate the number of cluster m ^ and provide a clustering solution. Input: Data set x = [x1 , x2 , ..., xN ], range of m, [mmin , mmax ] ^1 , C ^2 , .., C ^m Output: Estimated number of cluster m ^ , and the clustering solution [C ^] 1: for (m = mmin ; m  mmax ; m++ ) do 2: [Cm1 , Cm2 , .., Cmj ] = kmeans(x, m) 3: for each cluster Cmj j = 1, .., m do 4: Solve cluster compactness ysmj of cluster Cmj using (3.14) 5: end for 6: Solve for total cluster compactness ysm using (3.13) 7: end for 8: From ysm , obtain m ^ 0 using (3.44) 2 9: Solve for  ^w using 4.20 2 10: Using  ^w ,  = N (1/3) , solve for ml using 4.12 11: Solve for ACE upperbound Zsm 4.15 12: m ^ = arg minm (Zsm ) ^1 , C ^2 , .., C ^m 13: [C ^) ^ ] = k - means(x, m
+
+56
+
+CHAPTER 4. K-MACE CLUSTERING
+
+4.3
+
+An Example of k-MACE and k-MACE on Clusters That Are IID
+
+The motivation of this section is to show how k - MACE outperforms k - MACE in an IID clustering setting. While both k - MACE and k - MACE aims to look for the number of cluster that minimizes the average central error, k-MACE assumes that the data set is composed of clusters with general Gaussian distribution. On the other hand, the premise on k - MACE ' is that the data set contains clusters that are IID with uniform variance. Ultimately, this assumption causes the main difference between the k - MACE and k - MACE . Consider the example from Figure 4.2 where the clusters are IID and has uniform variance and varying degrees of overlap between clusters. Evidently, the result from k - MACE clustering is closer to the correct solution while k - MACE underestimated the correct number of cluster. It can be observed from Figure 4.2b that touching IID clusters are interpreted as one cluster by k - MACE. Recall from Section 3 that the ACE is composed of two components: 1 + nmj
+nmj
+
+E [Zsmj ] =
+
+Amj cmj 2 F
+
+tr(xi ) mj
+i=1
+
+(4.21)
+
+The first term of 4.21 is a decreasing function of m and is a function of the unknown true cluster center. The second term is a function of the true covariance of the cluster and increases as m increases. For k - MACE, we rely on GMM clustering for the estimation of the true cluster covariance and use this estimate to provide ACE's upper bound. For D31 data set, GMM ended up combining touching IID clusters forming a less compact generally distributed cluster. This is depicted on Figure 4.3a. Due to this, the estimate of cluster covariance will be larger than the true covariance thus making the second term 57
+
+CHAPTER 4. K-MACE CLUSTERING
+
+(a) Data Set (m=31, IID clusters, uniform variance)
+
+(b) k-MACE clustering (m ^ = 15)
+
+(c) k - MACE clustering (m ^ = 31)
+
+Figure 4.2: Example Clustering Solution: k - MACE vs k - MACE on IID clusters increase faster as depicted on Figure 4.3b.
+
+58
+
+CHAPTER 4. K-MACE CLUSTERING
+
+(a) Example GMM clustering solution with m=31
+
+(b) ACE upperbound estimation for D31: k - MACE vs k - MACE
+
+Figure 4.3: k-MACE on D31 data set
+
+4.4
+
+Smart k-MACE Validation
+
+As it was discussed in the previous section, with the prior assumption that clusters are IID, it is more efficient to use k - MACE over k - MACE. In practical applications however, such knowledge may not be available. In order to check whether or not data set is composed of IID clusters with uniform variance, we propose to first use k - MACE .
+
+59
+
+CHAPTER 4. K-MACE CLUSTERING We validate whether the clustering result from k - MACE form clusters that are IID by checking unimodality of all the touching clusters. If two touching clusters that are the output from k - MACE turned out to be unimodal, then the hypothesis that all clusters are IID with the same variance does not apply to the data. Therefore, k - MACE must be used instead of k - MACE . More information about unimodal test of touching clusters is explained on the following section.
+
+4.5
+
+Smart k-MACE Clustering
+
+Figure 4.4 shows an example of how k - MACE performs on clusters that has general Gaussian distribution. Assuming that all clusters shares the same variance, k - MACE aims to cluster the data where all the clusters have equal variance. As a result, it ended up splitting clusters that are widely spread into multiple clusters since by doing so, k - MACE ensures that all the clusters that are formed are cohesively similar (i.e. ysm2  ysm2 , ..., ysmm ). This ultimately results into k - MACE overestimating the ^ number of clusters. In this section, we further developed k - MACE to be able to validate the clustered data after the clustering process. The proposed method, denoted by smart k - MACE , looks for two touching clusters at time, and determine whether these clusters were appropriately split or not through Chi-square goodness of fit unimodality test. If this pair of touching clusters is indeed a sample of a unimodal distribution, we recombine these clusters. The process of finding and recombining touching clusters is iteratively done until all touching clusters have undergone the test for unimodality.
+
+60
+
+CHAPTER 4. K-MACE CLUSTERING
+
+(a) Data Set (m=9, Generally Distributed, unique covariance)
+
+(b) k - MACE clustering (m ^ = 9)
+
+(c) k - MACE clustering (m ^ = 13)
+
+Figure 4.4: Example Clustering Solution: k - MACE vs k - MACE on general Gaussian clusters 61
+
+CHAPTER 4. K-MACE CLUSTERING
+
+4.5.1
+
+Indentifying Touching Clusters
+
+From the clustering solution provided by k - MACE , we can calculate the overall cluster using equations (3.13) and (3.14). compactness ysm ^ ^i , C ^j ) as the distance between clusters Ci and Cj . More specifically, Let us denote d(C ^i , C ^j ) pertains to the smallest distance between two elements, one coming from cluster d(C ^i and the other one coming from cluster C ^j . In other words, d(C ^i , C ^j ) is the distance C ^i and C ^j . Clusters C ^i and C ^j are considered between the closest elements from clusters C ^i , C ^j )  ysm. to be touching when d2 (C
+
+4.5.2
+
+Unimodality Test for Touching Clusters
+
+^i and C ^j are touching, we form a data set x by combining these two clusters If clusters C such that:
+
+^i  C ^j x = [x1 , x2 , ..., xN ] | xk  C ^i and C ^j combined. where N is the total number of elements in Cluster C
+
+(4.22)
+
+Most of existing statistical test for determining unimodality of data such as KilmogorovSmirnov (KS) and Chi-square goodness of fit is applicable only on one-dimensional data. Therefore, a necessary step is to transform x from a d-dimensional data into a onedimensional data.
+
+y = f ( x)
+
+(4.23)
+
+where f is transformation of x into one-dimensional data y . In our algorithm, Principal Component Analysis (PCA) is used for such transformation. 62
+
+CHAPTER 4. K-MACE CLUSTERING
+
+The next step for this validation process is to check whether or not y came from a unimodal distribution. But before we do this, we first normalize y so that it has mean of zero and a variance of 1. z= y - mean(y ) std(y ) (4.24)
+
+The hypothesis being tested is whether or not z are samples that came from normal distribution N (0, 1). Chi-square goodness of fit with significance level of 5% is employed ^i and C ^j are for this test. If y is indeed samples that came from N (0, 1), then clusters C said to be inappropriately split. Few examples of touching clusters where unimodality test must be applied are depicted on Figures 4.5 - 4.8. Chi-square goodness of fit was able to determine that only the case for 4.5 is that the touching clusters should be counted as a single cluster. For the rest of the cases, Chisquare goodness of fit was able to determine that these pairs of clusters is appropriately divided into 2. Smart k - MACE clustering takes the output of the k - MACE and performs the recombination process described. Figure 4.7 shows the case when two IID clusters with equal variance are touching. In this case, chi-square goodness of fit test determined that these two clusters are not unimodal and therefore, should not be combined. The rest of the touching IID clusters in this data 4.7 failed the unimodality test so there where no touching clusters that were combined. When such case happens, the use of k - MACE over k - MACE is validated. This algorithm for this recombination process is described in Algorithm 3.
+
+63
+
+CHAPTER 4. K-MACE CLUSTERING
+
+Figure 4.5: Touching clusters formed by splitting of a unimodal cluster
+
+Figure 4.6: Two generally distributed touching clusters
+
+Figure 4.7: Two touching IID clusters
+
+Figure 4.8: Clusters connected through a neck
+
+64
+
+CHAPTER 4. K-MACE CLUSTERING
+
+Algorithm 3 Recombination process for smart k - MACE Clustering ^1 , C ^2 , ..., C ^m Input: Clustering solution from k - MACE , [C ^ ].    Output: New clustering solution [C1 , C2 , ..., Cm ] where m   m ^  1: From the clustering solution provided by k - MACE , calculate the overall cluster using equations (3.13) and (3.14). compactness ysm ^ ^1 , C ^2 , ..., C ^m 2: The initial clustering solution [C1 , . . . , Cm ] = [C ^ ^ ] where m = m 3: Calculate d(Ci , Cj ) for Ci , Cj  [C1 , . . . , Cm ] and i = j . 4: Find dmin and the pair of clusters, Ci , Cj  [C1 , C2 , ..., Cm ], i = j that provided dmin . dmin =
+5: 6: 7: 8: 9: 10: 11: 12: 13: 14: 15: 16:
+Ci ,Cj [C1 ,C2 ,...,Cm ],i=j
+
+min
+
+d(Ci , Cj )
+
+(4.25)
+
+if (dmin )2  ysm then, it means that clusters Ci and Cj are touching ^ x = Ci  Cj y = f ( x) mean(y ) z = y-std (y ) Check normality of z using Chi-square goodness of fit. if z is a sample from normal distribution then Combine clusters Ci and Cj and go back on step 3. m = m - 1. else ^j and C ^j is kept as two separate clusters. Large value is assigned for d(Ci , Cj ) C and we go back on step 3. end if end if If (dmin )2 > ysm , all touching clusters has been tested, therefore, recombination ^ process is complete.
+
+65
+
+Chapter 5 Simulations and Result
+5.1 Artificial Data Sets
+
+We have generated 4 types of data set depicted on Figures 5.1-5.4. These data set has varying complexity in terms of degrees of overlap, type of cluster distribution, and number of elements. Each data set is tested both with k - MACE , k - MACE and MACE means. Figures 5.1-5.4 shows graphical results that proves the superiority of the k - MACE algorithm compared to MACE means not only in terms of estimating the CNC but as well as better estimation of the unobservable average central error. Figure 5.1 exhibits the result of our algorithm when applied on a data set with IID clusters. Note that ACE are plotted separately due to the discrepancy between how ACE is defined in k - MACE and MACE-means. m ^ k-MACE , m ^ k-MACE , and m ^ MM are the estimated number of cluster using k - MACE, k - MACE , and MACE-means, respectively. Although MACE-means was able to identify the CNC, our algorithm m ^ k-MACE and m ^ k-MACE , provides a more accurate and smoother estimate of the unobservable error. This is because our algorithms takes into account the variance of both the ACE
+
+67
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.1: IID clusters, uniform variance and uniform proximity (data set characteristic: m = 9, d = 2, N = 900 (result: m ^ k-MACE = 9, m ^ k-MACE = 9, m ^ MM = 9) and data errors whereas as MACE means only consideres their expected values. Figure 5.2 is composed of a data set where clusters are still IID, but not sharing the same variance. The actual ACE based on MACE means and k-MACE still reaches its minimum value at m = 5. Looking at the minimum point of the estimated ACE, what we see is that the k - MACE's CNC estimate is 4 while MACE means and k - MACE over estimated the CNC at m ^ M M = 6 and m ^ k-MACE = 9, respectively. k - MACE overly estimated the CNC this since method inherently clusters the data in a way that all the cluster have the same compactness, as explained in Section 4.2. k - MACE, on the other hand, m ^ k-MACE does not have such restriction which is why it considered the two overlapping clusters as a single cluster since the combination of these two clusters still forms a Gaussian distribution with a variance larger than the remaining 3 clusters. For Figure 5.3, results show that MACE means and k - MACE over estimated the CNC while k - MACE is able to estimate CNC correctly. As explained from Section 4.2, both MACE-means and k - MACE are formulated based on the assumption that clusters are IID and has the same variance. As a result, these two algorithms tends to
+
+68
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.2: IID clusters, unique variance, unique proximity (data set characteristic: m = 5, d = 2, N = 1731) (result: m ^ k-MACE = 4, m ^ k-MACE = 9, m ^ mm = 6)
+
+Figure 5.3: General Gaussian, unique covariance, uniform proximity (data set characteristic: m = 9, d = 2, N = 900) (result: m ^ k-MACE = 9, m ^ k-MACE = 14, m ^ mm = 13)
+
+69
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.4: General Gaussian, Unique covariance, varying proximity (data set character^ k-MACE = 9, m ^ k-MACE = 13 , m ^ mm = 15) istic: m = 9, d = 2, N = 900) (result: m split the data set in a way that all clusters have the same cohesiveness which ultimately results into overestimation of CNC. On the other hand, k - MACE formulation assumes that clusters are Gaussian with any covariance structure which is why for data set such as s3, k - MACE is successful on determining the CNC. In Figure 5.4, we created a data set that contains clusters that has varying covariance structure and clusters have varying degrees of overlap. Both k - MACE and MACEmeans overestimated the CNC while k - MACE was able to identify the CNC correctly. The potential of k - MACE is showcased in this data set. As can be seen from Table 5.1, amongst the algorithm that we compared k - MACE to, k - MACE provides most accurate answer with comparable robustness for the s4 data set. In addition to our own synthetic data set, we also tested our algorithm to some of synthetic data set used in literatures [29],[30]. Result are shown on Figures 5.5-5.7. Table 5.1 provides a comparison of result for synthetic data set using some of known methods for classifying correct number of clusters.
+
+70
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.5: Aggregation data set (data set characteristic: m = 7, d = 2, N = 787) (result: m ^ k-MACE = 11, m ^ k-MACE = 14 , m ^ mm = 23)
+
+Figure 5.6: R15 data set (data set characteristic: m = 15, d = 2, N = 600) (result: m ^ k-MACE = 15, m ^ k-MACE = 15 , m ^ mm = 15)
+
+71
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.7: D31 data set (data set characteristic: m = 31, d = 2, N = 3100) (result: ^ mm = 31) m ^ k-MACE = 22, m ^ k-MACE = 31 , m
+
+72
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Table 5.1: Artificial data set. Result is generated from the average of 50 runs. Results are in the form of E [m ^ ]±std[m ^]
+S1 m=9 9±0 9±0 9±0 9±0 9±0 9±0 9±0 9±0 9±0 9±0 9±0 9±0 S2 m=5 5 .1 ± 0 .3 5 .1 ± 0 .2 4±0 7 ± 0 .8 4±0 6±0 2±0 4.9 ± 0.25 4±0 4±0 4±0 4±0 S3 m=9 9±0 12.7 ± 0.5 9±0 12.1 ± 0.3 9±0 11 ± 0 11 ± 0 17 ± 0 9±0 9±0 9±0 9±0 S4 m=9 8 .7 ± 0 .2 11.4 ± 0.8 8±0 14 ± 0 7±0 17 ± 0 11 ± 0 17.4 ± 1.30 7.8 ± 0.4 7.7 ± 0.5 6 ± 0 .5 4 ± 0 .7 Aggregation m=7 8.9 ± 0.5 14 ± 1.2 7±0 16 ± 0.6 5±0 9±0 1.0 ± 0.0 15.7 ± 0.9 3.0 ± 0.0 4.0 ± 0.0 4.0 ± 0.0 16.2 ± 1.0 R15 m=15 15 ± 0 15 ± 0 15 ± 0 15 ± 0 8±0 16 ± 0 15 ± 0 15.3 ± 0.5 15.3 ± 0.5 12.2 ± 3.5 8 ± 3.5 12.2 ± 3.5 D31 m=31 19.7 ± 0.9 31 ± 0 31 ± 0 31.8 ± 0.6 23 ± 0 31 ± 0 34.0 ± 0.0 33.4 ± 1.1 30.9 ± 1.5 28.4 ± 2.0 30.2 ± 0.7 34 ± 4.9
+
+k-MACE k - MACE Smart k - MACE MACE-means Dipmeans Gmeans DBSCAN CH + K-means Sil + K-means DB + K-means Xie-Beni + K-means Dunn + K-means
+
+73
+
+CHAPTER 5. SIMULATIONS AND RESULT From Table 5.1, most algorithm provides accurate result when dealing with data set that is composed of clusters that are IID and has the same variance as signified by the result from s1 and R15. Looking at performance of k - MACE from Table 5.1, it can be noticed that k - MACE provides the most accurate estimate of CNC for data set s3 and s4 where the clusters have general Gaussian distribution. Moreover, for these synthetic data set, the standard deviation of CNC estimate, std[m ^ ], of k-MACE has a low value. This small standard deviation signifies robustness of our method as it was able to provide consistent results even when dealing with Gaussian clusters that are touching which is the case for data set s4. Overall, when data set is composed of Gaussian cluster, k - MACE outperforms the competing methods in terms of accuracy and precision. k - MACE also performed well on data sets S1 and R15 where clusters are IID. For these data set, the clusters are well separated and so k - MACE doesn't suffer from bad estimation of cluster covariance as discussed on chapter 4.2. Meanwhile,the following observations for k - MACE and Smart k - MACE from Table 5.1 are discussed below: For data set S3, where the clusters are general Gaussian distributed, stand-alone k - MACE overestimate the CNC. The recombination step for Smart k - MACE was able to fix such errors as the CNC was correctly reduced to 9. Note that in Smart k - MACE , the recombination step doesn't require calculation of the ACE's upperbound estimate which is why the plot for ACE is not shown for this method. For data set D31, where the clusters are IID and clusters have varying degrees of overlap, k - MACE provides the most accurate and consistent estimate of CNC. Moreover, k - MACE outperforms MACE means although these two algorithms are based on the same assumption that data set is composed of IID clusters. MACE means ignored the
+
+74
+
+CHAPTER 5. SIMULATIONS AND RESULT variance of ACE and only estimates ACE's expected value. k - MACE on the other hand considered the variances of both ACE and data error, thus providing a more robust and accurate estimate of the ACE. As for Smart k - MACE , note that CNC estimate is also 31 which means that no touching clusters are futher combined which shows the effectiveness of Chi-square goodness of fit as our unimodal test for touching clusters. The fact that no clusters are further are recombined also validates that the data set is composed of IID clusters as explained in section 4.3. For aggregation data set, only Smart k - MACE were able to estimate the CNC correctly. At first, k - MACE overestimated the CNC but due to the recombination step of k - MACE , touching clusters that are inappropriately divided are recombined. Overall, the result proves that the recombination step on Smart k - MACE were able to alleviate the weakness of k - MACE (it cannot handle General Gaussian Clusters).
+
+5.2
+
+Real World Bench Mark Data Sets
+
+Our algorithm is tested on 12 real-world data sets from UCI machine learning repository website 1 : seeds, iris, vertebral, wine, abalone, breast, yeast, thyroid, Water Treatment Plant (WTP), glass, soybean and Wisconsin Diagnostic Breast Cancer (WDBC). We have compared our result with some of well known index validity methods such as Calinkski Harabaz, Davis-Bouldin, Silhouette, gap, Dunn and Xie-Beni index. Similar to this validity indexes method, k - MACE also aims on optimization of an objective function which is the average central error. In addition to this, we also compared it to G-means and DIP-means, since similar to k - MACE, these two algorithms claims to deal well with clusters that has general Gaussian distribution. We also compared our method with DBSCAN which is one of the most popular clustering algorithm that estimates the
+1
+
+http://archive.ics.uci.edu/ml/
+
+75
+
+CHAPTER 5. SIMULATIONS AND RESULT number of clusters. For dataset that are labeled, we have calculated the Adjusted Random Index (ARI) and the Normalized Variation Index (NVI) to measure the similarity between the clustering result and the actual clustering partition. ARI and NVI reflects the similarity between two data clustering. ARI scores that are close to 1 means that the clustering result is close to the actual cluster partition. NVI is the opposite as having a score of 0 signifies a correct clustering result. The result of this part of the experiment is tabulated on Table 5.2- 5.4. The characteristic of the data set used is also described on these tables where m is the actual number of clusters, d is the dimension of the data and N is the number of samples in the data set. The result that gives accurate estimate of CNC is written in bold letters. k - MACE gave an accurate and consistent estimate of CNC for seeds, iris, wine, breast and WDBC. Also, having std[m ^ ] = 0 implies that over 50 runs, k - MACE consistently estimated the CNC correctly. The ARI and NVI values for k - MACE is also one of the most optimal amongst other algorithms we compared k - MACE against. Out of all algorithms, k-MACE comes on top as it has the most number of correct estimate of CNC. An intriguing case is from abalone data set where k - MACE severely underestimated the number of cluster. For this particular the data set, k - MACE provided the closest CNC estimate. Applying PCA to abalone data set and taking its first 3 major components, the dimension-reduced data looks as follows. The 29 clusters in abalone data set is signified by color of dots. Upon inspection, it can be seen that these 29 clusters are inseparable. More importantly, there are 3 main segments on the feature space where samples of abalone data set are heavily dense. Perhaps, when more components are taken into account (dimension is increased in feature
+
+76
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Figure 5.8: Dimension reduced abalone data set space), these actual clusters will start to become separable and will show more dense areas instead of having only 3. Nonetheless, these 3 main dense areas shown on Figure 5.8 help justify the underestimated CNC, not only for k - MACE but for other methods as well. For the rest of real life data set, k - MACE, k - MACE and smart k - MACE . provided comparable results to other existing methods. Taking the average performance of all the clustering algorithm to all real life data set, k - MACE shows superiority.
+
+77
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Table 5.2: Real data set 1. Result is generated from the average of 50 runs.
+Seeds m=3, d=7,N=210 3±0 0.7 0.5 10.4 ± 2.5 0.3 0.6 2.9 ± 0.3 0.7 0.5 3±0 0.7 0.5 1±0 0 1 4±0 0.3 0.7 45 ± 0 0.1 0.9 2±0 0 1 3±0 0.7 0.5 2±0 0.5 0.6 2±0 0.5 0.6 2±0 0.7 0.5 2±0 0.5 0.6 20.4 ± 2.7 0.2 0.7 Iris m=3, d=4, N=150 3±0 0.7 0.4 8±0 0.5 0.5 2±0 0.6 0.4 6.5 ± 0.5 0.6 0.5 2±0 0.5 0.6 4±0 0.5 0.6 12 ± 0 0.1 0.9 3±0 0.5 0.6 3±0 0.7 0.4 2±0 0.5 0.5 2±0 0.5 0.5 2±0 0.5 0.5 2±0 0.5 0.5 10.7 ± 2.7 0.5 0.5 Vertebral m=3,d=6, N=310 1.8 ± 0.4 0.3 0.8 4±0 0.3 0.7 3 .0 ± 0 .2 0.5 0.6 1±0 0 1 1±0 0 1 5±0 0.3 0.8 6±0 0.2 0.7 1±0 0 1 4±0 0.3 0.7 3 ± 0 .2 0.3 0.7 3.1 ± 0.3 0.3 0.7 5.2 ± 0.5 0.3 0.7 3 ± 0.5 0.3 0.7 6.7 ± 5.2 0.3 0. Wine m=3, d=13,N=178 3±0 0.5 0.6 6 .7 ± 0 .5 0.5 0.6 7 .3 ± 0 .4 0.2 0.8 11.2 ± 0 0.1 0.8 1±0 0 1 2±0 0.2 0.7 40 ± 0.0 0.1 0.9 1 .0 ± 0 .0 0 1 12.7 ± 0.5 0.1 0.8 2 .0 ± 0 .0 0.4 0.7 7 ± 0.5 0.2 0.8 8 .7 ± 5 .2 0.1 0.9 2±0 0.1 0.8 21.1 ± 2.4 0.1 0.8
+
+k - MACE
+
+k - MACE
+
+Smart k - MACE
+
+MACE-means
+
+DIP-means
+
+G-means
+
+X-means
+
+DBSCAN
+
+CH + K-means
+
+Sil + K-means
+
+DB + K-means
+
+gap + K-means
+
+Xie-Beni + K-means
+
+Dunn + K-means
+
+E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI
+
+78
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Table 5.3: Real data set 2. Result is generated from the average of 50 runs.
+Yeast m=10, d=8,,N=1484 3 ± 0 .4 NA NA 6 ± 0.1 NA NA 1±0 NA NA 1±0 NA NA 1±0 NA NA 101 ± 0 NA NA 47 ± 0 NA NA 3±0 NA NA 2±0 NA NA 3.9 ± 1 NA NA 7.1 ± 3.1 NA NA 20.1 ± 0.9 NA NA 1±0 NA NA 16.7 ± 4.4 NA NA Thyroid m=2, d=5, N=215 3 ± 0.9 NA NA 12.1 ± 1.8 NA NA 3 ± 0 .6 NA NA 1±0 NA NA 1±0 NA NA 7±0 NA NA 11 ± 0 NA NA 1±0 NA NA 3±0 NA NA 3.7 ± 0.5 NA NA 4.2 ± 0.8 NA NA 18.7 ± 1.5 NA NA 3±0 NA NA 4±0 NA NA WTP m=13,d=38, N=527 8±0 NA NA 11 ± 0 NA NA 5.8 ± 0.4 NA NA 19.7 ± 1.8 NA NA NA NA NA NA NA NA NA NA NA 2±0 NA NA 15.9 ± 2.3 NA NA 3±0 NA NA 3±0 NA NA 15. ± 0.5 NA NA 3±0 NA NA 2±0 NA NA Glass m=7, d=10,N=214 5 .1 ± 0 .4 0.2 0.8 9 ± 0.9 0.2 0.8 5 .1 ± 0 .6 0.2 0.8 1±0 0.0 1.0 2±0 0.1 0.9 11 ± 0 0.1 0.9 41 ± 0.0 0.1 0.9 2 ± 0.0 0.2 0.8 2.1 ± 0.3 0.2 0.8 3.8 ± 0.4 0.2 0.8 9 ± 4.4 0.3 0.7 16.3 ± 0.7 0.2 0.7 4±0 0.3 0.7 4±0 0.3 0.7
+
+k - MACE
+
+k - MACE
+
+Smart k - MACE
+
+MACE-means
+
+DIP-means
+
+G-means
+
+X-means
+
+DBSCAN
+
+CH + K-means
+
+Sil + K-means
+
+DB + K-means
+
+gap + K-means
+
+Xie-Beni + K-means
+
+Dunn + K-means
+
+E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI
+
+79
+
+CHAPTER 5. SIMULATIONS AND RESULT
+
+Table 5.4: Real data set 3. Result is generated from the average of 50 runs.
+Abalone m=29,d=8,N=4177 2.9 ± 1.3 0.1 0.9 22.8 ± 0.4 0.1 0.9 7.0 ± 0.0 0.1 0.9 9±0 0.1 0.9 NA NA NA NA NA NA NA NA NA 4.0 ± 0.0 0.1 0.9 12.9 ± 0.3 0.1 0.9 5±0 0.1 0.9 9.7 ± 0.5 0.1 0.9 13.0 ± 0.2 0.1 0.9 NA NA NA NA NA NA Breast m=2,d=9, N=698 2±0 NA NA 3±0 NA NA 2±0 NA NA 1±0 NA NA 12 ± 0 NA NA 96 ± 0 NA NA 104 ± 0 NA NA 11 ± 0 NA NA 2±0 NA NA 2±0 NA NA 2±0 NA NA 10.42 ± 0.7 NA NA 2±0 0 1 2±0 0 1 Soybean m=19,d=35,N=307 12.6 ± 2.4 0.4 0.5 12.6 ± 2.9 0.4 0.0 12.4 ± 1.2 0.0 1 1±0 0.0 1.0 3±0 0 1 16 ± 0 0.3 0.8 45 ± 0 0.2 0.7 4.0 ± 0.0 0.1 0.5 12.9 ± 0.3 0.1 0.8 15 ± 4.1 0.4 0.5 15.7 ± 3.8 0.4 0.4 27.6 ± 1.2 0.4 0.4 3 ± 0.5 0.1 0.8 3 ± 5.2 0.1 0.8 WDBC m=2,d=32,N=569 2±0 0.5 0.7 7±0 0.3 0.8 3.8 ± 0.8 0.4 0.7 7.2 ± 2.1 0.3 0.8 1±0 0 1 14 ± 0 0.2 0.7 129 ± 0.0 0.1 0.9 1±0 0.0 1.0 11.1 ± 1.0 0.2 0.8 2.8 ± 0.4 0.5 0.7 2±0 0.5 0.7 10.5 ± 1.3 0.2 0.8 2±0 0.5 0.7 20.3 ± 2.5 0.1 0.8
+
+k - MACE
+
+k - MACE
+
+Smart k - MACE
+
+MACE-means
+
+DIP-means
+
+G-means
+
+X-means
+
+DBSCAN
+
+CH + K-means
+
+Sil + K-means
+
+DB + K-means
+
+gap + K-means
+
+Xie-Beni + K-means
+
+Dunn + K-means
+
+E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI E [m] ± std[m] ARI NVI
+
+80
+
+Chapter 6 Conclusion and Future Work
+In this thesis, we tackle the problem of estimating the correct number of clusters. The number of clusters is one of the parameters that is required in partitional clustering methods. This parameter is difficult to be intuitively determined beforehand and is very critical to the clustering result. A brief review of some of exisiting methods that attempt to estimate the number of clusters is provided in Chapter 2. Signal denoising scheme that inspired k - MACE was also reviewed. In Chapter 3, k - MACE algorithm is proposed as a way to estimate the correct number of clusters and is used as a wrapper to k-means clustering. Similar to other validity index method, we define an objective function which is the ACE. ACE is a function of the m which is the number of clusters fed into k-means. By minimizing ACE, the estimate of the correct cluster is found. The direct calculation of ACE is not possible in real life since it requires the knowledge of the cluster's true center. However, we have introduced a way to estimate the probabilistic bounds ACE using the available data error. This method is one of the main contributions of this work. One of the biggest limitations of MACE means is that it is designed to work only for data whose clusters has the same
+
+81
+
+CHAPTER 6. CONCLUSION AND FUTURE WORK variance. A modification of k - MACE is proposed to alleviate such limitations. In Chapter 4, we discussed a special case of k - MACE and that is when data set is composed of IID clusters with uniform variance, denoted by k - MACE . The advantage of this is that it makes the calculation of ACE's bounds simpler thus reducing the complexity.k - MACE is still proven to be advantageous over MACE-means although both algorithms are based on the same assumption. The reason for this is that we introduced the bounds on ACE's estimation. MACE means on the other hand, only uses the expectation of ACE. k - MACE when applied to a data set whose clusters are not IID results into overestimation of number of clusters. We proposed a way of detecting this error by checking unimodality of touching clusters. If such error is detected, then assumption that all clusters are IID with the same variance is not applicable and therefore, k - MACE is preferable instead of k - MACE . In Chapter 5, we present the simulation result. For synthetic data set k - MACE shows superiority when dealing with clusters that has general Gaussian distribution as k - MACE provided consistent and accurate result even for the case where Gaussian clusters are overlapping. For IID clusters, it was k - MACE that came on top especially when dealing with D31 data set that is compose of overlapping IID clusters. k - MACE also provided accurate and consistent estimate of CNC for IID setting. For real life data, on average, k-MACE performs the best. In k - MACE, the covariance of the clusters is estimated using clustering results obtained from calculation of data error. Any error on the m-clustering step will get carried over towards estimation of true cluster covariance which will in turn, affect the estimation of ACE. An example of this is shown for the case when k - MACE is applied on D31 data set. This being said,one interesting avenue of research is to find a way to obtain a more accurate estimate of the cluster covariance that is independent of the
+
+82
+
+CHAPTER 6. CONCLUSION AND FUTURE WORK clustering result. This will lessen the dependency of the k - MACE on m-clustering result that can improve robustness of the algorithm. Also, by being able to estimate true cluster covariance independently, it will be possible for ACE to be used as a validity index.
+
+83
+
+Appendices
+
+Appendix A Average Central Error
+The total central error of cluster Cmj is defined by
+
+Zsmj = cxmj - cmj
+
+2 F
+
+(A.1)
+
+Zsmj = Icxmj - Bmj xmj Bmj is an averaging matrix that is the following 
+1
+
+2 F
+
+(A.2)
+
+Bmj
+
+ nmj   1  =  nmj . . .  
+1 nmj
+
+...
+1 nmj
+
+1
+
+
+
+... ...
+
+ ...    ...   
+1 nmj
+
+nmj 
+
+(A.3)
+
+where nmj is the number of elements in cluster Cmj . The set xmj is formed by taking all elements xi  (xN ) that belongs to cluster Cmj . ^ xi Qxi , where W ^ xi is an independent Making xi + W xi and W xi =W mj = cxi mj mj mj mj mj mj
+
+86
+
+APPENDIX A. AVERAGE CENTRAL ERROR Gaussian Random vector and Qxi the eigenvector of the W xi 's covariance matrix, mj mj ^ x Qx Zsmj = (I - Bmj )cxmj - Bmj W mj mj Zsmj = Amj cxmj since AT mj Bmj = 0 and Qxmj
+2 F 2 F 2 F
+
+(A.4)
+
+^ x Qx - Bmj W mj mj
+
+= 1, we get
+2
+
+Zsmj = Amj cxmj
+
+2 F
+
+^x + Bmj W mj
+
+(A.5)
+F
+
+^x Bmj W mj
+
+2 F
+
+1 = nmj
+
+nmj
+
+i=1
+
+^ Ti + 1 ^ xi W W xmj mj nmj
+nmj
+
+nmj
+
+^ Tk ^ xi W W x mj
+i=k nmj
+
+(A.6)
+
+mj
+
+Zsmj = Amj cxmj
+
+2 F
+
+1 + nmj
+
+i=1
+
+^ Ti + 1 ^ xi W W xmj mj nmj
+
+^ Tk ^ xi W W x mj
+i=k
+
+(A.7)
+
+mj
+
+From (A.7), the argument inside the second summation term can be expanded as follows: ^ xi W ^ Ti = [W ^ 1i W x x mj
+mj mj
+
+mj
+
+^ 2i ...W ^ di ][W ^ 1i W x x x
+mj mj mj mj
+
+mj
+
+^ 2i ...W ^ di ]T W x x
+mj mj mj
+
+(A.8)
+
+^ 1i )2 + (W ^ 2i )2 + ... + (W ^ di )2 ^ Ti = (W ^ xi W W x x x x mj ^ di where W x refers to the variation of element i of the cluster Cmj on the d compo-
+
+mj
+
+nent. Applying equation (A.8), the second term on equation (A.7) becomes a Chi-square random variable with degrees of freedom dof = nmj  d
+
+87
+
+APPENDIX A. AVERAGE CENTRAL ERROR
+
+A.1
+
+Expected Value of ACE
+
+^ xi . The first term of Zs and the last term Zsmj is a function of the random vector W mj mj has an expected value of zero. The second term is chi-square random variable with a non-zero mean. The overall expected value of Zsmj is therefore given by
+2 F
+
+E [Zsmj ] = Amj cxmj
+
+1 + nmj
+
+nmj
+
+tr(xi ) mj
+i=1
+
+(A.9)
+
+is the diagonal matrix that represents the covariance of the independent where xi mj random vector W xi . mj
+
+A.2
+
+Variance of ACE
+
+The first term of equation (A.7) is a constant thus, it has a variance of zero. The variance of the two following terms are given below: 1 V ar nmj
+nmj
+
+^ xi W ^ Ti W x mj
+i=1
+
+mj
+
+2 = 2 nmj
+
+nmj 2 ) tr(xi mj i=1
+
+(A.10)
+
+1 V ar nmj
+
+nmj
+
+^ xi W ^ Tk W xmj mj
+i= k
+
+2 = 2 nmj
+
+nmj
+
+tr(xi xk ) mj mj
+i=k
+
+(A.11)
+
+The covariance between the second and term term of Zsmj in (A.7) is 0. Therefore, the variance of Zsmj is given by the following: 2 nmj 2
+nmj
+
+V ar[Zsmj ] =
+
+) )+ tr((xi mj
+i=1
+
+2
+
+2 nmj 2
+
+nmj
+
+ xk ) tr(xi mj mj
+i= k
+
+(A.12)
+
+88
+
+APPENDIX A. AVERAGE CENTRAL ERROR
+
+A.3
+
+2 Average Central Error When Xi = w Idxd
+
+2 Assuming that the variations on all cluster is IID with variance w , we have
+
+2 Idxd ), i = 1, 2, ...N W xi  N (0, w mj
+
+(A.13)
+
+It follows that
+2 tr(xi ) = dw mj
+
+(A.14)
+
+E [Zsmj ] = Amj cxmj
+
+2 F
+
+2 + dw
+
+(A.15)
+
+V ar[Zsmj ] =
+
+2d 2 4 4 (nmj w ) + 2 (nmj )(nmj - 1)dw 2 nmj nmj V ar[Zsmj ] =
+4 2dw
+
+(A.16)
+
+Taking equations (A.15) and (A.16) to solve for expected value and variance of the overall average central error, we have 1 E [Zsm ] = N
+m 2 d mw N
+
+Amj cxmj
+j =1
+
+2 F
+
++
+
+(A.17)
+
+The covariance between Zsmj 's are equal to zero. (i.e Cov [Zsmj , Zsmk ]j =k = 0
+4 2 m d w V ar[Zsm ] = N2
+
+(A.18)
+
+The upperbound of Zsm can be calculated directly under the assumption that Wxi 
+
+89
+
+APPENDIX A. AVERAGE CENTRAL ERROR
+2 Idxd ), for i = 1, 2, ...N . Letting n = N N (0, w
+
+Zsm = E [Zsm ] + n Z sm 1 = N
+m
+
+V ar[ZsM ]
+4 2 m d w N2
+
+Amj cxmj
+j =1
+
+2 F
+
++
+
+2 d mw +N N
+
+(A.19)
+
+and finally, the upperbound of Zsm is given by 1 N
+m 2 F 2  d mw 2 + w 2md N
+
+Z sm =
+
+Amj cxmj
+j =1
+
++
+
+(A.20)
+
+Similarly, the lower bound of Zsm is given by
+
+Zsm = E [Zsm ] - n Zsm 1 = N Zsm
+m
+
+V ar[ZsM ]
+4 2 m d w N2
+
+Amj cxmj
+j =1
+
+2 F
+
++
+
+2 d mw -N N 2 F
+
+(A.21)
+
+1 = N
+
+m
+
+Amj cxmj
+j =1
+
++
+
+2  d mw 2 2md - w N
+
+90
+
+Appendix B Data Error
+The defenition of cluster compactness is given by
+
+Ysmj = xmj - cmj
+
+2 F
+
+(B.1)
+
+Ysmj = xmj - Bmj xmj
+
+2 F
+
+(B.2)
+
+Ysmj = Amj xmj ^ xi Qxi we get Making xi +W mj = cxi mj mj mj
+
+2 F
+
+(B.3)
+
+^ x Qx Ysmj = cxmj + W mj mj
+
+2
+
+(B.4)
+F
+
+91
+
+APPENDIX B. DATA ERROR
+
+Ysmj = Amj cxmj 2(nmj - 1) nmj Finally,
+nmj
+
+2 F
+
+^x + Amj W mj
+
+2
+
++
+F
+
+^ Ti cxi W xmj mj
+i=1
+
+2 - nmj
+
+nmj
+
+^ Tk + cxk W ^ Ti cxi W x x mj mj
+mj
+
+(B.5)
+
+mj
+
+i= k
+
+Ysmj = Amj cxmj
+
+2 F
+
+nmj - 1 + nmj
+nmj
+
+nmj T W xi W xi mj mj i=1 T
+
+1 - nmj
+d nmj
+
+nmj
+
+W xi W xk mj mj
+i= k nmj
+
+T
+
+(B.6) cd xi )
+mj
+
+2
+i=1
+
+cxi W xi mj mj
+
+2 - nmj
+
+(
+d =1 i=1
+
+W xi mj
+i=1
+
+d
+
+B.1
+
+Expected Value of Data Error
+
+^ xi is zero, making terms 4 and 5 of (B.6) expectation to b The expected value of W mj also zero. The 3rd term's expectation is also zero due to independence between random ^ xi and W ^ xk (i = k ). The expected value of Ys is given by variables W mj mj mj
+2 F
+
+E [Ysmj ] = Amj cxmj
+
+(nmj - 1) + nmj
+
+nmj
+
+tr(xi ) mj
+i=1
+
+(B.7)
+
+B.2
+
+Variance of Data Error
+
+The first term of equation (B.6) is a constant thus, it has a variance of zero. The variance of the four following terms are given below: nmj - 1 V ar[ nmj
+nmj T W xi W xi ] mj mj i=1
+
+2(nmj - 1)2 = n2 mj
+
+nmj
+
+tr((xi )2 ) mj
+i=1
+
+(B.8)
+
+92
+
+APPENDIX B. DATA ERROR
+
+1 V ar[- nmj
+nmj
+
+nmj T W xi W xk ] mj mj i= k
+
+2 = 2 nmj
+nmj
+
+nmj
+
+xk ) tr(xi mj mj
+i= k nmj
+
+(B.9)
+
+V ar[2
+i=1
+
+T cxi W xi ] mj mj
+
+=
+
+4 nmj d
+
+) tr(xi mj
+i=1 i=1
+
+cxi cTi mj x
+
+mj
+
+(B.10)
+
+2 V ar[- nmj 4 n2 mj d
+nmj
+
+d
+
+nmj
+
+nmj d W xi mj i=1 nmj
+
+(
+d =1 i=1
+
+cd xi )] =
+mj
+
+nmj
+
+(B.11)
+mj
+
+tr(xi ) mj
+i=1 i=1
+
+cxi cTi + mj x
+mj
+
+cxi cTk mj x
+i=k
+
+The covariance between terms 4 and 5 of equation (B.6) is given below:
+
+nmj
+
+2Cov [[2
+i=1
+
+T cxi W xi ,- mj mj nmj
+
+2 nmj
+
+d
+
+nmj
+
+nmj d W xi mj i=1 nmj
+
+(
+d =1 i=1
+
+cd xi )] =
+mj
+
+-8 n2 mj d
+
+nmj
+
+(B.12)
+
+tr(xi ) mj
+i=1 i=1
+
+cxi cTi mj xmj
+
++
+i= k
+
+cxi cTk mj xmj
+
+while the rest of the covariance between terms 2-5 of (B.6) is zero. Note that
+2 F
+
+Amj cxmj
+
+nmj - 1 = nmj
+
+nmj
+
+cxi cTi mj xmj
+i=1
+
+1 - nmj
+
+nmj
+
+cxi cTk mj x
+i= k
+
+(B.13)
+
+mj
+
+Adding equations B.8-B.12 and using equation B.13, the variance of Ysmj is given
+
+93
+
+APPENDIX B. DATA ERROR below 2(nmj - 1)2 V ar[Ysmj ] = n2 mj
+nmj
+
+i=1
+
+1 ) ) + tr((xi mj n2 mj
+2
+
+nmj
+
+xk ) tr(xi mj mj
+i= k nmj 2 F i=1
+
+(B.14) ) tr(xi mj
+
+4 Amj cxmj d nmj
+
+B.3
+
+2 Average Central Error When Xi = w Idxd
+
+2 Assuming that the variations on all cluster is IID with variance w , we have
+
+E [Ysmj ] = Amj cxmj
+
+2 F
+
+2 + d(nmj - 1)w
+
+(B.15)
+
+2 V ar[Ysmj ] = 4w Amj cxmj
+
+2 F
+
+4 + 2d(nmj - 1)w
+
+(B.16)
+
+Finally taking equations (B.15)-(B.16) to solve for overall cluster compactness' expected value and variance, 1 E [Ysm ] = N
+m 2 d(N - m)w N
+
+Amj cxmj
+j =1
+
+2 F
+
++
+
+(B.17)
+
+The covariance between Ysmj 's are equal to zero. (i.e Cov [Ysmj , Ysmk ]j =k = 0). 4 2 V ar[Ysm ] = w N2
+m 2 F 4 2d(N - m)w N
+
+Amj cxmj
+j =1
+
++
+
+(B.18)
+
+The following inequality lets us solve the bounds of
+
+1 N
+
+m j =1
+
+Amj cxmj
+
+2 F
+
+E [Ysm ] - N
+
+V ar[Ysm ]  ysm
+
+(B.19)
+
+94
+
+APPENDIX B. DATA ERROR Plugging-in equations (4.8) and (4.9) to equation (B.19) and solving for the boundary, we get 1 N N
+m 2 F 2 d(N - m)w - ysm = N
+
+Amj cxmj
+j =1 2 4w N2 m
+
++
+
+(B.20) Amj cxmj
+2 F 4 2d(N - m)w + N
+
+j =1
+
+letting
+
+1 N
+
+m j =1
+
+Amj cxmj
+
+2 F
+
+= ml , mw =
+
+2 d(N -m)w , N
+
+we get
+
+ml + mw - ysm = 
+
+2 2 2 4w ml + w mw N N
+
+(B.21)
+
+Squaring both sides (ml + mw - ysm )2 = 2 (
+2 4w 2 2 ml + w mw ) N N
+
+(B.22)
+
+Equation (B.22) is a quadratic equations in terms of ml . Solving for the roots of ml can give us both the lowerbound and the upperbound with the higher root of ml being its upperbound. ml = ysm - mw + 2
+2 2 w + ksm () N
+
+(B.23)
+
+ml = ysm - mw + 2 and 2w ksm () =  N
+
+2 2 w - ksm () N
+
+(B.24)
+
+2 2 w 1 + ysm - mw N 2
+
+(B.25)
+
+95
+
+References
+[1] J. Shi, J. Malik. "Normalized cuts and image segmentation." IEEE Transactions on Pattern Analysis and Machine Intelligence, vol.22, pp. 888-905, 2000. [2] O.J. Oyelade, O.O. Oladipupo, I.C. Obagbuwai. "Application of k-means clustering algorithm for prediction of students' academic performance." International Journal of Computer Science and Information Security, Vol. 7, No. 1, 2010. [3] X. Wang, J. Garibaldi. "A comparison of fuzzy and non-fuzzyclustering techniques in cancer diagnosis." International conference in compututational intelligence in medecine and healthcare, pp. 250-256, 2005. [4] P. Chatterjee, P. Milanfar. "Patch-based Near-Optimal Image Denoising." IEEE Transactions on Image Processing, vol. 21, no. 4, pp. 1635-1649, April 2012. [5] J. Han, M. Kamber. Data Mining: Concepts and Techniques, San Francisco, CA: Morgan-Kaufman, 2000, pp. 444-445. [6] S. Na, L. Xumin, G. Yong. "Research on k-means Clustering Algorithm: An Improved k-means Clustering Algorithm." Intelligent Information Technology and Security Informatics (IITSI), pp. 63-67, 2010.
+
+97
+
+REFERENCES [7] X.Xie, G. Beni. "A validity measure for fuzzy clustering. " IEEE transaction on Pattern Analysis and Machine Intelligence, vol. 8, pp.841-847,1991. [8] L. Kaufman, P.J. Rousseeuw. Finding groups in data: an introduction to cluster analysis, New York, NY: Wiley, 1990. [9] J.C. Dunn. "Well separated clusters and optimal fuzzy partitions." Journal of Cybernetics, vol.4, no.1, pp. 95-104,1974. [10] T. Caliski, J. Harabasz. "A dendrite method for cluster analysis." Communications in Statistics, vol. 3, no.1, pp. 1-27, 1974. [11] D. L. Davies, D. W. Bouldin. "A cluster separation measure." IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. PAMI-1, no. 2, pp. 224 - 227, April 1979. [12] W.J. Krzanowski, Y.T Lai. "A criterion for determining the number of groups in a data set using sum-of-squares clustering." Biometrics, vol, 44 no.1 pp. 23-34, 1988. [13] A. Strehl. "Relationship-based clustering and cluster ensemble for high dimensional data mining." PhD thesis. The University of Texas at Austin, May 2002. [14] Y. Fukuyama, M. Sugeno. "A new method of choosing the number of clusters for the fuzzy c-means method." Proceeding of fifth Fuzzy System Symp., pp. 247 250, 1989. [15] I. Gath, A. B. Geva. "Unsupervised optimal fuzzy clustering." IEEE transaction on pattern analysis and machine intelligence, vol. 11, no. 7, pp. 773 - 780, Jul. 1989. [16] M. K. Pakhira, S. Bandyopadhyay, U. Maulik. "Validity index for crisp and fuzzy clusters." Pattern Recognition, vol. 37, pp. 487 - 501, 2004. 98
+
+REFERENCES [17] D. Pelleg, A. W. Moore. "X-means: Extending k-means with efficient estimation of the number of clusters." Proceedings of the Seventeenth Internatioanl conferecne on Machine Learning, ICML '00, Morgan Kaufmann Publishers Inc., pp. 727 - 734, 2000 [18] Z. Zhao , S. Guo , Q. Xu , T. Ban. "G-means: a clustering algorithm for intrusion detection." Proceedings of the 15th international conference on Advances in neuroinformation processing, November 2008, pp 563-570 [19] R. E. Kass, L. Wasserman. "A reference Bayesian test for nested hypotheses and its relationship to the Schwarz criterion." Journal of the American Statistical Association, Vol. 90, 1995 [20] T. W. Anderson, D. A. Darling. "Asymptotic theory of certain "goodness-of-fit" criteria based on stochastic processes." Annals of Mathematical Statistics vol. 23, no. 2, pp. 193-212, 1952. [21] S. Beheshti, M.A. Dahleh. "Noisy Data and Impulse Response Estimation." IEEE Transaction on Signal Processing, Vol. 58, No.2 Feb, 2010. [22] S. Beheshti, M.A. Dahleh. "A New Information-Theoritc Approach to Signal Denoising and Best Basis Selection." IEEE Transaction on Signal Processing, Vol. 53, No.10 Feb, 2005. [23] M. Shahbaba, S. Beheshti. "MACE-means clustering." ELSEVIER Signal Processing, vol. 105, pp. 216-225, 2014. [24] S. Killip, M. Ziyad, K. Pearce, "What Is an Intracluster Correlation Coefficient? Crucial Concepts for Primary Care Researchers." Annals of Family Medicine, vol.2, no.3, pp. 204208, 2004.
+
+99
+
+REFERENCES [25] A. Zimek, E. Schubert, H. P. Kriegel. "A survey on unsupervised outlier detection in high-dimensional numerical data." Statistical Analysis and Data Mining, vol.b5, pp 363 - 387. [26] M. Ringner. "What is principal component analysis." Nature Biotechnology, vol. 26, pp303 - 304, 2008 [27] L. Wang, C. Leckie, K. Ramamohanarao, J. Bezdek. "Automatocally Determining the Number of Clusters in Unlabeled Data Sets." IEEE Transactions on Knowledge and Data Engineering, vol 21, No. 3, pp 335-350, 2009 [28] J.C. Bezdek, R. Hathaway. "VAT: A Tool for Visual Assesment of (Cluster) Tendency." Proc. Int'l joint Conf. Neural networks (IJCNN'02), pp. 2225-2230,2002 [29] A. Gionis, H. Mannila, P. Tsaparas. "Clustering aggregation." ACM Transactions on Knowledge Discovery from Data (TKDD), vol.1, no.1, pp. 1-30, 2007. [30] C.J. Veenman, M.J.T. Reinders, E. Backer. "A maximum variance cluster algorithm." IEEE Trans. Pattern Analysis and Machine Intelligence, vol. 24, no. 9, pp. 1273-1280, 2002
+
+100
+
+

@@ -1,0 +1,6595 @@
+REAL TIME AUTONOMOUS COLLISION AVOIDANCE FOR UNMANNED AERIAL VEHICLES
+
+By
+
+Min Prasad Adhikari, B.Eng Aeronautical Engineering Nanjing University of Aeronautics and Astronautics, 2012
+
+A thesis presented to the Ryerson University in partial fulllment for the degree of Master of Applied Science in the Program of Aerospace Engineering
+
+Toronto, Ontario, Canada, 2015
+
+©
+
+Min Prasad Adhikari 2015
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS
+
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required nal revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my thesis may be made electronically available to the public.
+
+ii
+
+ABSTRACT
+
+Real Time Autonomous Collision A voidance for Unmanned Aerial Vehicle
+
+Min Prasad Adhikari, Master of Applied Science, Aerospace Engineering
+
+Ryerson University, Toronto, 2015
+
+GeoSurv II is a jointly funded project of Sander Geophysics Limited (SGL) and NSERC to develop a xed-wing Unmanned Aerial Vehicle (UAV), capable of autonomously performing high resolution geophysical surveys at low ight altitudes over poorly known terrain. This thesis is in support of achieving this objective. In order to achieve such a level of autonomy, the UAV must be capable of avoiding stationary, pop-up and moving obstacles while ying at low altitude. Such obstacles may include power lines, communication towers, trees, unknown ight vehicles encountered while at ight or uneven terrains which creates the situation of the pop-up obstacles. In addition to that the UAV must be able to y as close as possible to the reference trajectory for a given geophysical survey. The development and testing of a method capable of performing such an autonomous mission is the objective of this thesis. In this thesis, a method is developed based on a spectral method known as Legendre Pseudospectral Optimal Control, because of its capability to directly incorporate all of the mission objectives, while respecting the UAV constraints (which other methods in the literature are not capable of ). The method accounts the aircraft and obstacle constraints there by capable of avoiding obstacles with feasible maneuvers for the aircraft. The objective to remain as close to the reference trajectory is fullled by setting the area between the ight trajectory and reference trajectory as the cost of optimization of the optimal control problem. Five
+
+dierent scenarios presented in this thesis show the developed method's capability to avoid the stationary, pop-up and the moving obstacles successfully while remaining close to the reference trajectory.
+
+iii
+
+ACKNOWLEDGEMENTS
+
+I am grateful to my supervisor Prof. Anton de Ruiter, who gave me such an opportunity to come to Ryerson University for the master program from Nepal. His support and encouragement on dierent occasion would always be appreciated. Moreover, it would have been impossible to prepare this thesis without his regular assistance and guidance. I am grateful to my parents, Shiva Prasad Adhikari and Lila Devi Adhikari, for always supporting me to pursue my dream. I thank my sister, Bishnu Ahikari/Kharel, for always supporting me at the time of diculties. My sincere gratitude to Sangita Aryal, who always encourage and supports me with care all the time. Finally, it would have been dicult to adjust in Toronto without love and care from Deepak Lamichhane and Saru Deuja/Lamichhane. They will always remain in my heart.
+
+iv
+
+While we contemplate our needs, the universe is contemplating itself 
+
+-Inspired by Carl Sagan.
+
+v
+
+Table of Contents
+1 Introduction 1
+
+1.1 1.2 1.3
+
+Introduction . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . GeoSurv II Project . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+1 2 4 5 6 9 9 10 11 12
+
+Existing Approaches to Obstacles Avoidance . . . . . . . . . . . . . . . . . . 1.3.1 1.3.2 1.3.3 1.3.4 1.3.5 1.3.6 Cell Decomposition Method Road Map Method . . . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Articial Potential Fields Method . . . . . . . . . . . . . . . . . . . . Potential Flow Method . . . . . . . . . . . . . . . . . . . . . . . . . . Rapidly Exploring Random Tree . . . . . . . . . . . . . . . . . . . .
+
+Pseudospectral Optimal Control Method . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+1.4
+
+Approach, Objective and Thesis Structure
+
+2
+
+Pseudospectral Optimal Control Theory
+
+14
+
+2.1
+
+Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.1.1 2.1.2 Nonlinear Optimal Control Problem (NL OCP) Feasibility and Optimality of the Solution . . . . . . . . . . . .
+
+14 15 18 20 26
+
+. . . . . . . . . . . . . . .
+
+2.2 2.3
+
+Legendre Pseudospectral Discretization . . . . . . . . . . . . . . . . . . . . . Real-time Trajectory Planning . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3
+
+Problem Formulation and Vehicle Dynamics
+
+30
+
+3.1 3.2 3.3 3.4
+
+Introduction to Autonomous Control Architecture . . . . . . . . . . . . . . . Vehicle Kinematics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+30 33 35 43
+
+Constraints and Cost . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Problem Summary . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+vi
+
+4
+
+Results And Analysis
+
+48
+
+4.1 4.2 4.3 4.4 4.5
+
+Scenario I. Without Obstacle
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+48 80 98 117 126
+
+Scenario II. With Stationary Obstacles Scenario III. Moving Obstacle Scenario IV. Pop-up Obstacle
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Scenario V. Stationary, Pop-up and Moving Obstacles . . . . . . . . . . . . .
+
+5
+
+Conclusion
+
+146
+
+5.1 5.2
+
+Research Conclusion
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+146 147
+
+Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+References
+
+148
+
+vii
+
+List of Tables
+4.1 4.2
+Scenario I Computational Summary. . . . . . . . . . . . . . . . . . . . . . . Scenario II Computational Summary
+
+80 97
+
+. . . . . . . . . . . . . . . . . . . . .
+
+viii
+
+List of Figures
+1.1 1.2 1.3 1.4 1.5 1.6 1.7 GeoSurv II prototype . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Cell Decomposition from reference [1] . . . . . . . . . . . . . . . . . . . . . . The road map method Visibility graph from [1] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3 6 7 7 8 10 11
+
+radar site obstacles from [2]
+
+Obstacle avoidance using potential ow
+
+RRT method used for path planning from [3] . . . . . . . . . . . . . . . . . .
+
+2.1
+
+Feasibility test: pseudo-spectral solution state history, Propagated state and infeasible propagation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 20
+
+2.2 2.3
+
+Bellman's Principle test of optimality . . . . . . . . . . . . . . . . . . . . . . Polynomial approximation of node distribution
+
+x(t)
+
+associated with Legendre-Gauss-Lobatto 21 27 28
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+2.4 2.5
+
+Control Architecture for Online Trajectory Generation Online/Realtime Propagation
+
+. . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3.1 3.2 3.3 3.4 3.5 3.6 3.7 3.8
+
+Aerial Path Designed for UAV.
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+31 32 34 36 37 40 41
+
+GeoSurv II Prototype with labeled control parts. Flight Angles.
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Turning Flight . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . UAV at it's tightest pull-up turn possible . . . . . . . . . . . . . . . . . . . . Rectangle and Circle are created by setting the exponent to Box representing obstacle. Figure showing the line
+
+10 and 2 respectively.
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . and
+
+x=y
+
+h = 50 with respective ight path and area
+42 46
+
+between them. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 3.9 Obstacle Congurations . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+ix
+
+4.1 4.2 4.3 4.4 4.5 4.6 4.7 4.8 4.9
+
+Scenario I
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+49 50 50 50 51 51 52 52 53 53 54 54 55 55 56 57 57 58 58 59 59 60 60 61 61 62 62 63 63 64 64
+
+Isometric View of Total Maneuver . . . . . . . . . . . . . . . . . . . . . . . . View in XZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . View in YZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . View in XY Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . States [ , ,V] vs time (t) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Control Trajectory . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+Isometric View of Complete Maneuver Feasibility Check (x vs
+
+t) t) t) t) t) t)
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.10 Feasibility Check (y vs 4.11 Feasibility Check (z vs 4.12 Feasibility Check ( vs 4.13 Feasibility Check ( vs 4.14 Feasibility Check (V vs 4.15 Hamiltonian Value
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.16 Bellman's Test in 3D Maneuver 4.17 Bellman's Principle Test ( vs 4.18 Bellman's Principle Test ( vs 4.19 Bellman's Principle Test (V vs
+
+t) t) t)
+
+4.20 Isometric View of Total Maneuver . . . . . . . . . . . . . . . . . . . . . . . . 4.21 View in XZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.22 View in YZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.23 View in XY Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.24 States [ , ,V] vs time (t) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.25 Control Trajectory . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.26 Isometric View of Complete Maneuver 4.27 Feasibility Check (x vs 4.28 Feasibility Check (y vs 4.29 Feasibility Check (z vs 4.30 Feasibility Check ( vs 4.31 Feasibility Check ( vs
+
+t) t) t) t) t)
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+x
+
+4.32 Feasibility Check (V vs 4.33 Hamiltonian Value
+
+t)
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+64 65 66 66 67 67 69 71 72 72 72 73 73 74 74 75 75 75 76 76 77 77 79 81 82 82 82 83 83 84 84
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.34 Bellman's Test in 3D Maneuver 4.35 Bellman's Principal Test ( vs 4.36 Bellman's Principle Test ( vs 4.37 Bellman's Principle Test (V vs
+
+t) t) t)
+
+4.38 Trajectory comparision with dierent nodes. . . . . . . . . . . . . . . . . . . 4.39 Trajectory Propagation using controls from 0.2-0.4 second . . . . . . . . . .
+
+4.40 Realtime vs Open-loop Maneuver in Isometric View . . . . . . . . . . . . . . 4.41 Realtime vs Open-loop Maneuver in XZ Plane . . . . . . . . . . . . . . . . . 4.42 Realtime vs Open-loop Maneuver in YZ Plane . . . . . . . . . . . . . . . . . 4.43 Realtime vs Open-loop Maneuver in XY Plane . . . . . . . . . . . . . . . . . 4.44 Realtime vs Open-loop 4.45 Realtime vs Open-loop 4.46 Realtime vs Open-loop
+
+ 
+
+angle
+
+. . . . . . . . . . . . . . . . . . . . . . . . .
+
+angle . . . . . . . . . . . . . . . . . . . . . . . . . . Velocity . . . . . . . . . . . . . . . . . . . . . . .
+
+(V )
+
+4.47 Realtime vs Open-loop Maneuver in Isometric View . . . . . . . . . . . . . . 4.48 Realtime vs Open-loop Maneuver in XZ Plane . . . . . . . . . . . . . . . . . 4.49 Realtime vs Open-loop Maneuver in YZ Plane . . . . . . . . . . . . . . . . . 4.50 Realtime vs Open-loop Maneuver in XY Plane . . . . . . . . . . . . . . . . . 4.51 Realtime vs Open-loop 4.52 Realtime vs Open-loop 4.53 Realtime vs Open-loop
+
+ 
+
+angle
+
+. . . . . . . . . . . . . . . . . . . . . . . . .
+
+angle . . . . . . . . . . . . . . . . . . . . . . . . . . Velocity . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+(V )
+
+4.54 Comparison of the trajectory generated.
+
+4.55 Scenario II . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.56 Isometric View of Total Maneuver . . . . . . . . . . . . . . . . . . . . . . . . 4.57 View in XZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.58 View in YZ Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.59 View in XY Plane . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.60 States
+
+[x, y, z ]
+
+vs time
+
+(t) (t)
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.61 States [ , ,V] vs time 4.62 Control Trajectory
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+xi
+
+4.63 Isometric View of Complete Maneuver 4.64 Feasibility Check (x vs 4.65 Feasibility Check (y vs 4.66 Feasibility Check (z vs 4.67 Feasibility Check ( vs 4.68 Feasibility Check ( vs 4.69 Feasibility Check (V vs 4.70 Hamiltonian Value
+
+. . . . . . . . . . . . . . . . . . . . .
+
+85 85 86 86 87 87 88 88 89 89 90 90 90 92 93 93 93 94 94 95 95 96 96 96 97 98 100 101 102 103 104
+
+t) t) t) t) t) t)
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.71 Bellman's Test in 3D Maneuver 4.72 Bellman's Principle Test ( vs 4.73 Bellman's Principle Test ( vs 4.74 Bellman's Principle Test (V vs
+
+t) t) t)
+
+4.75 Node Spacing Example . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.76 Comparison of Trajectory with dierent Robustness Factor 4.77 3D Maneuver 4.78 XZ Maneuver 4.79 YZ Maneuver
+
+(w).
+
+. . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.80 XY Maneuver . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.81 4.82
+
+ vs t 
+vs
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+t
+
+4.83 Velocity
+
+(V )
+
+vs
+
+t
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.84 Trajectory comparison with dierent robustness factor (3D view) 4.85 Trajectory comparison with dierent robustness factor (XZ Plane) 4.86 Trajectory comparison with dierent robustness factor (YZ Plane) 4.87 Trajectory comparison with dierent robustness factor (XY Plane) 4.88 Scenario IIIA
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.89 Realtime Maneuver, ight path at 4.90 Flight path at 4.91 Flight path at 4.92 Flight path at 4.93 Flight path at
+
+t = 32.7s
+
+. . . . . . . . . . . . . . . . . .
+
+t = 38.7 s t = 39.7s t = 40.7 s t = 42.7 s
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+xii
+
+4.94 Flight path at 4.95 Flight path at 4.96 4.97 4.98
+
+t = 48.7s t = 55.54s
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+105 106 107 107 107 108 110 111 112 113 114 115 116 116 116 118 119 119 120 120 121 121 121 122 122 123 123 124 124 124 125
+
+ vs t  V
+vs vs
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+t t
+
+4.99 Scenario IIIB 4.100Flight path at 4.101Flight path at 4.102Flight path at 4.103Flight path at 4.104Flight path at 4.105Flight path at 4.106  vs 4.107  vs 4.108 V vs
+
+t = 35s t = 46.7s
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+t = 45.7 s t = 47.7 s t = 48.7 s t = 56.59s
+
+t t t
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.109Scenario IV
+
+4.110Pop-up Obstacle detected 50 m ahead: 3D view
+
+4.111Pop-up Obstacle detected 50 m ahead: view in XZ plane 4.112Pop-up Obstacle detected 50 m ahead: view in YZ plane
+
+4.113Pop-up Obstacle detected 50 m ahead: view in XY plane . . . . . . . . . . . 4.114  vs 4.115  vs 4.116 V vs
+
+t t t
+
+: with pop-up obstacle detected : with pop-up obstacle detected : with pop-up obstacle detected
+
+50 m 50 m 50 m
+
+ahead . . . . . . . . . . . . . . . ahead . . . . . . . . . . . . . . . ahead . . . . . . . . . . . . . . . . . . . . . .
+
+4.117Pop-up Obstacle detected 4.118Pop-up Obstacle detected 4.119Pop-up Obstacle detected 4.120Pop-up Obstacle detected 4.121  vs 4.122  vs 4.123 V vs
+
+4s 4s 4s 4s
+
+prior to expected collision: 3D view
+
+prior to expected collision: view in XZ plane prior to expected collision: view in YZ plane prior to expected collision: view in XY plane
+
+t t t
+
+: with pop-up obstacle detected : with pop-up obstacle detected : with pop-up obstacle detected
+
+4s 4s 4s
+
+prior to expected collision: prior to expected collision:
+
+. . . . . . . .
+
+prior to expected collision: . . . . . . . . . . . . . . . . . . . . . .
+
+4.124Comparison of case IVA and IVB: 3D view
+
+xiii
+
+4.125Comparison of case IVA and IVB: XZ view . . . . . . . . . . . . . . . . . . . 4.126Comparison of case IVA and IVB: YZ view . . . . . . . . . . . . . . . . . . . 4.127Comparison of case IVA and IVB: XY view . . . . . . . . . . . . . . . . . .
+
+125 125 126 127 129 130 131 132 133 134 134 134 135 137 138 139 140 141 142 143 144 144 144
+
+4.128Scenario VA . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.129Flight path at 4.130Flight path at 4.131Flight path at 4.132Flight path at 4.133Flight path at 4.134  vs 4.135  vs 4.136 V vs
+
+t = 38s t = 46 s t = 48s t = 54s
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+t = 62.365s
+
+t t t
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+4.137Scenario VB . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.138Flight path at 4.139Flight path at 4.140Flight path at 4.141Flight path at 4.142Flight path at 4.143Flight path at 4.144Flight path at 4.145  vs 4.146  vs 4.147 V vs
+
+t = 31s t = 36s t = 39s t = 40s t = 41s t = 51s
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+t = 55.43s
+
+t t t
+
+. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+xiv
+
+Nomenclature
+AGL CC HEE HMC HVC KKT LGL Above Ground Level Complementarity Conditions Hamiltonian Evolution Equation Hamiltonian Minimization Condition Hamiltonian Value Condition Karush-Kuhn-Tucker Legendre-Gauss-Lobatto
+
+NL OCP Nonlinear Optimal Control Problem NLP OA Nonlinear Programming/ Non Linear Program Obstacle Avoidance
+
+OCM OD ODE PS
+
+Optimal Control Method Obstacle Detection Ordinary Dierential Equation Pseudospectral
+
+PS OCM Pseudospectral Optimal Control Method RC RK ROA Radio Control Runge-Kutta Reactive Obstacle Avoidance
+
+xv
+
+RTOC SNOPT TP TTC UAV UGV
+
+Real Time Optimal Control Sparse Nonlinear OPTimizer Trajectory Planning Terminal Transversality Condition Unmanned Aerial Vehicle Unmanned Ground Vehicle
+
+xvi
+
+Chapter 1 Introduction
+1.1 Introduction
+
+Aerospace has always challenged nature, since the very beginning. After the controlled ight by the Wright brothers in 1903 [4], the feasibility of aircraft to carry weights heavier than air in a controlled manner was demonstrated. Even today, we seek new possibilities either driven by a new need, or simply because we can. The type of aircraft discussed in this thesis is an Unmanned Aerial Vehicle (UAV). Unmanned Aerial Vehicles, also known as drones, are ying machines without any human pilot on board. They are either controller autonomously by computers on board or remotely piloted. UAVs have several advantages and have been proven to be useful in dierent tasks such as domestic policing [5], disaster relief [6], scientic research [7], conservation [8] and many other up to our imagination. Among these many possible applications, is their use in geophysical surveys [9]. Because of their ability to y at lower altitudes than manned ight [10], they become ideal for performing high resolution surveys. Moreover, driven by advancements in computer processing power, UAVs have made signicant progress within the last 10 years [11]. In terms of aerial surveys, the use of UAVs in aerial surveillance has become more common these days [12,13,14,15]. While UAVs being ideal for aerial surveillance, they are mostly used by military personnel. Apart from that, UAVs are more attractive to dierent types of users for several reasons. Among them, rst is the use of UAVs to operate in situations dangerous for human pilots. Next, due to the absence of an on board pilot, small-scaled aircraft can be used decreasing the cost of manufacturing and fuel consumption, compared to larger piloted aircraft. UAVs are of dierent types based on their size and the tasks that they perform. In addition,
+
+1
+
+1 Autonomy
+
+is, namely the ability of the UAV to y without human intervention.
+1
+
+features such as range, maneuverability, autonomy determine the UAV's capabilities. Among them autonomy determines the UAV's capability to operate without human interference. At a primary level of autonomy the UAVs are able to complete the ight mission based on pre uploaded ight plans. UAVs with the ability to avoid obstacles and potential collision scenes have an even higher level of autonomy. Also, the level of autonomy can be even higher, such as in the case of forest re monitoring [16]. For example, in the case of forest re monitoring, a camera attached to the UAV along with an image processing system passes an image of the re's edge points indicating the burning side. These points are further approximated by straight lines creating a perimeter around the re area. The path planning algorithm then places waypoints along the approximated re perimeter and nally the autopilot is used to determine the control sequence required to maneuver the UAV to the waypoints. The
+
+motivation for the study in this thesis is the GeoSurv II project, which is described in more detail in next sub-section.
+
+1.2
+
+GeoSurv II Pro ject
+
+GeoSurv II is a jointly funded project of Sander Geophysics Limited (SGL) and NSERC with the objective to develop a small UAV, capable of performing high resolution geophysical surveys at low ight altitudes [9]. The designed aircraft is a twin-boom pusher aircraft
+
+with a wingspan of 4.9m, and two magnetometers installed on its wing tips to measure the magnetic eld of the terrain the UAV is ying over. Research has been conducted to reduce the interference of ferromagnetic sources of the aircraft on the survey [17] and also on the development of low cost composite structure for the airframe [18]. Figure 1.1 from [9] shows the GeoSurv II prototype.
+
+2
+
+Figure 1.1: GeoSurv II prototype
+
+Currently, Sander Geophysics Ltd. requires four crew members (pilot, co-pilot, maintenance engineer and geophysicist) to perform such surveys and the objective of the GeoSurv II project is to develop a UAV with the level of autonomy where the maintenance engineer and the geophysicist would be able to perform the survey without the pilots [9]. The autonomous system thus developed would be able to avoid obstacles detected without operator intervention. Basically the system has two separate areas:
+
+Avoidance
+
+Obstacle Detection
+
+(OD) and
+
+Obstacle
+
+(OA); this thesis is focussed on OA.
+
+Thus, the autonomy is an essential feature of the GeoSurv II aircraft. This thesis examines the trajectory planning aspect of obstacle avoidance (OA) for the GeoSurv II project. The Obstacle detection (OD) aspect is not covered. scenario for GeoSurv II. The next paragraphs cover the mission
+
+Survey Area and Potential Obstacles
+A typical GeoSurv II mission prole involves the survey of a given area. The required ight path consists of equally spaced lines over the area of interest. To obtain high-resolution
+
+measurements of the magnetic eld, it is desired to y below 50m AGL (Above Ground Level) [9]. As such, the UAV might face dierent problems, such as a-priori unknown small hills or other unforeseen obstacles. Consequently this thesis addresses the autonomous collision avoidance technique for such a UAV. In particular, moving, stationary and pop-up obstacles
+
+2
+
+3
+
+2 Here collision avoidance means obstacle avoidance, where as in the literature collision avoidance means avoiding other UAVs/aircraft [19, 20, 21, 22] . 3 Obstacles that appear suddenly ahead of UAVs
+
+3
+
+are considered. Any structure or object that comes in the way of the UAV is a potential obstacle. They may range from stationary obstacles like power line towers with power lines, telecommunication towers, trees and industrial chimneys to moving obstacles such as birds, and unknown ight vehicles [23]. Pop-up obstacles become of increasing signicance if the UAV is to operate in environments with uneven terrain . For example, if a small hill is encountered, the UAV cannot see what lies behind it. In cluttered environments, pop-up obstacle can be any
+
+object which is hidden by a visible obstacle and is encountered suddenly after the obstacle is avoided. The objective for GeoSurv II, is for an operator to upload a ight plan onto the UAV, which the UAV will autonomously carry out. Any encountered obstacles are to be avoided, while staying as close as possible to the original ight plan, so as to minimize gaps in the resulting survey.
+
+1.3
+
+Existing Approaches to Obstacles A voidance
+
+Obstacles avoidance (OA) has been a topic of research required in autonomous operation. It was rst researched in the eld of robotics. Details of some of these approaches may be found in references [24, 25, 26, 27, 28]. Obstacles avoidance methods were later applied to the UAVs with the desire of autonomous operation [29, 30, 31]. UAVs have dierent properties and constraints compared to non-aerial robotics. Because of this, the methods developed in robotics often cannot be directly applied to UAVs, and need to be modied. For example, mobile robots can come to complete stop to undertake a maneuver, while xed-wing UAVs need to maintain a minimum ight speed. Moreover, UAVs have minimum turning and
+
+pull up radii which further constrain possible UAV maneuvers. These constraints should be accounted for when designing obstacle avoidance methods for xed-wing UAVs. There are generally two classes of methods for obstacle avoidance: (1) When a complete map of the environment (map with all obstacles) is known prior to the start of the mission, such method of avoiding obstacles is known as
+
+Trajectory Planning (TP).
+
+Trajectory Planning methods have also been called path planning, global path planning or global guidance. (2) When obstacles are unknown prior to the start of the mission and are encountered during ight, the method is called Reactive Obstacle Avoidance (ROA) or local path planning [9]. Obstacles avoidance methods at local and global levels, have dierent characteristics and are applicable in dierent situations. In the global approach of obstacle avoidance (Trajec-
+
+4
+
+tory Planning), the computation time is not of concern. Since the method is run prior to the mission, it can run on a powerful computer with signicant computational power. Due to the lack of a computational time constraint, optimality is of greater focus in Trajectory Planning. In contrast, computation time of the method in Reactive Obstacle Avoidance is of great importance, since a delay in response might lead to collision. Since, Reactive Obstacle Avoidance is performed in real-time
+
+4
+
+on board, memory resources and computational
+
+power are limited by the available on-board computational resources. In Reactive Obstacle Avoidance, robustness is of greater concern than optimality since there is very little chance to correct any errors that may have occurred in the obstacle avoidance computations. Various obstacle avoidance methods have been developed and continue to evolve with improvement. Details of some of these approaches may be found in references [32,33,34]. These techniques include articial potential elds, cell decompositions, road maps and pseudospectral optimal control methods, among others. Each method has advantages and disadvantages on the basis of completeness, optimality, computational complexity and scalability [35,32,34]. Completeness refers to the method's ability to nd a successful solution if it exists and report if no solution exits. Optimality refers to the method's ability to select the path that best ts the given criteria. Computational complexity refers to the time taken by method to nd the solution, and scalability refers to the method's ability to extend to higher dimensional complex systems [35]. OA methods are discussed in further details in the subsections below.
+
+1.3.1 Cell Decomposition Method
+In cell decomposition methods, the operational area is divided into similar shaped small regions called cells, which are non-overlapping. Possible routes are then generated using
+
+search algorithms like A*, that pass through adjacent free cells. Cells that share a common boundary are referred to as adjacent and free cells are ones that are not occupied by obstacles. Figure 1.2 shows the route selected based on the cell decomposition method. Starting and nish points are connected by straight lines which are free from obstacles. Cells containing obstacles are shaded (cross-hatched) while the actual obstacles are solid black. Those cell containing obstacles are excluded from path development as the vehicle cannot travel through them while the free cells are traversable cells. the resolution of the cell grid. The optimality of the solution is based on
+
+Higher resolution results in improved optimality, but at
+
+the expense of increased computational burden. This increased computational burden can be overcome by implementing quad-tree or octree data structures [36]. Despite these new data structures, the inability to incorporate the vehicle constraints limits the usefulness of
+
+4 online
+
+or while at ight
+5
+
+this method for xed-wing UAVs. Furthermore, this method is more suited for Trajectory Planning than Reactive Obstacle Avoidance, since it requires the generation of an entire path.
+
+Figure 1.2: Cell Decomposition from reference [1]
+
+1.3.2 Road Map Method
+A road map is a network of straight lines, which connect the vehicle's initial and target points, without passing through any obstacles. The method work in conguration space, where the robot is treated as a point mass and the space is adjusted to accommodate the physical size of vehicle. A search algorithm is used to generate the shortest and safe route (route without intersecting obstacles) between the initial and goal points. Figure 1.3 from [1] illustrates the method. First, a map is dened as a work space (example: into free space and obstacles.
+
+Cspace ). Cspace .
+
+Next, the space is split
+
+Then, a network of straight lines are generated connecting These connected lines
+
+a set of points in the free space forming polygonal shapes in
+
+must not intersect obstacles. The graph produces a network of possible collision free routes. Finally search algorithms like A* are used to select a route between the initial and nal points based on merit.
+
+6
+
+Figure 1.3: The road map method
+
+Other road maps methods used in the literature are
+
+visibility graphs
+
+and
+
+voronoi diagrams.
+
+Visibility Graphs
+
+In this method, paths are formed by connecting networks of a non-directed graph of straight lines. This method consider only obstacles with polygonal shapes [1]. In the graph, vertices of polygonal obstacles are connected by straight lines called edges. The edges should not
+
+intersect obstacles. Edges that connect vertices are drawn such that each vertex can be seen from the other. Finally using a search algorithm based on some metric, a route is found
+
+connecting the start and end points. Figure 1.4 shows a visibility graph.
+
+Figure 1.4: Visibility graph from [1]
+
+7
+
+Voronoi Diagrams
+
+In Voronoi diagrams, a set of polygonal fences are constructed around each of the obstacles, by drawing lines perpendicular to the lines connecting the centers of the obstacles. The
+
+polygonal fences are then adjusted to meet at a minimum number of vertices [1]. Considering the resulting polygonal fences as connected graphs, a search algorithm can be used to nd a connected route between the initial and nal positions.
+
+Virtual forces
+
+obstacle
+
+masses
+
+Target Location
+
+UAV
+obstacle
+
+springs and dampers
+
+Figure 1.5: radar site obstacles from [2]
+
+The use of Voronoi diagrams in reference [37] to produce paths for a UAV shows that the method does not directly account for kinematic constraints. generation using Voronoi diagrams is shown in Figure 1.5. Another approach for path
+
+In this paper, an initial path
+
+connecting the initial and nal points is generated using a Voronoi diagram. The resulting path consists of a series of connected straight lines. This path is used as the starting point for generating a more smooth path. In particular, the UAV's path is modeled as a chain
+
+of point masses, between the initial and nal points, connected by springs and dampers, with the idea that the tension in the springs act to shorten the path. assigned a virtual repulsive force acting on the chain. Each obstacle is
+
+The nal generated path is the
+
+equilibrium condition of the chain of point masses. However, the complexity in solving the resulting ODEs limits the use of this method in Reactive Obstacle Avoidance. Furthermore, for these types of methods, adequate global information is needed, further limiting their applications to Reactive Obstacle Avoidance. So road maps are ecient for a-priori known static environments. In the case of dynamic environments, road map implementation is more challenging. In brief, road map methods are suited for static environments and Trajectory Planning.
+
+8
+
+1.3.3 Articial Potential Fields Method
+First proposed by Khatib in 1985 [38], the articial potential eld technique treats the goal point as an attractive potential and obstacles as repulsive potentials. An articial potential force is then computed, which is applied to the vehicle as a control input. The vehicles
+
+moving in the workspace are attracted towards the goal and repelled by the obstacles. In this approach the vehicle follows the path towards the lowest potential. This method is
+
+suitable for online path generation in robust manner with local information, since no global path planning is required. Despite its benets in local path planning, this method has several drawbacks. One of them is, the vehicle may get trapped at a local minimum point. For example, in the case of
+
+a C shaped obstacle, the potential has a minimum at the focal point of the curvature of
+C. Hence, a vehicle trapped at the focal point cannot come out of it, which is problem in
+
+the completeness of the method. This has been addressed by combining the potential eld with a distance transform method, where the distance transform method is used to generate a global path from initial to goal point, while the potential eld method is used to avoid obstacles in the immediate vicinity of the vehicle [39]. However, this method seems to handle vehicle constraints poorly. In addition, there have been other approaches for handling local minima. For example, in reference [40], this was addressed by imposing random motion Reference [33]
+
+and escape force at local minima. This is not appropriate for air-vehicles. discusses the development of navigation functions
+
+5
+
+containing only one minimum, at the goal
+
+point. However, this can only be done in presence of global information hence sacricing the method benets for Reactive Obstacle Avoidance. Optimality of the APF method can be slightly improved by placing tunable gains on the repulsive forces of the obstacles [41]. However, it lacks portability. In summary, this method can be useful to avoid obstacles in presence of local information, that is well suited to reactive obstacle avoidance (ROA) in robust manner, but it is dicult to manage vehicle constraints and also it lacks optimality.
+
+1.3.4 Potential Flow Method
+Potential ow method is based on the concept that a uniform uid ow creates a natural path around an obstacle. Unlike the Articial Potential Field (APF) method, Potential Flow does not generate an articial force (acceleration), rather a velocity vector is generated, which gives a direction the UAV needs to follow. Reference [9] uses the potential ow method
+
+5 function
+
+dened such that only the goal point has minimum potential
+9
+
+for Reactive Obstacle Avoidance (ROA). In addition, potential ow avoids the problem of local minima, since the ow potential is harmonic. Figure 1.6 shows the method developed to maneuver the UAV around the obstacle [9]. The actual obstacle is bounded by a box
+
+with wedges at the front and rear. The wedges were designed specically to shape the ow in order to account for the aircraft turning and pull-up constraints for a single obstacle as shown in the Figure 1.6. enough apart. The method works well if there are few obstacles which are far
+
+Fluid Particle Velocities / Course Commands
+
+Assumed Obstacle Modeled Obstacle
+
+Wedge height
+
+Initial Point
+
+Obstacle
+
+Goal Point
+
+Nominal Path
+
+Path Resulted with OA
+
+Figure 1.6: Obstacle avoidance using potential ow
+
+The drawbacks in this method are, rst, obstacles are two-dimensional, so it can either make the UAV y around or over the obstacle. This leads to the need for heuristic rules, which become very complicated if there are many closely spaced obstacles. Second, it cannot handle moving obstacles.
+
+1.3.5 Rapidly Exploring Random Tree
+Rapidly Exploring Random Tree (RRT), is a probabilistic method. Probabilistic methods tend to form path by random selection of neighborhood points with some metric such as path safety. In RRT, starting with a 'tree' generated from a point (initial point), random points are generated and nodes on the tree nearest to each point are established. Then new nodes are created along the lines connecting these points to the nearest nodes. At last these new nodes are added to the 'tree' if they do not hit obstacles. Figure 1.7 shows the RRT method for path planning in an urban environment.
+
+10
+
+Figure 1.7: RRT method used for path planning from [3]
+
+In reference [30], path planning achieved by RRT was added to the Dijkstra search algorithm, successfully nding a route for a UAV ying among known static obstacles. Also in reference [42], RRT was used for path planning with positional uncertainty of threat regions. In the latter, the lines joining points were adjusted with arcs to make a path yable by a UAV. These methods are computationally intensive while checking every node for obstacles. Hence, it is more Trajectory Planning oriented than Reactive Obstacle Avoidance.
+
+1.3.6 Pseudospectral Optimal Control Method
+The optimal control method is a logical way of solving path planning problems with objective functions (that need to be minimized/maximized), constraints and boundary conditions (that need to be strictly satised). This method in general solves for a control history
+
+that satises the problem. Due to the diculty in solving these optimal control problems analytically they are solved numerically. Despite its benet for optimal path planning, the possible dimension and complexity of the problems and the available solution methods have in the past created heavy computational burdens with long computational times. With the advancement in computer technology and algorithmic advancements, the issue of computing burden has been reduced. Also improvements in problem formulation have further improved computation time [43]. There are various important intermediate steps before the problem can be solved numerically. It is important to correctly formulate the problem at rst. Next, a proper discretization
+
+11
+
+scheme for the problem is important.
+
+The type of discretization scheme, number of dis-
+
+cretization points, proper scaling and balancing of the problem determines the correctness of the numerical solution. Details of scaling and balancing can be found in reference [43]. The problem is posed as a non-linear programming problem and nally solved using an NLP (Non Linear Program) solver. Recent improvement in the optimal control method was made by the introduction of a discretization scheme called Legendre Pseudospectral discretization, developed by Fariba Fahroo and I. Michael Ross of the Naval Postgraduate School [44]. The Legendre Pseudospectral optimal control method has been used in oine trajectory optimization [45,46,47]. Recent applications shown in references [11,48,44,49,50] have demonstrated the implementation of the Legendre Pseudospectral optimal control method in online trajectory planning in feedback form, also accounting for disturbances. In reference [11] path planning for a multi-UAV problem has been solved successfully. The method was used for the development of collision-free multi-UAV trajectories. In this paper, a concept of spacing constraint was used between the UAVs to prevent collision. Reference [48] applies the Legendre Pseudospectral optimal control method to trajectory planning for a UGV (Unmanned Ground Vehicle). reference [44]. The method's potential in online trajectory planning is highlighted in
+
+This paper highlights the relatively low computational power needed for It shows that if the problem be solved fast
+
+the Pseudospectral optimal control method.
+
+enough, then the method can solve the problem of local path planning, thereby accounting for environmental changes. In reference [49], the method was able to solve the problem of autonomous trajectory planning for an unmanned ground vehicle (UGV), while avoiding obstacles. It shows that the method was able to avoid obstacles autonomously provided there was sucient computational power to solve each trajectory planning problem quickly enough. In [35] the method was applied to the UAV obstacle (stationary) avoidance problem. The method was highly successful in real-time implementation for UAVs thereby demonstrating its utility for both Trajectory Planning and Reactive Obstacle Avoidance. Reference [50] shows an implementation of the method to a re-entry and landing problem. In addition the system thus developed was able to compensate for large uncertainties and disturbances such as hurricane-force wind gusts.
+
+1.4
+
+Approach, Ob jective and Thesis Structure
+
+Given the above discussions about the dierent methods for obstacle avoidance, the approach taken in this thesis will be based upon the pseudospectral optimal control method.
+
+12
+
+Unlike previous applications of the pseudospectral optimal control method to the collision avoidance problem, the objective in this thesis is not just to get from a starting point to a goal point, but rather to stay as close as possible to a pre-dened path, which is suitable for a survey
+
+6
+
+while avoiding stationary, moving and pop-up obstacles.
+
+Since the method
+
+is developed for the xed wing UAVs, this thesis uses dierent constraints than reference [35], such as minimum pull-up and turning radii. The method developed is expected to be computationally ecient so that it could be implemented on board. The remainder of the thesis is organized as follows. Chapter 2 contains an introduction to the optimal control problem and the theory behind the Legendre Pseudospectral discretization method. Problem identication and formulation is covered in Chapter 3. Chapter 4 shows the results of dierent ight scenarios with aircraft constraints in real-time. Finally, conclusions and recommendations for future work are contained in Chapter 5.
+
+6 Survey
+
+area is partitioned with equally spaced lines, these lines acts as path for UAV.
+13
+
+Chapter 2 Pseudospectral Optimal Control Theory
+2.1 Overview
+
+This chapter presents an overview of the pseudospectral optimal control method and discusses advantages over conventional methods. In classical methods closed-form solutions can only be found in the most simple of cases. There are numerous diculties in solving a state and control constrained nonlinear optimal control problems analytically, hence numerical methods are widely accepted and used. In particular, the Legendre pseudospectral method is able to solve complex nonlinear optimal control problems successfully with exponential convergence rates. Therefore, this method is selected for solving the problem of autonomous trajectory generation and obstacle avoidance for UAVs in this thesis. The Legendre pseudospectral method is a spectral-based algorithm for solving nonlinear optimal control problems. It was developed by Fariba Fahroo and I. Michael Ross of Naval
+
+Postgraduate School [43]. Using Lagrange interpolating polynomials, this method discretizes the state and control trajectories, transforming the innite-dimensional optimal control problem into a nite-dimensional nonlinear programming problem. Finally, a nonlinear programming (NLP) solver is used to solve the resulting nite-dimensional optimization problem. The pseudospectral method is commercially available in a MATLAB based software package called DIDO [51], which uses an NLP solver called SNOPT (Sparse Nonlinear OPTimizer) [52]. The DIDO software will be used to solve the dierent optimal control problems posed in this thesis. Ultimately, the pseudospectral method is a means to solve optimal control problems. As such, the resulting solutions must satisfy the associated necessary conditions for optimality, given in Pontryagin's minimum principle [53]. The optimal control problems under consideration in this thesis, and the corresponding Pontryagin's minimum principle are discussed next.
+
+14
+
+2.1.1 Nonlinear Optimal Control Problem (NL OCP)
+Nonlinear optimal control problems consist of a cost function, a dynamic equation, path and control constraints, and end point constraints. The cost function can consist of a Mayer tf term, E (·), which depends on the endpoint and/or the nal time, a Lagrange term, F (·)dt, ti which depends on the entire history of the state and control, or a combination of both of them, in which case the cost function is said to be in Bolza form. The dynamic equation adds a dynamic constraint to the optimal control problem, since it gives a dierential equation that the state-control pair must satisfy. The problem is then solved by nding an optimal state-control function pair,
+
+all of the constraints. Such an optimal control problem is described mathematically as in equations (2.1) and (2.2) below. Consider the optimal control problem, where it is desired to nd a state-control pair
+
+{x(·), u(·)} that minimizes the objective function, while satisfying
+
+RNx × RNu and
+
+nal time
+
+f > 0
+
+to minimize the cost function
+
+(x(t), u(t)) 
+
+f
+
+J (x( ), u( ), f ) = E (f ) +
+0
+subject to
+
+F (x( ), u( ),  )d,
+
+(2.1)
+
+x  ( ) 0 0 x(0 ) x(f )
+It is assumed that the functions
+
+= f (x( ), u( ),  ),  g (x( ), u( ),  ),  h(x( ),  ), = x0 , = xf .
+
+(2.2)
+
+E F f g h
+
+: : : : :
+
+R  R, RNx × RNu × R  R, RNx × RNu × R  RNx , RNx × RNu × R  RNg , RNx × R  RNh ,
+
+are all continuously dierentiable in their arguments. These functions are often referred to as the problem data. Dene the admissible control set,
+
+(x,  ) = u  RNu : g (x, u,  )  0 .
+15
+
+(2.3)
+
+and dene the control Hamiltonian
+
+H (x, u, ,  ) = F (x, u,  ) + T f (x, u,  ),
+and the Lagrangian of the Hamiltonian
+
+(2.4)
+
+L(x, u, , µ, ,  ) = H (x, u, ,  ) + µT g (x, u,  ) +  T h(x,  ),
+where
+
+(2.5)
+
+( )
+
+are co-states and
+
+µ( ),  ( )
+
+are Lagrange multipliers. Then Pontryagin's neces-
+
+sary condition for an optimal solution to (2.1) and (2.2) is as follows [54].
+
+Suppose that the triple (x ( ), u ( ), f ) are a minimizing solution of the problem described by equations (2.1) and (2.2). Then, there exist piecewise continuous co-state and multiplier functions  ( ), µ ( ),   ( ), a vector  (i ) for each point i of discontinuity of  and vectors   ,   such that: 1.  ( ) satises
+ ( ) = - L (x ( ), u ( ),  ( ), µ ( ),   ( ),  ),  x
+(2.6)
+
+with Terminal Time Transversality condition
+ (f ) =  +
+ 
+
+h  (x ( ),  ) x
+
+T
+
+ ,
+
+(2.7)
+
+and jump conditions at the discontinuity points
+
+
+
+(i- )
+
+=
+
+
+
+(i+ )
+
++
+
+h  (x ( ),  ) x
+
+T
+
+  (i ).
+
+(2.8)
+
+2. At every point in the interval   [0 , f ], u (t) satises the Hamiltonian Minimization Condition
+u ( ) = argminu(x ( ), ) H (x ( ), u,  ( ),  ),
+(2.9)
+
+which has the associated Karush-Kuhn-Tucker (KKT) minimization condition
+16
+
+L  H  g  (x ( ), u,  ( ), µ ( ),   ( ),  ) = (x ( ), u,  ( ),  ) + (x ( ), u,  ) u u x
+
+T
+
+µ (  ) = 0 .
+(2.10)
+
+3. The Lagrange multipliers µ ( ) and   ( ) satisfy the complementarity conditions
+µ ( )  0, µT ( )g (x ( ), u ( ),  ) = 0,   ( )  0,  T ( )h(x ( ),  ) = 0,
+
+(2.11)
+
+at every point in the interval   [0 , f ], and at the terminal time,   satises the complementarity condition
+   0,  T h(x (f ), f ) = 0.
+(2.12)
+
+4. Denoting the optimal Hamiltonian by H  ( ) = H (x ( ), u ( ),  ( ),  ), it satises
+L  dH  = (x ( ), u ( ),  ( ), µ ( ),   ( ),  ) d 
+(2.13)
+
+with terminal condition
+H  (f ) = - E h (f ) -  T (x (f ), f ).  
+(2.14)
+
+together with the jump conditions at the points of discontinuity
+H  (i- ) = H  (i+ ) -  T (i ) h  (x (i ), i ). 
+(2.15)
+
+Finally, discontinuity points, i , can only occur when the solution x ( ) touches the boundary of the set x  RNx : h(x, t)  0 .
+A few more points can be noted. First, dierentiating the control Hamiltonian in (2.4) with respect to
+
+,
+
+and using the dynamic equation in (2.2) gives
+
+17
+
+x   ( ) =
+
+H  (x ( ), u ( ),  ). 
+
+(2.16)
+
+In this thesis, the functions are all independent of time. Then, from equations (2.13), (2.14) and (2.15), the optimal control Hamiltonian will be constant with value
+
+H  ( ) = -
+of a given solution.
+
+E (f ),   [0 , f ]. 
+
+(2.17)
+
+The constancy of the Hamiltonian in (2.17) will be very useful to provide a check of optimality
+
+2.1.2 Feasibility and Optimality of the Solution
+The above sub-section shows the necessary conditions for the solution of the problem to be optimal. In this sub-section we see the methods of testing the feasibility and checking the optimality of the solution.
+
+Feasibility
+
+A solution is said to be feasible if it satises the system's dynamic equation, as well as the constraints. In the pseudo-spectral method, both the state and control trajectories are discretized, and a nite-dimensional problem approximating the original continuous optimal control problem is solved. Of primary concern for the feasibility of the solution is that
+
+the obtained discretized solution approximates a continuous-time solution that satises the system dynamics. integrated (using a To check feasibility then, the original state equations are numerically
+
+4th
+
+order Runge-Kutta (RK) scheme) using the obtained discretized
+
+control solution as input. The resulting state trajectory is then compared to the discretized state trajectory. If they match to within a given tolerance, the solution is considered to be feasible. This idea is illustrated in Figure 2.1. Satisfaction of the constraints can be checked directly from the discrete pseudospectral solution.
+
+18
+
+Pseudo-spectral Solution
+
+x
+
+Feasible Solution Infeasible Solution
+
+time (t)
+Figure 2.1: Feasibility test: pseudo-spectral solution state history, Propagated state and infeasible propagation
+
+Optimality
+
+In general, there is no test that can readily be performed to guarantee optimality of the obtained solution. However, there are some tests that can be performed, and can give a The rst test has already
+
+good indication of whether or not a solution can be trusted.
+
+been identied in the statement of Pontryagin's minimum principle in the previous section. Namely, the Hamiltonian must be constant, with a value specied by the terminal cost. An additional test that can be performed is a check of Bellman's principle of optimality. This can be performed regardless of whether or not an obstacle eld is stationary. Bellman's principle of optimality states: let there be an optimal trajectory from point A to B and consider any point C on that trajectory between points A and B. Then the optimal trajectory generated with same initial condition at A from A to C and the optimal trajectory generated with initial condition of C from C to B are equivalent to original optimal trajectory from A to B. In particular, the cost of optimal trajectory from A to B is equal to the sum of the optimal cost from A to C and C to B. Figure 2.2 shows the idea of Bellman's Principle test.
+
+19
+
+Cost(A to B) = Cost(A to C) + Cost(C to B)
+
+B C
+
+A
+Figure 2.2: Bellman's Principle test of optimality
+
+2.2
+
+Legendre Pseudospectral Discretization
+
+This section introduces the basic idea behind the theory of Pseudospectral discretization. Further details can be found in [55] and [56]. The key steps for pseudospectral discretization are contained in the following four points:
+
+1. Select the discretization points (also known as grid or node), 2. Approximate the state and control functions by polynomials, 3. Approximate the dierential equation (derivative of approximating polynomial), 4. Approximate the cost function and constraints.
+
+These steps result in a nite-dimensional constrained optimization problem which can be solved by standard NLP solvers. The above steps are now elaborated on in some detail.
+
+A. Node Spacing
+Node selection is an important step for optimal control problems by discretization. Approximation theory suggests that optimal node placement occurs when the nodes are the roots of orthogonal polynomials such as Legendre or Chebyshev (also known as Tschebysche ) polynomials [55][56]. One such set of points is the set of Legendre-Gauss-Lobatto (LGL)
+
+points [57]. The Legendre-Gauss-Lobatto points have very important characteristics which concentrate nodes at end points and spread out nodes in the middle of the domain. Figure 2.3 shows the polynomial approximation of
+
+x(t)
+20
+
+associated with Legendre-Gauss-Lobatto
+
+node distribution. The Legendre-Gauss-Lobatto points are dened on the interval follows:
+
+[-1, 1]
+
+as
+
+t0 tj tN
+
+= -1 = roots of = 1
+
+LN (t) (j = 1.., N - 1)
+
+X0
+
+X1
+
+XN
+
+t0 t 1
+LGL node Points
+Figure 2.3: Polynomial approximation of distribution
+
+tN
+x(t) associated with Legendre-Gauss-Lobatto node
+
+where
+
+N+1
+
+is the number of Legendre-Gauss-Lobatto points, and
+
+Li (t) denotes the Legendre
+However,
+
+polynomial of order , for
+
+i
+
+i=1,...,N. These points must be computed numerically.
+
+for a xed number of nodes, they can be computed o-line beforehand and stored on-board for use in a real-time implementation. Since the Legendre-Gauss-Lobatto points are dened on the interval control
+
+[-1, 1], problem [0 ,  f ]
+
+a mapping is needed from the interval of denition of the optimal to
+
+(2.18)[58].
+
+[-1, 1]
+
+and vice versa. The former mapping is given by equation
+
+tLGLi =
+where
+
+2(i - 0 ) - (f - 0 ) f - 0
+
+(2.18)
+
+tLGLi =
+
+the
+
+ith
+
+Legendre-Gauss-Lobatto time point
+
+21
+
+i 0 f
+
+= the
+
+ith
+
+real time point
+
+= the initial real time point = the nal real time point
+
+Conversely, the Legendre-Gauss-Lobatto time domain can be mapped to the real time domain given by
+
+i =
+
+(f - 0 )tLGLi + (f + 0 ) 2
+
+(2.19)
+
+Furthermore, this mapping has derivative
+
+d f - 0 = dtLGL 2
+
+(2.20)
+
+Equations (2.19) and (2.20) are used in the discretization of the Optimal Control Problem. After the node spacing is chosen, the problem is set, and this spacing denes the accuracy of the solution.
+
+B. Approximation of the States and Controls
+Given the N+1 Legendre-Gauss-Lobatto points, the state imated by
+
+x(t)
+
+and control
+
+u(t)
+
+are approx-
+
+N
+
+th
+
+order polynomials as described in this section. First, the Lagrange interpo-
+
+lating polynomials of order
+
+N +1
+
+are for j=0,...,N as
+
+N
+
+j (t) = m=0 m=j
+As each Legendre-Gauss-Lobatto point,
+
+(t - tm ) (tj - tm )
+
+(2.21)
+
+ti ,
+
+the numerator of
+
+The denominator normalizes the value of result at the node points:
+
+j (t)
+
+to
+
+1
+
+when
+
+j is i = j.
+
+zero except when
+
+i = j.
+
+So, the following is the
+
+j (ti ) = ij
+where
+
+  1, i = j =  0, i = j
+
+(2.22)
+
+ij
+
+is the Kronecker delta.
+
+22
+
+Having dened the Lagrange interpolating polynomials, the proximations for the state and control are given by
+
+N + 1th
+
+order polynomial ap-
+
+xN +1 (t) :=
+
+N
+
+x(tj )j (t)
+j =0 N
+
+(2.23)
+
+uN +1 (t) :=
+
+u(tj )j (t)
+j =0
+
+(2.24)
+
+C. Approximation of the Dierential Equation
+After approximating state and control with
+
+(N + 1)th degree
+
+polynomials, we approximate
+
+their derivatives at the node points. The derivative of the approximation in (2.23) is given by
+
+x  N (t) :=
+
+N j =0
+
+j (t) x(tj )
+
+(2.25)
+
+For the discretization, we only require derivatives at the node points. So,
+
+x  N (ti ) =
+where
+
+N j =0
+
+j (ti ) = xj 
+
+N
+
+Dij xj
+j =0
+
+(2.26)
+
+j (ti ) Dij = 
+and
+
+(2.27)
+
+xj = x(tj )
+Equation (2.26) can now be written in matrix-vector form.
+
+ N = DN xN x
+where,
+
+(2.28)
+
+xN
+
+=
+
+{x0 , x1 , x2 , ......xN },
+
+at the Legendre-Gauss-Lobatto node points
+
+23
+
+
+
+D00
+
+D01 . . . . . . D0N
+.. . .. . .. . . . . . . . . . .
+
+     , N +1×N +1 Pseudospectral dierentiation   
+
+  D10   . DN =  .  .  . .  . DN 0
+matrix
+
+...
+
+. . . . . . DN N
+
+Thus, dierentiation is approximated by matrix multiplication. elements of DN matrix is given by equation (2.29):
+
+From reference [58], the
+
+Dij =
+
+          
+
+LN (ti ) . 1 LN (tj ) (ti -tj ) +1) - N (N 4 N (N +1) 4
+
+i=j i=j=1 i=j=N otherwise
+(2.29)
+
+0
+
+Utilizing the time transformation in equation (2.20), the dierential equation in (2.2), with substitution of equation (2.26) is approximated at the Legendre-Gauss-Lobatto points as :
+
+f - 0 2
+where
+
+N
+
+Dij xj
+j =0
+
+= f (xi , ui , i )
+
+(2.30)
+
+ui = u(ti )
+for
+
+i = 0, ..., N
+
+D. Approximate the Cost Function and Constraints
+Given the polynomial approximations for
+
+x(t)
+
+and
+
+u(t)
+
+in equations (2.23) and (2.24), the
+
+cost function in (2.1) is rst approximated as
+
+f
+
+J N := E (f ) +
+0
+First, the physical time domain
+
+F (xN ( ), uN ( ),  )d
+needs to be mapped to the time-domain
+
+(2.31)
+
+[ 0 ,  f ]
+
+according to (2.19) and (2.20), yielding
+
+[-1, 1]
+
+24
+
+f
+
+f - 0 f ( )d = 2
+0
+
+1
+
+f ( (t))dt
+-1
+
+(2.32)
+
+Now, the cost function in (2.31) may be discretized. In general, Gaussian quadrature rules are expressed as [59]:
+
+1 -1
+
+N
+
+f (t)dt 
+
+wj f (tj )
+j =0
+
+(2.33)
+
+where
+
+wj
+
+are the weights associated with the node spacing scheme.
+
+For the Legendre-Gauss-Lobatto node-spacing scheme, the cost function is discretized as
+
+J N := E (f ) +
+
+f - 0 2
+
+N
+
+F (xN (j ), uN (j ), j )wj
+j =0
+
+(2.34)
+
+Finally, the path and control constraints in (2.2) are enforced at the Legendre-Gauss-Lobatto node points and the overall discretized optimization problem becomes
+
+J
+
+N
+
+f - 0 := E (f ) + 2
+
+N
+
+F (xj , uj , j )wj
+j =0
+
+f -0 2
+
+N
+
+Dij xj
+j =0
+
+= f (xi , ui , i ),   = = g (xi , ui , i ), h(xi , i ), x0 , xN .
+(2.35)
+
+0 0 x(0 ) x(f )
+
+After discretization a nonlinear programming solver such as SNOPT [60] is used to solve the problem. As mentioned previously, the software package DIDO performs the aforementioned discretization, and contains the solver SNOPT. For convenience, DIDO is used to solve the optimal control problems posed in this thesis.
+
+25
+
+2.3
+
+Real-time Trajectory Planning
+
+The advancement in computer technology and numerical problem solving has brought a turning point in the use of optimal control in nonlinear feedback control laws. Pseudospectral optimal control laws have been successfully implemented in feedback form in a number of guidance, navigation and control problems, including observers for nonlinear systems [61], nonlinear feedback guidance of Reentry Vehicles [62], autonomous trajectory planning [49] and other evolving implementations. The use of this idea in feedback control for realtime trajectory generation is introduced below. In fact, this section summarizes the concept of realtime trajectory generation used in this thesis. Feedback control implies that the control system has regularly updated (ideally continuous) information related to the system's states. In the case of state feedback (as in this thesis), this information consists of the states themselves. The concept of closed-loop control using the pseudospectral-optimal control method (PS-OCM) is based in the idea that the openloop control, can be recomputed very quickly using current state information such that it is equivalent to continuous feedback. This has been done by the introduction of  C
+
+1
+
+Caratheadory 
+
+conditions [63].
+
+In [63], it was proved that the concept is possible if the
+
+-
+
+computation time for an open-loop solution is very small. Hence, successful implementation of feedback on PS-OCM relies on the fact that the openloop control be generated fast enough. References [64],[44],[65] show that the pseudospectralmethod is capable of generating open-loop controls in fractions of a second even in legacy hardware running MATLAB.
+
+PS-Feedback Implementation
+Figure 2.4 shows the pseudospectral-feedback concept utilized in this thesis.
+
+26
+
+Target information Cost and Constraints Open-loop Trajectory Generation Initial map of the environment
+Mission Planning Mission Objective
+
+Disturbance/ Errors
+
+to control UAV in realtime surfaces
+
+RTOC
+Real-Time Optimal Control
+
+Autopilot
+Inner stabilization and tracking loop
+
+Real-time information update (states/ obstacles updates)
+
+local information state/ environment via sensors
+
+Autonomous Control Architecture for Fixed-Wing UAV
+
+Target information Cost and Constraints  x 0 (t ) -1 xi P S (t) f or t >= ti
+
+x (t i )
+
+Online, Closed-loop Trajectory Generation
+
+Autopilot
+
+Real-Time Optimal Control
+Figure 2.4: Control Architecture for Online Trajectory Generation
+
+Information such as the mission objective, initial terrain and environment maps, cost, constraints, vehicle dynamics, initial and nal conditions are given to the mission planner, which generates a mission trajectory oine. This trajectory provides a nominal ight path that needs to be stayed as close to as possible. That is, it is a target trajectory. As shown in Figure 2.4, the online trajectory generator uses the current state information as initial condition to generate a new optimal trajectory using the pseudospectral method and the available obstacle information. This trajectory is then sent as a command to the autopilot to track. The optimal trajectory is regenerated at each sample instant using new state and obstacle information. In this way, the scheme is robust to changes in obstacle
+
+information, as well as disturbances acting on the UAV. Due to the nite amount of time taken to compute each new trajectory, the trajectory command sent to the autopilot is based upon the trajectory generated using state information from one previous sample time. This can be thought of as a predictor scheme to correct for process delays. Figure 2.5 shows the successive process of solving the OCP. In the gure, OC1 means ONLINE CONTROL 1 and so on. In theory, each initial condition (IC) will begin at nal condition of the previous
+
+27
+
+trajectory segment.
+
+State IC0
+
+IC1
+
+IC2 IC3
+
+t-1
+
+t0
+controls rejected
+
+t1
+IC0 used for OC 2
+
+t2
+
+t3
+
+t4
+controls applied
+
+ONLINE Generated Control
+
+OC1
+
+OC5 OC2
+t0 t1
+
+OC3
+t2
+
+OC4
+t3 t4
+
+t-1
+
+Figure 2.5: Online/Realtime Propagation
+
+Bellman's principle provides an advantage for online trajectory generation using pseudospectral methods, in that a low accuracy solution can be de-aliased to provide a high-accuracy solution without creating a large-scale optimization problem [49],[66]. Reference [49] shows
+
+15 node solution time, yields an accuracy equivalent to an o-line generated 60 node solution.
+an example where an online-generated trajectory using a under consideration.
+
+at each sample This is because
+
+the Legendre-Gauss-Lobatto points are concentrated at the end points of each time interval Thus, the accuracy of the solution is higher at the end points. In
+
+real-time implementation, only the higher accuracy initial portion of each generated control is used, and then a new control is generated. Along with that this method provides other advantages such as avoiding the need of a disturbance rejection system and no prior knowledge of the environment is required. De-aliasing Bellman stated below.
+
+(a2 B )algorithm
+
+applied in this thesis is
+
+a2 B
+
+algorithm: [66]
+
+1. Solve the problem for a low number of nodes, n. This generates a discrete-time n solution, {xi , ui }n i=0 corresponding to discrete time {ti }i=0 .
+28
+
+2. Partition the time interval [t0 , tn ] into NB Bellman segments, t0 < t1 < · · · < tNB = tn . These segments need not be uniformly spaced. 3. Propagate the dierential equation from t0 to t1 using x0 as the initial condition and any method of continuous-time reconstruction of the controls, u1 (t), t  [t0 , t1 ] based on {ui }n i=0 . That is, solve the initial value problem,
+x  = f (x, u1 (t)), x(t0 ) = x0
+(2.36)
+
+This step generates a continuous-time trajectory, x1 (t), t  [t0 , t1 ]. This propagation is done numerically via some high-precision propagator, say the standard 4/5 Runge-Kutta Method. 4. Set x0 = x1 (t1 ) and t0 = t1 and go to step 1; that is, set a new initial condition as the value of the integrated state at the end of the period [t0 , t1 ] and solve the problem again for n (which continues to be low). This generates a new n sequence {xi , ui }n i=0 corresponding to new discrete times {ti }i=0 , etc.
+
+5. The algorithm stops at the NB th sequence when the nal conditions are met. The candidate optimal trajectory is given by the Bellman chain x1 (t), t  [t0 , t1 ]; x2 (t), t  [t1 , t2 ]; · xB (t), t  [t0 , tf ]. Similarly, the corresponding controls are given by
+u1 (t), t  [t0 , t1 ]; u2 (t), t  [t1 , t2 ]; · · · uNB (t), t  [tNB -1 , tNB ] := uB (t), t  [t0, tf ].
+Hence this thesis uses the above concept for realtime autonomous trajectory generation to be implemented on UAVs and its analysis in Chapter 4.
+
+29
+
+Chapter 3 Problem Formulation and Vehicle Dynamics
+3.1 Introduction to Autonomous Control Architecture
+
+This chapter includes the introduction to the thesis problem, the detailed problem formulation and the steps chosen for solution. The concept of realtime optimal control has been explained in general terms in Chapter 2. This chapter further explores the concept and
+
+specializes it for autonomous realtime trajectory generation to be used on the UAV, which has been introduced in Chapter 1. The UAV is being designed to autonomously survey large poorly known areas. While performing a geo-physical survey of an area, the UAV is required to y at a minimal altitude to maximize the survey resolution (50 meters above the ground level [9]). A typical survey ight path is made by connecting lines as shown in Figure 3.1. At the low ight altitude, these paths can have a number of natural (small hills or tall trees) or articial obstacles (power lines, communication towers) on its path. Figure 3.1 shows some examples. In order to avoid these obstacles in autonomous ight mode, the UAV must have an obstacle detection and avoidance feature. This thesis focuses on the obstacle avoidance capability once
+
+the obstacles have been detected. The obstacle detection capability is beyond the scope of this thesis. It is assumed that the obstacle detection system is available providing current obstacles' sizes, shapes and positions at regular sample intervals
+
+30
+
+Survey Area
+
+Start Point (A)
+
+small hill's countour line above 50 meter
+
+tall chimney as pop-up obstacles
+
+(B)
+
+communication tower
+
+(D) (C)
+
+unknown UAV
+
+(E)
+
+End Point (F)
+Figure 3.1: Aerial Path Designed for UAV.
+
+The UAV under consideration this thesis is the GeoSurv II prototype, as described in Chapter 1 and once again shown in Figure 3.2 with the control surfaces indicated. The UAV with a wingspan of 4.9m, has three directional control surfaces; Aileron, Elevator and Rudder, and a Flap which is a high lift device. Overall, the aircraft has ve control parameters,
+
+namely Aileron, Elevator, Rudder, Flap and the throttle. However, for the purpose of this thesis, it is assumed that the UAV is equipped with ight control laws capable of tracking a commanded trajectory. That is, it is assumed that the inner loop in Figure 2.4 has already been closed. The focus of this thesis is purely on the real-time trajectory generation for
+
+obstacle avoidance.
+
+31
+
+Figure 3.2: GeoSurv II Prototype with labeled control parts.
+
+Referring to Figure 3.1, to minimize gaps in the aerial survey, the UAV is desired to stay as close as possible to the predened path, while avoiding any encountered obstacles. With this in mind, the autonomous control architecture is developed as shown in Figure 2.4. The mission planner executes each line segment one by one. According to the control architecture shown in Figure 2.4, the mission planner creates the UAV's mission from initial point to nal point of ight. Figure 3.1 shows only a typical ight plan over the survey area but in reality, the UAV takes o from a given base and ies to the survey area. survey and ies back to base and lands. planning block. It then completes the
+
+The entire ight plan is stored in the mission
+
+The mission planner keeps track of position and possibly other required Each line segment in the nominal ight plan is
+
+states, for the duration of the mission.
+
+passed from the mission planner block to the Real Time Optimal Control (RTOC) block for realtime trajectory generation, which will be expanded upon shortly. The RTOC generated trajectory is sent to the autopilot block as a commanded trajectory for the UAV to follow. As shown in Figure 2.4, the RTOC regularly updates the commanded trajectory based upon new state and obstacle information. The obstacle avoidance method explained above needs to be tested in simulation before it can be implemented on a real aircraft. This thesis presents several simulation results for
+
+obstacle avoidance in dierent scenarios that may be encountered in a typical survey. The remainder of this chapter contains the details of the mathematical problem formulation.
+
+32
+
+3.2
+
+Vehicle Kinematics
+
+So as to avoid the need for a dynamic model of the UAV, the RTOC trajectory planning works with a kinematic model of the UAV. As illustrated in Figure 3.3, the UAV kinematics can be purely represented in terms of two angles ( and
+
+)
+
+and the UAV ground speed (V ),
+
+which together specify the UAV velocity vector. The angles vehicle heading and climb angles, respectively.
+
+
+
+and
+
+
+
+physically represent the
+
+Representing the position of the UAV by the cartesian coordinates matics are given by
+
+[x, y, z ]T ,
+
+the UAV kine-
+
+x  = V cos( )cos( ) y  = V cos( )sin( ) z  = V sin
+
+(3.1) (3.2) (3.3)
+
+As can be seen from equations (3.1) to (3.3), the kinematics are completely governed by
+
+,
+
+
+
+and
+
+V.
+
+As such, they can be considered to be control inputs to the kinematics. However, Therefore, limitations
+
+the RTOC generated trajectory must be feasible for a UAV to y. must be placed upon these variables as follows:
+
+a. There is no limitation on the heading,
+
+ , but its rate of change will be limited,
+
+as discussed in below.
+b. The climb angle,
+
+ , must be limited.
+
+For example, it is impossible for GeoSurv
+
+II to y vertically upwards. Therefore, we restrict
+
+
+
+to the range
+
+max .
+
+In addition, the rate of change of
+
+
+
+(the pull-up rate) will be limited,
+
+min   
+and
+
+as discussed in below. For simplicity, it is assumed that the are independent of speed.
+
+max
+
+min
+
+c. The UAV's speed is limited below and above by the stall speed and the max-
+
+imum speed allowed by the airframe, respectively. Consequently, we restrict
+
+be limited as discussed below.
+
+Vmin  V  Vmax .
+
+In addition, the rate of change of V (the acceleration) will
+
+1
+
+1
+
+Strictly speaking, the limits should be on the air speed, but we assume that the UAV will only operate in calm conditions, such that the air and ground speeds are similar.
+
+33
+
+positive X axis
+
+
+Heading Reference
+
+V
+positive Z axis
+
+V 
+
+CG
+
+positive Y axis
+
+Local Horizontal
+
+CG
+positive X axis
+
+(A) Directional Motion
+
+(B) Longitudinal Motion
+Figure 3.3: Flight Angles.
+
+Let
+
+ , 
+
+and
+
+a
+
+represent the rates of change of
+
+, 
+
+and
+
+V
+
+, respectively. As mentioned
+
+above, these rates need to be constrained. Consequently, the kinematic equations in (3.1) to (3.3) are augmented with the rates to obtain
+
+      = X     
+
+x  y  z       V
+
+
+
+
+
+          =        
+
+V cos( )cos( ) V cos( )sin( ) V sin   a
+
+        R6    
+
+(3.4)
+
+Equation (3.4) contains the full set of state equations used for the purpose of trajectory planning. In particular, it is to be noted that
+
+, ,
+
+and
+
+V
+
+are now treated as states, while
+
+ , 
+
+and
+
+a
+
+become the control variables.
+
+The control variables,
+
+
+
+and
+
+
+
+are limited by aircraft's maximum pull-up and turning rates,
+
+which will be discussed in Section 3.3, while the acceleration,
+
+a,
+
+is limited by the engine and
+
+airframe capabilities. Consequently, we dene the control limits as.
+
+    : ( )min   (t)  ( )max C=  : ( )min   (t)  ( )max   a: amin  a(t)  amax
+
+    
+
+ R3
+
+(3.5)
+
+34
+
+3.3
+
+Constraints and Cost
+
+In this section, the constraints for the trajectory optimization problem are fully developed, and a cost function is formulated appropriate to the control objective. In optimal control, constraints can be of dierent types according to the nature of the problem under consideration. For the obstacle avoidance problem in this thesis we have two kinds of constraints: UAV constraints and obstacle constraints. UAV constraints arise due to UAV limitations, while obstacle constraints arise due to the presence of the obstacles. UAV constraints are typically a mix of path and control constraints, while obstacle constraints are purely path constraints.
+
+UAV Constraints
+The aircraft dynamics themselves place constraints on the aircraft's maneuvering capabilities. At the fundamental level, these constraints result from the aircraft aerodynamics and limitations on the throttle and control surface deections. However, since we do not wish to deal with the aircraft dynamics directly, we must instead incorporate these constraints into the trajectory planning process. Two of the resulting constraints have already been addressed, namely path angle and velocity constraints. In addition, as has been alluded to in equation (3.5) there are constraints on the minimum turning and pull-up rates, as explained in [9]. These translate directly into constraints on the rates of the control variables
+
+
+
+and
+
+.
+
+It should be noted that the constraints on turning and pull-up rates are obtained under the assumption of steady-ight conditions. As such, they are somewhat conservative. However, they are simple to implement, and hence will be used. From reference [9], the minimum turning radius is:
+
+V2 T Rmin =  g n2 - 1
+and the maximum turning rate is
+
+(3.6)
+
+T max
+
+ g n2 - 1 = V
+
+(3.7)
+
+35
+
+T Rmin
+
+
+
+T Rmin
+
+(a) Top view of an UAV at tightest turn possible
+
+(b) Front view of an UAV at tightest turn possible with  as bank angle
+
+Figure 3.4: Turning Flight
+
+where,
+
+g =9.81 nis
+
+m/s
+
+2
+
+is the Earth's gravitational acceleration
+
+the load factor of the aircraft dened as
+
+n= L W
+is lift produced (Newton) is the weight (Newton)
+
+L , W
+
+(3.8)
+
+T Rmin T max
+
+is minimum turning radius in meter (meter) is maximum rate of change of angle in turning (radian per second)
+
+In case of turning ight, it can be shown that,
+
+n= 
+being the banking angle of the UAV.
+
+1 cos()
+
+(3.9)
+
+36
+
+From equation (3.6), it can be seen that if the load factor,
+
+n,
+
+is xed, the minimum turning
+
+radius increases with aircraft speed. On the other hand, the load factor, with aircraft speed (more lift can be generated at higher speeds).
+
+n,
+
+also increases
+
+Since the load factor,
+
+n,
+
+appears in the denominator of (3.6), this mitigates the increase in the minimum turning To avoid the need to know the relationship between the load factor
+
+radius to an extent.
+
+and aircraft speed, we shall simply compute the minimum turning radius based upon the maximum aircraft speed,
+
+Vmax ,
+
+and keep it xed for all aircraft speeds.
+
+To compute the
+
+maximum load factor, we shall take the maximum bank angle to be equation (3.9), we get
+
+65
+
+2
+
+.
+
+Hence from
+
+n = 2.4
+Therefore, while turning with maximum velocity of equation (3.6) we get the minimum turning radius,
+
+(3.10)
+
+Vmax
+
+and load factor ( ) of
+
+n
+
+2.4,
+
+from
+
+T Rmin =
+
+2 Vmax 21.0
+
+(3.11)
+
+Similarly, the minimum pull-up radius and maximum pull up rate can be calculated from [9]
+
+p Rmin =
+and
+
+V2 g (n - 1)
+
+(3.12)
+
+P max =
+
+g (n - 1) V
+
+(3.13)
+
+p Rmin
+
+Figure 3.5: UAV at it's tightest pull-up turn possible
+
+2 Note
+
+that the actual GeoSurv II parameters are unknown so this bank angle is assumed as a place holder
+37
+
+where,
+
+p Rmin P max
+
+is minimum pull-up radius is maximum pull-up rate
+
+For minimum pull-up radius, we take the value of maximum velocity of
+
+n = 2.4
+
+from equation (3.10) and with
+
+V max ,
+
+equation (3.12) gives,
+
+p Rmin =
+
+2 Vmax 13.4
+
+(3.14)
+
+And, these two major concept of turning and pull-up radius of the UAV will be implemented as constraints of UAV system. These constraints are incorporated as path constraints. It is important that the generated path satises these constraints, such that it is feasible for the UAV to y. Assuming the pure turn, the turning radius
+
+RT
+
+satises
+
+1  = T R V
+
+(3.15)
+
+Consequently, xing the minimum turn radius obtained in (3.11), we obtain the constraint
+
+-
+where,
+
+1
+T Rmin
+
+ h( , V ) 
+
+1
+T Rmin
+
+(3.16)
+
+h(, V ) = /V
+
+represents a path constraint as function of control and state.
+
+Similarly, assuming a pure pull-up maneuver, the pull-up radius,
+
+RP
+
+satises
+
+1  = P R V
+
+(3.17)
+
+Consequently, xing the minimum pull-up obtained in (3.14), we obtain the constraint
+
+-
+and
+
+1
+P Rmin
+
+ h( , V ) 
+
+1
+P Rmin
+
+(3.18)
+
+h(, V ) is as dened previously.
+
+Note that for simplicity we assume same minimum push-
+
+down radius as pull-up radius, but this can be adjusted when more aircraft information is available. Finally, the control limits given by equation (3.5) are updated as
+
+38
+
+ 1 1   h( , V )  RP P    : - Rmin min 1 1 C=  h( , V )  RT  : - R T  min min   a: amin  a(t)  amax
+
+      
+
+ R3
+
+(3.19)
+
+Obstacle Constraints
+Obstacles act as path constraints, and path constraints are generally continuous algebraic functions in states and possibly time. With this in mind, the
+
+p-norm
+
+was introduced in [35]
+
+for the purpose of modeling obstacles. The modeling of an obstacle's exact shape is complex and unnecessary, since for the purposes of path planning, we can bound each obstacle with simpler generic shapes such as spheres, cubes, or ellipsoids. Each of these shapes are readily obtained by use of an appropriate
+
+p-norm.
+
+Two-dimensional obstacles representable by a
+
+p-norm
+
+are described by equations of the form
+
+h(x, y ) = 0, y - yc b
+
+where.
+
+h(x, y ) =
+where,
+
+x - xc a
+
+p
+
+p
+
++
+
+-1
+
+(3.20)
+
+(xc , yc ) a b p
+
+are the coordinates of the center of the obstacle
+
+is the half-length of the obstacle measured along the x axis is the half-length of the obstacle measured along the y axis is the degree of norm chosen,
+
+Points strictly outside the obstacle are those satisfying
+
+h(x, y ) > 0. p = 10
+and
+
+Figure (3.6) shows examples of a rectangle and circle, which are created using
+
+p = 2,
+
+respectively.
+
+39
+
+Figure 3.6: Rectangle and Circle are created by setting the exponent to
+
+10 and 2 respectively.
+
+Similarly for three dimensional space, obstacles can be dened as those points satisfying
+
+h(x, y, z ) = 0,
+
+where
+
+h(x, y, z ) :=
+with,
+
+x - xc a
+
+p
+
++
+
+y - yc b
+
+p
+
++
+
+z - zc d
+
+p
+
+-1
+
+(3.21)
+
+(xc , yc , zc ) d
+
+the center of the obstacle
+
+is the half-length of the obstacle measured along the z axis.
+
+and
+
+a, b
+
+and
+
+p
+
+have the same meaning as in the two-dimensional case.
+
+As before, points strictly outside the obstacle satisfy constraint for the trajectory generation problem. The path constraint corresponding to the alently as
+
+h(x, y, z ) > 0,
+
+which leads to a path
+
+ith three-dimensional obstacle can be written equiv-
+
+hi (x, y, z ) := ln
+
+x - x{c,i} ai
+
+pi
+
++
+
+y - y{c,i} bi
+
+pi
+
++
+
+z - z{c,i} di
+
+pi
+
+>0
+
+(3.22)
+
+An example of a three-dimensional obstacle is shown in Figure 3.7. generated with the parameters:
+
+This obstacle was
+
+xc = 30; a = 10; p = 100 yc = 30; b = 20; zc = 30; d = 30;
+40
+
+Figure 3.7: Box representing obstacle.
+
+Cost
+The cost function in an optimal control problem is dened to reect the desired performance. As discussed previously, the objective of the control problem in this thesis is to stay as close as possible to the predened path for the duration of the ight, while avoiding any encountered obstacles. This can be done by minimizing the area between the ight path and the predened path as shown in Figure 3.8. Each segment of the predened path consists of a straight line at a xed altitude. Therefore, there are two path deviations that need to be addressed, namely the horizontal and vertical deviations. An example is shown in Figure 3.8, where the predened ight path is given by the equations
+
+x=y
+
+and
+
+z = 50.
+
+Note that there is no loss in generality of this choice, since
+
+by a simple translation and rotation of coordinates, any straight horizontal ight path can be mapped to this line.
+
+41
+
+y-axis Final Point (F) flight path z-axis
+
+predefined path x=y Obstacle
+
+predefined path (height) h=50
+
+Area between flight path and predefined path I Initial Point (I) x-axis flight path F Obstacle x-axis
+
+Figure (A)
+Figure 3.8: Figure showing the line between them.
+
+Figure (B)
+x=y
+and
+
+h = 50
+
+with respective ight path and area
+
+Corresponding to the desire to minimize the area between the ight path and the predened path
+
+(x = y, z = 50),
+
+two integrals are dened
+
+tf
+
+A1 =
+t0
+and
+
+0.5(x - y )2 dt
+
+(3.23)
+
+tf
+
+A2 =
+t0
+
+0.5 (z - 50)2 dt
+
+(3.24)
+
+These two integrals will form part of the cost function. For added robustness, the obstacles are additionally penalized within the cost function. This is accomplished by the addition of a robustness function
+
+r(x, y, z ), - 1)
+
+given by [49]
+
+n
+
+r(x, y, z ) = w
+i=1
+where
+
+(ee
+
+-hi (x,y,z )
+
+(3.25)
+
+w > 0
+
+is a weighting factor.
+
+Clearly, from (3.25),
+
+r(x, y, z )
+
+increases as
+
+(x, y, z )
+
+approach an obstacle. Finally we can assemble the cost function, in terms of an end point cost (tf ) and a running cost (r (x, y, z )
+
++ A1 + A2)
+
+in the form of equation (2.1).
+
+42
+
+tf
+
+J (X (·), U (·), tf ) =tf + A1 + A2 +
+where
+
+[r(x, y, z )]dt
+t0
+
+(3.26)
+
+U = [ ,  , a]T
+Note that the inclusion of the nal time
+
+tf
+
+in the cost function is optional, and reects
+
+whether or not it is desired to minimize the nal time as well as the deviation from the predened trajectory.
+
+3.4
+
+Problem Summary
+
+Combining all of the developments so far, the trajectory optimization problem can be posed as the following optimal control problem, which is of the same form as that given in equations (2.1) and (2.2) in Chapter 2.
+
+43
+
+  M inimize :                       Subject                                                                             
+
+where,
+
+J (X (·), U (·), tf ) =tf + A1 + A2 + T  U = [  ,  , a]       X=     x  y  z                =        
+
+tf [r(x, y, z )] t0
+
+dt
+
+to :
+
+ V
+
+V cos( )cos( ) V cos( )sin( ) V sin   a
+
+          
+
+and
+
+X (t0 ) = X0 t0 = 0 X (tf ) = Xf x(t)  R y (t)  R z (t)  R min   (t)  max  (t)  R Vmin  V (t)  Vmax amin  a(t)  amax 1 1  h( , V )  RP - RP
+min
+
+min
+
+1 - RT
+
+min
+
+where,
+
+hi (x, y, z ) > 0 i = 1...n
+
+ h( , V ) 
+
+1 T Rmin
+
+(3.27) The specic parameters used in the thesis for the GeoSurv II problem are:
+
+xmin = 0m ymin = 0m zmin = 0m min = -45 min = -180 Vmin = 15m/s amin = -3m/s2 2 Vmax p T Rmin = 21 = 43m Rmin .0375
+
+xmax = 1200m ymax = 1200m zmax = 200m max = 45 max = 180 Vmax = 30m/s amax = 3m/s2 2 Vmax = 13 = 67m .4024
+
+(3.28)
+
+and from (3.28) turning and pull up constraints becomes,
+
+44
+
+-1.4925m-1  h( , V )  1.4925m-1 -2.3256m-1  h( , V )  2.3256m-1
+
+(3.29)
+
+The remainder of this section presents a brief overview of dierent obstacle scenarios that will be considered in this thesis. Figure 3.9 shows dierent types of obstacles at dierent strategic positions with all dimensional units in meters (m). Three dierent types of obstacles, namely stationary, pop-up and moving obstacles, will be used to analyze the capability of RTOC using the Legendre Pseudospectral method for autonomous trajectory generation for xedwing UAVs such as GeoSurv II. As stated in Chapter 2, the software package DIDO will be used to perform the analysis. From Figure 3.9, obstacles placed at dierent strategic
+
+positions will create dierent scenarios for the UAV to perform. The straight line joining points
+
+(0, 0, 50) m
+
+and
+
+UAV to y. While
+
+(1000, 1000, 50) m shown in Figure 3.9 is the predened path for the ying at height of 50 m the UAV will encounter dierent obstacles based
+diameter of
+
+up on the scenario under consideration. A cylindrical shaped obstacle with the center of its base at
+
+(350, 300, 0) m,
+
+100 m
+
+and height of
+
+80 m
+
+remains stationary through
+
+out the analysis, and is assumed to be known prior to the start of the mission. A pop-up obstacle, as its name suggests, suddenly appears in front of the UAV with two dierent scenarios, one when the distance between the UAV and the obstacle is
+
+50 m
+
+and second,
+
+4 s
+
+prior to estimated collision with the obstacle (note that the pop-up obstacle appears
+
+sooner in the rst case). This pop-up obstacle is not known prior to the start of the mission and only becomes known in real-time when it appears. The pop-up obstacle is taken to be a cuboid shaped obstacle with center of its base at
+
+m . Finally, a spherical shaped structure with 50 m is taken to be a moving obstacle. This obstacle
+path at
+
+3
+
+(600, 650, 0) m and dimension 100 × 100 × 60 radius of 30 m and center at an altitude of
+has been given two dierent motion
+
+scenarios. First, the obstacle moves in a straight line which crosses the UAV's pre dened
+
+(800, 800, 50) m.
+
+Second, the obstacle moves in a circular path crossing the UAV's
+
+predened path at around
+
+(836, 836, 50) m.
+
+In any case, it is assumed that the obstacle
+
+detection subsystem can only provide the obstacle's position at each sample time. As such, for the purpose of real-time trajectory generation, at any time instant, the optimal trajectory is generated as if the moving obstacle is stationary at its latest known location.
+
+45
+
+Obstacle Configurations in X-Y plane
+Y 1000 Spherical Shaped Moving Obstacle at (600,900) with radius of 30 m With it's center at height 50 m Routes of moving Obstacle 800 Final Point (1000,1000)
+
+II
+y-axis in meter (m)
+
+I
+
+600
+
+Predefined Path represented by equation x=y At height 50 m
+
+400
+
+Cuboid Shaped Pop-up Obstacle at (600,650) with Sides 100 m Height 60 m
+
+200
+
+Cylindrical Shaped Stationary Obstacle at (350,300) with Diameter 100 m Height 80 m X 200 400 600 800 1000 x-axis in meter (m)
+Figure 3.9: Obstacle Congurations
+
+Initial Point (0,0) 0
+
+The UAV's task will be to y from the initial point
+
+m
+
+as close as possible to the predened path at
+
+(0, 0, 0) m to the nal point (1000, 1000, 0) height of 50 m, avoiding obstacles such as
+
+stationary, pop-up and/or moving obstacles either in combination or separately based on the scenario under consideration. The UAV will start and end every autonomous mission facing towards x-axis with
+
+ = 0,  = 0
+
+and
+
+V = 15 m/s
+
+(minimum speed that UAV
+
+can y without stalling). These numerical values are chosen to check the method's ability to incorporate constraints while generating trajectory. obstacle scenarios are considered. They are:
+1. Without Obstacles 2. With Stationary Obstacles 3. Moving Obstacle
+
+Based on Figure 3.9, ve dierent
+
+46
+
+4. Pop-up Obstacle 5. Stationary, Pop-up and Moving Obstacles
+
+Chapter 4 contains detailed analyses of the ve scenarios based on the optimal control problem formulation as shown in equation (3.27). Any changes to the optimal control formulation depending on the given scenario will be discussed where necessary.
+
+47
+
+Chapter 4 Results And Analysis
+This Chapter presents the numerical results for the ve dierent scenarios listed in Chapter 3. Moreover each scenario presented in the sections below has its own obstacle constraint that will be dened in that section. Equation (3.27) forms the basic optimal control problem formulation for all ve scenarios. The path constraint for each obstacle dened by
+
+hi (x(t), y (t), z (t))  0
+necessary.
+
+and the cost function dened by
+
+J (X (·), U (·), tf ),
+
+will be discussed if
+
+Among the ve scenarios, Scenario I and II are the only two cases that allow for a full open-loop solution, since full obstacle information is available beforehand (it is not updated in real time). Therefore, these two cases are solved in two ways. In the rst, they are solved open-loop. In the second, they are solved in real-time. The resulting open-loop solutions are then veried and validated to ensure that they are in fact optimal. These optimal solutions are then used for comparison with the corresponding real-time solutions. Scenarios III to
+V represent more realistic scenarios where obstacle information is obtained and updated in
+
+real-time. Thus, for these cases, only real-time solutions are possible.
+
+4.1
+
+Scenario I. Without Obstacle
+
+The obstacle free case represents an ideal scenario to see if the solution makes sense and if the method is capable of generating a trajectory to follow a nominal path, before considering the more complicated cases with obstacle present. In terms of trajectory generation for a UAV such as GeoSurv II, which is designed for a geophysical survey, ight duration is not of critical importance. The trajectory generated should be feasible and implementable in
+
+real time there by fullling the mission objectives. While the ight duration is not critical, it will be useful if it can be reduced, so as to potentially save fuel. To accomplish this, the
+
+48
+
+nal time can be added to the cost function in the trajectory optimization problem. To see if there is any benet to doing this, Scenario I is further sub categorized into two cases namely, time optimal and non-time optimal. Furthermore, both sub-cases are tested in both open-loop and real-time (closed-loop) implementations. Figure 4.1 shows Scenario I.
+
+No Obstacle Scenario (Top view)
+Y 1000 Final Point (1000,1000,0) m
+
+800 Predefined Path represented by equation x=y At height 50 m
+
+y-axis in meter (m)
+
+600
+
+400
+
+200
+
+Initial Point (0,0,0) m X 0 200 400 600 800 1000 x-axis in meter (m)
+
+Figure 4.1: Scenario I
+
+IA. Open-loop, time optimal
+The term time optimal in this thesis means that the nal time is explicitly included in the cost function, as in the problem formulation in equation (3.27). In Scenario I, there is no obstacle, and therefore the robustness factor,
+
+r(x, y, z ),
+
+is not
+
+included in the cost. Therefore, for Scenario IA the cost function in equation (3.27) reduces to
+
+J (X (·), U (·), tf ) =tf + A1 + A2
+nodes. It gives
+
+(4.1)
+
+The optimal control problem dened for Scenario IA is solved using DIDO [43] with 100
+
+tf = 50.3 s
+
+as the total maneuver time at the total cost of
+
+J = 51.1.
+
+Figures
+
+49
+
+4.2-4.5 show the complete maneuver of the UAV in three-dimensional space. The states and controls shown in Figures 4.6 and 4.7 are within the given bounds as specied in equation (3.28) respectively.
+
+Flight Trajectory Reference Trajectory 1000 800 100 50 0 1000 600 400 800 600 200 400 y (m) 200 0 0 x (m) z (m)
+
+Figure 4.2: Isometric View of Total Maneuver
+
+z (m)
+
+100 50 0 0 200 400 x (m) 600
+
+Flight Trajectory Reference Trajectory
+
+800
+
+1000
+
+Figure 4.3: View in XZ Plane
+
+z (m)
+
+100 50 0 0 200 400 y (m) 600
+
+Flight Trajectory Reference Trajectory
+
+800
+
+1000
+
+Figure 4.4: View in YZ Plane
+
+50
+
+1000
+
+Flight Trajectory Reference Trajectory
+
+800
+
+y (m)
+
+600
+
+400
+
+200
+
+0 0
+
+200
+
+400
+
+600 x (m)
+
+800
+
+1000
+
+Figure 4.5: View in XY Plane
+
+60
+
+40
+
+states
+
+20
+
+0 (degree) (degree) velocity(m/s) 10 20 30 time(s) 40 50 60
+
+-20
+
+-40 0
+
+Figure 4.6: States [ , ,V] vs time (t)
+
+51
+
+3 2 Controls 1 0 -1 -2 -3 0 10 20
+
+()/V (m-1) ()/V (m-1) Acceleration (m/s2)
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.7: Control Trajectory
+
+Feasibility Check:
+
+The rst step in verication is to show the feasibility of the generated solution. This can be done by control trajectory interpolation and state propagation using a Runge-Kutta algorithm as explained in subsection 2.1.2. The initial conditions and system dynamics of the UAV state variables were propagated using the control solution shown in the Figure 4.7. Then, the propagated state variables were superimposed on the DIDO generated solution, which demonstrates the feasibility of the solution if they are close. Figures 4.8-4.14 show the propagated states versus the DIDO generated states for the feasibility check.
+
+R-K Propagation DIDO Solution Feasibility Check 100 50 0
+
+z(m)
+
+1000
+
+500 400 x(m) 600 800 1000
+
+y(m)
+
+0
+
+0
+
+200
+
+Figure 4.8: Isometric View of Complete Maneuver
+
+52
+
+1200 1000 800 x(m) 600 400 200 0 0 R-K Propagation DIDO Solution
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.9: Feasibility Check (x vs
+
+t)
+
+1000 800 600 400 200 0 0
+
+R-K Propagation DIDO Solution
+
+y(m)
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.10: Feasibility Check (y vs
+
+t)
+
+53
+
+50 40 30 z(m) 20 10 0 -10 0 10 R-K Propagation DIDO Solution
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+6 4 z(m) 2 0 -2 48.5 49 49.5 time(s) 50
+
+R-K Propagation DIDO Solution
+
+50.5
+
+51
+
+Figure 4.11: Feasibility Check (z vs
+
+t)
+
+0.5 R-K Propagation DIDO Solution  (radian)
+
+0
+
+-0.5 0
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.12: Feasibility Check ( vs
+
+t)
+
+54
+
+1 0.8  (radian) 0.6 0.4 0.2 0 -0.2 0 10 20 R-K Propagation DIDO Solution 30 time(s) 40 50 60
+
+Figure 4.13: Feasibility Check ( vs
+
+t)
+
+35 30 25 20 15 10 0 R-K Propagation DIDO Solution 10 20 30 time(s) 40 50 60
+
+Velocity (V) (m/s)
+
+Figure 4.14: Feasibility Check (V vs
+
+t)
+
+The Runge-Kutta propagated states deviate slightly from the DIDO generated states. Figure 4.11 shows increase in error as it propagates to the end. This is because the PS (DIDO)
+
+generated states and controls only enforce a discretization of the dynamic equation at the node points. However, the deviation of the Runge-Kutta propagated solution from the DIDO solution is small, giving condence in the feasibility of the DIDO generated solution.
+Hamiltonian Value Condition:
+
+Pontryagin's principle does not give sucient conditions for optimality, just necessary ones. That is, just because Pontryagin's principle is satised, it does not mean the solution is optimal. However, if Pontryagin's principle is not satised, then we know that the solution isn't optimal. We do not check all conditions in Pontryagin's principle, instead, we only
+
+55
+
+check the Hamiltonian condition, since this is readily done, and it gives a quick indication of whether or not the solution can be trusted. From equation (2.17), the optimal control Hamiltonian value for problem Scenario IA is Pontryagin's Hamiltonian value is nearly
+
+H  ( ) = -1. As shown in Figure 4.15,  constant with value H ( ) = -1, as required.
+Hamiltonian
+
+4 Hamiltonian value 2 0 -2 -4 -6 0 10 20 time(s)
+Figure 4.15: Hamiltonian Value
+
+30
+
+40
+
+50
+
+Bellman Principle Test:
+
+From the Bellman's test of optimality described in subsection 2.1.2, the problem is broken down into two halves from the 50th node of original problem. The rst half from to
+
+(508.43, 508.39, 49.93) m
+
+and the second from
+
+(508.43, 508.39, 49.93) m
+
+to
+
+(0, 0, 0) m (1000, 1000, 0)
+
+m.
+
+The problem is solved by taking the nal condition of the rst half as the initial condition
+
+of the second half. The cost and time taken for these two halves were noted. These two halves were then combined to show an overall trajectory. This combined trajectory is compared with the original trajectory. Figures 4.16-4.19 show the state and control
+
+2nd half problem superimposed on st the same graph. The cost of the1 half problem was J1 = 25.9719 with 50 nodes and the nd st cost of the 2 half problem was J2 = 25.1770 also with 50 nodes. And on adding of 1 nd and 2 halves gives J1 + J2 = 51.1489 which almost matches the original problem cost of J = 51.1442. The slight dierence in cost is due to the dierence in node distributions
+trajectories of the original problem with the and between the original and split problems.
+
+1st half
+
+56
+
+Original 1st Half 2nd Half
+
+1000
+
+150 100 50 0 1000
+
+z(m)
+
+500
+
+800
+
+600
+
+400 y(m)
+
+200
+
+0
+
+0
+
+x(m)
+
+Figure 4.16: Bellman's Test in 3D Maneuver
+
+0.5 Original 1st Half 2nd Half  (rad)
+
+0
+
+-0.5 0
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.17: Bellman's Principle Test ( vs
+
+t)
+
+57
+
+1 0.8  (rad) 0.6 0.4 0.2 0 0 Original 1st Half 2nd Half
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.18: Bellman's Principle Test ( vs
+
+t)
+
+30
+
+velocity (V) (m/s)
+
+25
+
+20
+
+Original 1st Half 2nd Half 10 20 30 time(s) 40 50 60
+
+15 0
+
+Figure 4.19: Bellman's Principle Test (V vs
+
+t)
+
+This sub-section has presented the results of a time optimal open-loop UAV trajectory planning problem. Next, the non-time optimal case is examined, where the trajectory is optimized to stay as close as possible to the desired trajectory while satisfying the UAV and obstacle constraints, without any consideration for the total maneuver time.
+
+IB. Open-loop, non-time optimal
+As stated in subsection 4.1, non-time optimal means that the nal time is excluded from the cost to be minimized. As for Scenario IA, there are no obstacles, and therefore no robustness factor. Consequently, the cost function in equation (3.27) becomes
+
+58
+
+J (X (·), U (·)) = A1 + A2
+The problem solved with total cost of
+
+(4.2)
+
+100
+
+nodes gives
+
+tf = 52.9 s
+
+as the total maneuver time with a the
+
+J = 0.65.
+
+Removing the contribution of nal time from the cost in Scenario IA and comparing it to the cost in the Scenario IB shows that removing the nal time from the cost in the trajectory optimization, results in a the nal time. Figures 4.20-4.23 show the complete maneuver of the UAV in three-dimensional space. The states and controls shown in Figures 4.24 and 4.25 are within the given bounds as specied in (3.28) respectively.
+
+23%
+
+decrease in the cost, while only a
+
+5.2%
+
+increase in
+
+Flight Trajectory Reference Trajectory 100 50 0 1000 500 y (m) 0 0 200 400 x (m) 600 800 1000 z (m)
+
+Figure 4.20: Isometric View of Total Maneuver
+
+Flight Trajectory Reference Trajectory 100 50 0 0 z (m)
+
+200
+
+400 x (m)
+
+600
+
+800
+
+1000
+
+Figure 4.21: View in XZ Plane
+
+59
+
+Flight Trajectory Reference Trajectory 100 50 0 0 z (m)
+
+200
+
+400 y (m)
+
+600
+
+800
+
+1000
+
+Figure 4.22: View in YZ Plane
+
+1000 900 800 700 y (m) 600 500 400 300 200 100 0 0
+
+Flight Trajectory Reference Trajectory
+
+200
+
+400
+
+600 x (m)
+
+800
+
+1000
+
+Figure 4.23: View in XY Plane
+
+60
+
+80 60 40 20 0 -20 -40 -60 0 (degree) (degree) velocity(m/s) 10 20 30 time(s) 40 50 60
+
+states
+
+Figure 4.24: States [ , ,V] vs time (t)
+
+3 2 1 Controls 0 -1 -2 -3 0 10
+
+()/V (m ) ()/V (m-1) Acceleration (m/s2)
+
+-1
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.25: Control Trajectory
+
+Feasibility Check:
+
+Analogous to Scenario IA, Figures 4.26 to 4.32 show the feasibility check for Scenario IB. These gures show that the DIDO generated solution is clearly feasible with minor error in Figure 4.29, with similar reason to IA.
+
+61
+
+R-K Propagation DIDO Solution
+
+z(m)
+
+100 50 0
+
+1000
+
+500 800 1000
+
+y(m)
+
+0
+
+0
+
+200
+
+400 x(m)
+
+600
+
+Figure 4.26: Isometric View of Complete Maneuver
+
+1000 800 600 400 200 0 0
+
+R-K Propagation DIDO Solution
+
+x(m)
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.27: Feasibility Check (x vs
+
+t)
+
+62
+
+1200 1000 800 y(m) 600 400 200 0 0
+
+R-K Propagation DIDO Solution
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.28: Feasibility Check (y vs
+
+t)
+
+60 50 40 z(m) 30 20 10 0 0 10 R-K Propagation DIDO Solution 20 30 time(s) 40 50 60
+
+5 4 3 z(m) 2 1 0 -1 52 52.5 time(s)
+
+R-K Propagation DIDO Solution
+
+53
+
+Figure 4.29: Feasibility Check (z vs
+
+t)
+
+63
+
+1 R-K Propagation DIDO Solution 0.5  (radian) 0 -0.5 -1 0
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.30: Feasibility Check ( vs
+
+t)
+
+1.5 1  (radian) 0.5 0 -0.5 0
+
+R-K Propagation DIDO Solution
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.31: Feasibility Check ( vs
+
+t)
+
+35 Velocity (V) (m/s) 30 25 20 15 0
+
+R-K Propagation DIDO Solution 10 20 30 time(s) 40 50 60
+
+Figure 4.32: Feasibility Check (V vs
+
+t)
+
+64
+
+Hamiltonian Value Condition:
+
+From equation (2.17), the optimal control Hamiltonian value for problem Scenario IB is
+
+H  ( ) = 0. As shown in Figure 4.33, Pontryagin's Hamiltonian value is nearly constant with  value H ( ) = 0, as required.
+Hamiltonian 4 Hamiltonian value 2 0 -2 -4 -6 0 10 20 30 time(s) 40 50
+
+Figure 4.33: Hamiltonian Value
+
+Bellman Principle Test:
+
+Just as in Scenario IA, the problem is broken down into two halves. The rst half from
+
+(0, 0, 0) m to (527.38, 527.37, 49.85) m and the second (1000, 1000, 0) m. The cost and time taken for these two
+nd
+
+from
+
+(527.38, 527.37, 49.85) m 1st
+
+to
+
+halves were noted. half and the
+
+Figures 4.34-4.37 show the state trajectories of the original problem with the
+
+2 half problems superimposed on the same graph. The cost for the 1 half problem was J1 = 0.3272 with 50 nodes; the cost for the 2nd half problem was J2 = 0.3279 also with 50 st nd nodes; and addition of the 1 and 2 halves gives J1 + J2 = 0.6551 which almost matches the original problem cost of J = 0.6558. Figures 4.34, 4.35 and 4.36 show good agreement in the UAV trajectory as well as angles  and  . However, gure 4.37 shows signicant dierences
+in UAV speed. This can be understood by the fact in the non-time optimal case the cost is unaected by the speed of the UAV once it is ying along the reference trajectory, since the integrands of
+
+st
+
+A1
+
+and
+
+A2
+
+are zero during this portion. Hence, there are multiple solutions
+
+for the UAV speed, yielding the same cost.
+
+65
+
+150 100 50 0 1000 500 y(m) 0 0 200 400 x(m) 600
+
+Original 1st Half 2nd Half
+
+z(m)
+
+800
+
+1000
+
+Figure 4.34: Bellman's Test in 3D Maneuver
+
+0.8 0.6 0.4 0.2  (rad) 0 -0.2 -0.4 -0.6 -0.8 0 10 20 30 time(s) 40 50 60 Original 1st Half 2nd Half
+
+Figure 4.35: Bellman's Principal Test ( vs
+
+t)
+
+66
+
+1.4 1.2 1  (rad) 0.8 0.6 0.4 0.2 0 0 10 20 30 time(s) 40 50 60 Original 1st Half 2nd Half
+
+Figure 4.36: Bellman's Principle Test ( vs
+
+t)
+
+30
+
+velocity (V) (m/s)
+
+25
+
+20 Original 1st Half 2nd Half 15 0 10 20 30 time(s) 40 50 60
+
+Figure 4.37: Bellman's Principle Test (V vs
+
+t)
+
+This sub-section has presented the results of a non time optimal open-loop UAV trajectory planning problem. In the next section, we further check the feasibility of this method in
+
+realtime path planning.
+
+67
+
+IC. Realtime, time optimal
+Realtime path planning uses the de-aliasing principle as explained in subsection 2.3. Before presenting the real-time results for Scenario IC, an appropriate sample rate and number of nodes for each solution must be selected. Because of the high convergence rate of PS
+
+methods, we simply use low node solutions for online calculation, which further lowers the computation time [49]. Figure 4.38 shows the optimal open-loop trajectories corresponding to Scenario IB using
+
+15, 30, 50
+
+and
+
+100
+
+nodes with
+
+4s, 11s, 28s, 388s
+
+computation time
+
+respectively. For real-time implementation, a lower computation time allows one to increase the sampling frequency. In general, according to the de-aliasing principle, a lower sample time leads to less propagation error and higher accuracy. To support this statement Figure 4.29, is considered, which shows that the error increases with increasing propagation time.
+
+68
+
+100 80 60 z (m) 40 20 0 150 100 50
+
+Reference Trajectory 15 Node 30 Node 50 Node 100 Node
+
+0 y (m)
+
+0
+
+50 x (m)
+
+100
+
+150
+
+Reference Trajectory 15 Node 30 Node 50 Node 100 Node
+
+z (m)
+
+100 50 0
+
+1000 500 0 800 1000
+
+y (m)
+
+0
+
+200
+
+400 x (m)
+
+600
+
+Reference Trajectory 15 Node 30 Node 50 Node 100 Node 100 z (m) 50 0 0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+Figure 4.38: Trajectory comparision with dierent nodes.
+
+Regarding the computation time, reference [49] states that, excluding the Windows plat-
+
+69
+
+form and MATLAB overheads, the computation time can be decreased by a factor of with optimized actual code.
+
+100,
+
+For implementation on a real UAV, the program would be
+
+customized excluding unnecessary platform and overheads. Hence, with this in mind, a sampling frequency of
+
+5 Hz
+
+is assumed, that is, we assume the computer on board with UAV
+
+can compute each open-loop solution in
+
+0.2
+
+seconds. This is conservatively based on a
+
+30
+the
+
+nodes solution, which as mentioned before was computed in state trajectory from
+
+0.2
+
+to
+
+0.4
+
+seconds for the
+
+30
+
+nodes and
+
+11 s. Figure 4.39 shows 100 nodes solutions.
+
+70
+
+Trajectory from 0.2-0.4 second with different Nodes
+5.5
+
+5
+
+Node 30 Node 100
+
+4.5 x (m)
+
+4
+
+3.5
+
+3 0.2 0.25 0.3 t (s) 0.35 0.4
+
+2.6 2.4 2.2 2 1.8 y (m) 1.6 1.4 1.2 1 0.8 0.6 0.2 0.25 0.3 t (s) 0.35 0.4
+
+Node 30 Node 100
+
+2 1.8 1.6 1.4 z (m) 1.2 1 0.8 0.6 0.4 0.2
+
+Node 30 Node 100
+
+0.25
+
+0.3 t (s)
+
+0.35
+
+0.4
+
+Figure 4.39: Trajectory Propagation using controls from 0.2-0.4 second
+
+Scenario IC uses the same problem formulation as Scenario IA, with the dierence being
+
+that the solution is generated in real-time with a
+
+5 Hz
+
+sampling frequency and
+
+30 nodes used
+nodes from
+
+for the solution at each sample instant. The simulation results are shown in Figures 4.40 to 4.46. The R-K propagated, open-loop time optimal solution generated with
+
+100
+
+Scenario IA is shown for comparison. The average time for computing each open-loop is
+
+71
+
+4.1026 s.
+
+A Computer with Intel CPU @
+
+2.9
+
+GHz and
+
+4
+
+GB RAM was used to obtain all
+
+the results in this thesis.
+
+Time Optimal Trajectory
+
+Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 500 600 700 800 900 1000
+
+x (m)
+
+Figure 4.40: Realtime vs Open-loop Maneuver in Isometric View
+
+Time Optimal Trajectory
+100 z (m) 50 0 0 100 200 300 400 500 x (m) 600 700 800
+
+Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+900
+
+1000
+
+Figure 4.41: Realtime vs Open-loop Maneuver in XZ Plane
+
+Time Optimal Trajectory
+100 z (m) 50 0 0 100 200 300 400 500 y (m) 600 700 800
+
+Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+900
+
+1000
+
+Figure 4.42: Realtime vs Open-loop Maneuver in YZ Plane
+
+72
+
+Time Optimal Trajectory
+1000 Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+900
+
+800
+
+700
+
+600 y (m)
+
+500
+
+400
+
+300
+
+200
+
+100
+
+0 0 100 200 300 400 500 x (m) 600 700 800 900 1000
+
+Figure 4.43: Realtime vs Open-loop Maneuver in XY Plane
+
+Case: Time Optimal
+30 20 10  (degree) 0 -10 -20 -30 -40 0 10 20 30 time (s) 40 50 60
+
+Realtime  Open-loop 
+
+Figure 4.44: Realtime vs Open-loop
+
+
+
+angle
+
+73
+
+Case: Time Optimal
+70 60 50  (degree) 40 30 20 10 0 -10 0 10 20
+
+Realtime  Open-loop 
+30 time (s) 40 50 60
+
+Figure 4.45: Realtime vs Open-loop
+
+
+
+angle
+
+Case: Time Optimal
+35
+
+Realtime Velocity Open-loop Velocity
+
+30 Velocity (V) (m/s)
+
+25
+
+20
+
+15
+
+10
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.46: Realtime vs Open-loop
+
+(V )
+
+Velocity
+
+It can be seen from the results that the real-time generated solution with the open-loop
+
+30
+
+nodes matches
+
+100
+
+node solution very well, justifying its use for real-time trajectory genera-
+
+tion. During realtime simulation if the realtime updates are allowed to happen until the goal point, the nal update may become infeasible, since it could extend beyond the required nal position. To prevent the in-feasibility the realtime updates are stopped
+
+30m
+
+ahead of the
+
+goal point and allowed to propagate with the last open-loop controls of realtime simulation. Because of this reason the real-time updated states have propagation errors at the end which are visible in Figures 4.46, 4.111, 4.112, 4.118 and 4.119.
+
+ID. Realtime, non-time optimal
+Scenario ID uses the same problem formulation as Scenario IB, with the dierence being
+
+that the solution is generated in real-time with a
+
+5 Hz sampling frequency and 30 nodes used
+
+74
+
+for the solution at each sample instant. The simulation results are shown in Figures 4.47 to 4.53. The open-loop optimal solution generated with for comparison. The average time for computing
+
+100 nodes from Scenario IB is shown each open-loop problem is 9.8170 s.
+Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+Non-Time Optimal Trajectory
+
+z (m)
+
+100 50 0 1000 800 600 400 200 y (m) 0 0 200 400 x (m) 600 800 1000
+
+Figure 4.47: Realtime vs Open-loop Maneuver in Isometric View
+
+Open-loop Trajectory Realtime Trajectory Reference Trajectory Non-Time Optimal Trajectory 100 z (m) 50 0 0 100 200 300 400 500 x (m) 600 700 800 900 1000
+
+Figure 4.48: Realtime vs Open-loop Maneuver in XZ Plane
+
+Open-loop Trajectory Realtime Trajectory Reference Trajectory Non-Time Optimal Trajectory 100 z (m) 50 0 0 100 200 300 400 500 y (m) 600 700 800 900 1000
+
+Figure 4.49: Realtime vs Open-loop Maneuver in YZ Plane
+
+75
+
+Non-Time Optimal Trajectory
+1000 900 800 700 600 y (m) 500 400 300 200 100 0 0 200 400 x (m) 600 800 1000 Open-loop Trajectory Realtime Trajectory Reference Trajectory
+
+Figure 4.50: Realtime vs Open-loop Maneuver in XY Plane
+
+Case: non-Time Optimal
+50
+
+Realtime  Open-loop 
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.51: Realtime vs Open-loop
+
+
+
+angle
+
+76
+
+Case: non-Time Optimal
+80 70 60 50  (degree) 40 30 20 10 0 -10 0 10 20 30 time (s) 40 50 60
+
+Realtime  Open-loop 
+
+Figure 4.52: Realtime vs Open-loop
+
+
+
+angle
+
+Case: non-Time Optimal
+35
+
+30 Velocity (V) (m/s)
+
+25
+
+20
+
+15
+
+Realtime Velocity Open-loop Velocity
+0 10 20 30 time (s) 40 50 60
+
+10
+
+Figure 4.53: Realtime vs Open-loop
+
+(V )
+
+Velocity
+
+From Figure 4.53 it can be seen that the realtime velocity goes higher than its upper limit, this is due to the propagation error when controls applied are at the upper limits, similar to that of Figure 4.29. When any of the states are out of the required range the tool (DIDO) provides an infeasible solution with controls within the bounds given to the problem, these controls tend to pull the values of the states within the bounds by lowering the values of controls. This is demonstrated in Figure 4.53.
+Conclusion:
+
+Figure 4.54 compares the real-time time-optimal and non time-optimal trajectories. It can be seen that the non time-optimal solution follows the reference trajectory closer than the time-optimal one. Table 4.1 provides a comparison between all four scenarios. Despite the lower computation and slightly lower maneuver time in the time optimal case, the non-time
+
+77
+
+optimal formulation is chosen for realtime trajectory generation through out this thesis, due to the fact that it generates a trajectory that follows the reference trajectory signicantly closer.
+
+78
+
+Realtime Trajectory Comparision 1000 900 800 700 600 y (m) 500 400 300 200 100 0 0 200 400 600 x (m) 800 1000 Non-time Optimal Time Optimal Reference Trajectory
+
+(a) XY Maneuver
+Non-time Optimal Time Optimal Reference Trajectory Realtime Trajectory Comparision z (m) 100 50 0 0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) XZ Maneuver
+Non-time Optimal Time Optimal Reference Trajectory Realtime Trajectory Comparision z (m) 100 50 0 0 100 200 300 400 500 600 y (m) 700 800 900 1000
+
+(c) YZ Maneuver
+Figure 4.54: Comparison of the trajectory generated.
+
+79
+
+Table 4.1: Scenario I Computational Summary.
+
+Case Node Computation Time IA 100 (oine) 229.8s IB 100 (oine) 388.05s IC 30, 5 Hz (realtime) 4.1026s (a.c.t)1 ID 30, 5 Hz (realtime) 9.8170s (a.c.t)
+
+Cost Maneuver Time 0.8523(without tf ) 50.2919s
+0.6558
+
+-
+
+52.8946s 50.2512s 52.7172s
+
+4.2
+
+Scenario II. With Stationary Obstacles
+
+Scenario II presents the case where obstacles are stationary, and their positions and shapes
+
+are known beforehand. The detailed scenario is shown in Figure 4.55. This section checks the method's capability to avoid stationary obstacles while remaining close to the predened trajectory. As explained in Section 3.4, two stationary obstacles are placed with base centered at
+
+(350, 300, 0) m and (600, 650, 0) m.
+
+These two obstacles form path constraints as explained
+
+in Section 3.3. From equation (3.22), the path constraints due to the obstacles are given by
+
+h1 (x, y, z ) := ln
+and
+
+x - 350 50
+
+2
+
++
+
+y - 300 50
+
+2
+
++
+
+z - 40 40
+
+8
+
+0
+
+(4.3)
+
+h2 (x, y, z ) := ln
+
+x - 600 50
+
+8
+
++
+
+y - 650 50
+
+8
+
++
+
+z - 30 30
+
+8
+
+0
+
+(4.4)
+
+As explained in Section 3.3, when obstacles are present, the cost function includes a corresponding robustness factor. The eect of adding the robustness factor to the cost is that the optimal trajectory is pushed away from the obstacles, which is benecial from the point of view of creating a safer trajectory. On the other hand, it means that the trajectory does not truly minimize the area between the optimal and reference trajectories.
+
+1 average
+
+computation time per solution at a sample time
+
+80
+
+Stationary Obstacles Configuration in X-Y plane
+Y 1000 Final Point (1000,1000,0) m
+
+800 Predefined Path represented by equation x=y At height 50 m
+y-axis in meter (m)
+
+600
+
+Cuboid Shaped Stationary Obstacle at (600,650,0) with Sides 100 m Height 60 m
+
+400
+
+Cylindrical Shaped Stationary Obstacle at (350,300,0) with Diameter 100 m Height 80 m
+
+200
+
+Initial Point (0,0,0) m 0 200 400 600 800 1000
+
+X x-axis in meter (m)
+
+Figure 4.55: Scenario II
+
+IIA. Open-loop:
+Equation (3.27) denes the problem statement for Scenario IIA with the obstacles' constraints given in equations (4.3) and (4.4) and the cost function given by equation (4.5).
+
+tf
+
+J (X (·), U (·)) =
+where, from equation (3.25), with
+
+[r(x, y, z )]dt + A1 + A2
+t0
+the robustness function is given by
+
+(4.5)
+
+w = 0.5,
+
+r(x, y, z ) = 0.5 (ee
+The problem is solved with
+
+-h1 (x,y,z )
+
+- 1) + (ee
+
+-h2 (x,y,z )
+
+- 1)
+and
+
+(4.6)
+
+100
+
+nodes giving a total cost of
+
+J = 2.8328
+
+tf = 57.1669
+
+s
+
+as the total maneuver time.
+
+Figures 4.56-4.62 show the state and control trajectories
+
+respectively. It can be seen that the optimal trajectory stays close to the reference trajectory, while avoiding the obstacles.
+
+81
+
+Figure 4.56: Isometric View of Total Maneuver
+
+Figure 4.57: View in XZ Plane
+
+Figure 4.58: View in YZ Plane
+
+82
+
+Figure 4.59: View in XY Plane
+
+1000 800 600 400 200 0
+
+x (m) y (m) z (m)
+
+states
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.60: States
+
+[x, y, z ]
+
+vs time
+
+(t)
+
+83
+
+80 60 40 states 20 0 -20 -40 -60
+
+ (degree)  (degree) velocity (m/s)
+0 10 20 30 time (s) 40 50 60
+
+Figure 4.61: States [ , ,V] vs time
+
+(t)
+
+()/V (m-1) ()/V (m ) Acceleration (m/s ) 3 2 1 Controls 0 -1 -2 -3 0 10 20 30 time(s) 40 50 60
+2 -1
+
+Figure 4.62: Control Trajectory
+
+Feasibility Check:
+
+Figures 4.63 to 4.69 show the feasibility check for Scenario IIA. It can be seen that the Runge-Kutta propagated solution follows the DIDO solution very closely.
+
+84
+
+Figure 4.63: Isometric View of Complete Maneuver
+
+1200 1000 800 x(m) 600 400 200 0 0 10 20 30 time(s) 40 50 60 R-K Propagation DIDO Solution
+
+Figure 4.64: Feasibility Check (x vs
+
+t)
+
+85
+
+1200 1000 800 y(m) 600 400 200 0 0 10 20 30 time(s) 40 50 60 R-K Propagation DIDO Solution
+
+Figure 4.65: Feasibility Check (y vs
+
+t)
+
+100 80 60 z(m) 40 20 0 -20 0 10 20 R-K Propagation DIDO Solution 30 time(s) 40 50 60
+
+Figure 4.66: Feasibility Check (z vs
+
+t)
+
+86
+
+1 R-K Propagation DIDO Solution 0.5  (radian)
+
+0
+
+-0.5
+
+-1 0
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.67: Feasibility Check ( vs
+
+t)
+
+1.4 1.2 1  (radian) 0.8 0.6 0.4 0.2 0 0 10 20
+
+R-K Propagation DIDO Solution
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.68: Feasibility Check ( vs
+
+t)
+
+87
+
+35 30 Velocity (V) (m/s) 25 20 15 10 0 R-K Propagation DIDO Solution 10 20 30 time(s) 40 50 60
+
+Figure 4.69: Feasibility Check (V vs
+
+t)
+
+Hamiltonian Value Condition:
+
+Similar to that of Scenario IB, Figure 4.70 shows Pontryagin's Hamiltonian value is nearly constant with value
+
+H  ( ) = 0,
+
+as required.
+
+Hamiltonian 4 Hamiltonian value 2 0 -2 -4 -6 0 10 20 30 time(s) 40 50
+
+Figure 4.70: Hamiltonian Value
+
+Bellman Principle Test:
+
+The problem is broken down into two halves. The rst half is from
+
+(0, 0, 0) m
+to
+
+to
+
+(8.0750, 8.0762, 0.499) m
+
+and the second from
+
+(8.0750, 8.0762, 0.499) m
+
+(1000, 1000, 0) m. 1st half
+and
+
+The cost and time taken for these two halves were noted. Figures 4.71-4.74 show the states trajectories of the original problem with the
+
+2 half problem superimposed on the same graph. The cost of the 1 half problem was J1 = 2.4670 with 50 nodes; the cost of the 2nd half problem was J2 = 0.3482 also with 50 st nd nodes; and addition of the 1 and 2 halves gives J1 + J2 = 2.81 which almost matches the
+88
+
+nd
+
+st
+
+original problem cost of
+
+J = 2.83.
+
+The dierence in the costs is due to the node distribution
+
+scheme and the dividing point of the original trajectory. Figure 4.75 shows an example of the node distribution if the original trajectory is divided into two from the midpoint of the interval
+
+[0, 10].
+
+Figure 4.71: Bellman's Test in 3D Maneuver
+
+1 Original 1st Half 2nd Half
+
+0.5  (rad)
+
+0
+
+-0.5
+
+-1 0
+
+10
+
+20
+
+30 time(s)
+
+40
+
+50
+
+60
+
+Figure 4.72: Bellman's Principle Test ( vs
+
+t)
+
+89
+
+1.4 1.2 1  (rad) 0.8 0.6 0.4 0.2 0 0 10 20 30 time(s) 40 50 60 Original 1st Half 2nd Half
+
+Figure 4.73: Bellman's Principle Test ( vs
+
+t)
+
+30
+
+velocity (V) (m/s)
+
+25
+
+20 Original 1st Half 2nd Half 15 0 10 20 30 time(s) 40 50 60
+
+Figure 4.74: Bellman's Principle Test (V vs
+
+t)
+
+Node Spacing due to Legendre Pseudospectral Method 3 2 1 0 0
+
+1
+
+2
+
+3
+
+4 5 6 Node Distribution
+
+7
+
+8
+
+9
+
+10
+
+Figure 4.75: Node Spacing Example
+
+90
+
+Discrepancies in Figures 4.72 to 4.74 are because of the polynomial approximation of the control in equation (2.24), which actually means that the control is required to be continuous over the entire trajectory. This includes the acceleration. Hence, sharp changes in velocity are not possible. However, when we break the trajectory into two, as in the Bellman test, we introduce the possibility of a discontinuity in the controls at the break point. From Figure 4.74, this is exactly what has happened to the acceleration. This discontinuity in velocity has allowed the
+
+2nd
+
+half trajectory some freedom in seeking a trajectory that gives a lower
+
+total cost. This can be seen in the costs
+
+J1 + J2 < J3 . (w )
+
+IIA (a). Change of Robustness Factor
+
+As mentioned previously, the robustness factor pushes the resulting optimal trajectory away from the obstacles. In this subsection, we compare the trajectory generated with one generated with a reduced robustness factor
+
+(w).
+
+The results are shown in Figure 4.76.
+
+As
+
+expected, the trajectory generated with a reduced robustness factor stays closer to the reference trajectory. However, it also passes closer to the obstacles, and hence is less safe.
+
+91
+
+(a) 3D Maneuver
+
+(b) XZ Maneuver
+
+(c) YZ Maneuver
+Figure 4.76: Comparison of Trajectory with dierent Robustness Factor
+
+(w).
+
+IIB. Realtime, (w = 0.5):
+Scenario IIB contains the real-time solution of the problem formulated in Scenario IIA. In
+
+this case, the sampling frequency is
+
+5 Hz ,
+
+and
+
+40
+
+nodes are used to compute the solution at
+
+each sample instant. Compared to Scenarios IC and ID, the number of nodes is increased, since it was found that
+
+30
+
+nodes did not perform suciently well. Figures 4.77 to 4.83 show
+
+the resulting real-time trajectories, with the corresponding open-loop trajectories shown for comparison. It can be seen that spatially
+
+(x, y, z ),
+92
+
+the real-time and open-loop trajectories
+
+are quite similar. The average time for solving each realtime problem is
+
+67.3459 s.
+
+Figure 4.77: 3D Maneuver
+
+Figure 4.78: XZ Maneuver
+
+Figure 4.79: YZ Maneuver
+
+93
+
+Figure 4.80: XY Maneuver
+
+Open-loop vs Realtime 
+50
+
+Realtime  Open-loop 
+ (degree) 0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.81:
+
+ vs t 52 s,
+this is
+
+In Figure 4.81, real-time
+
+
+
+actually goes outside the allowable range at about
+
+due to propagation error similar to that of Figure 4.53.
+
+94
+
+Open-loop vs Realtime 
+80
+
+60  (degree)
+
+40
+
+20
+
+Realtime  Open-loop 
+0 10 20 30 time (s) 40 50 60
+
+0
+
+Figure 4.82:
+
+
+
+vs
+
+t
+
+Open-loop vs Realtime Velocity (V))
+35 30 Velocity (V) (m/s) 25 20 15 10
+
+Realtime Velocity Open-loop Velocity
+0 10 20 30 time (s) 40 50 60
+
+Figure 4.83: Velocity
+
+(V )
+
+vs
+
+t
+
+IIC. Realtime, (w = 0.3):
+Scenario IIC is a case similar to IIB but with decreased robustness factor
+
+(w = 0.3).
+
+Figures 4.84 to 4.87 compares the IIC real-time trajectory with IIB realtime trajectory. It shows that IIC remains close to reference trajectory and also decreasing maneuver and computation time.
+
+95
+
+Figure 4.84: Trajectory comparison with dierent robustness factor (3D view)
+
+Figure 4.85: Trajectory comparison with dierent robustness factor (XZ Plane)
+
+Figure 4.86: Trajectory comparison with dierent robustness factor (YZ Plane)
+
+96
+
+Figure 4.87: Trajectory comparison with dierent robustness factor (XY Plane)
+
+Table 4.2 summarizes the results for Scenario II. Table 4.2: Scenario II Computational Summary Case IIA IIA (a) IIB IIC Node 100 (oine) 100 (oine) 40, 5 40, 5 Computation Time Cost Maneuver Time
+
+(w = 0.5) (w = 0.3) Hz (realtime) (w = 0.5) Hz (realtime) (w = 0.3) w = 0.3
+
+2228.2 s 1238.5 s 67.3459 s (a.c.t)2 48.652 s (a.c.t)
+
+2.8328 2.2659
+-
+
+57.1669 52.7784 54.5815 49.6174
+
+s s s s
+
+It can be seen that with
+
+the computation time was signicantly less. hence a way
+
+to recover some safety while reducing computation time would be to reduce the weighting factor, but increase the size of the modeled obstacle (make it larger than the true obstacle).
+
+2 average
+
+computation time per solution at a sample time
+
+97
+
+4.3
+
+Scenario III. Moving Obstacle
+
+After the successful implementation of Legendre Pseudospectral method in Scenario I and
+Scenario II, we now test the method with moving obstacles.
+
+Because the motion of the
+
+obstacles is not known beforehand, it must be implemented in real-time. Since, this method works on the basis of obstacles seen at each snapshot taken, it is necessary that the obstacles be detected. Regarding the avoidance of moving obstacles, the more rapidly the obstacle is moving and/or the later the obstacle is detected, the quicker the on-board computation of a new trajectory and the more maneuverable the aircraft needs to be. To test this method for moving obstacles, two dierent cases are considered. First, the obstacle moves in a straight line and second in a curved path as dened in the subsections below.
+
+IIIA. Realtime: An Obstacle Moving in Straight Line
+Moving Obstacle Configuration in X-Y plane
+Y 1000 Final Point (1000,1000,0) m
+
+800
+
+Spherical Shaped Moving Obstacle initially at (600,900,50) with radius of 30 m With it's center at height 50 m
+
+Route of moving Obstacle
+
+I 600
+
+y-axis in meter (m)
+
+400 Predefined Path represented by equation x=y At height 50 m 200
+
+Initial Point (0,0,0) m X 0 200 400 600 800 1000 x-axis in meter (m)
+
+Figure 4.88: Scenario IIIA
+
+In this case the spherical shaped obstacle has its center initially stationed at
+
+m,
+
+and starts moving after
+
+32.7s
+
+of simulation time to meet the UAV at
+
+(600, 900, 50) (800, 800, 50) m. It
+
+98
+
+is dicult to predict the time that the UAV would arrive at (800,800,50) m, but from the realtime simulation result of Scenario ID, it is assumed that the UAV reaches
+
+(800, 800, 50)
+
+40.7 s. Hence, the obstacle's path is designed in such a way that it remains stationary till 32.7 s, and start moving towards the reference trajectory to reach (1000, 700, 50) m, after 16 s. On its way the obstacle passes through (800, 800, 50) m at 40.7 s, that is 8 s after
+at starting to move. Equation (4.7) shows the obstacle constraint as the function of time.
+
+m
+
+ h1 (x, y, z ) := ln 
+
+x - 100(6 + 30
+2
+
+(t-32.7) ) 4
+
+2
+
++ ...
+
+y - 100(9 - 30
+
+(t-32.7) ) 8
+
++
+
+z - 50 30
+
+2
+
+ 0
+(4.7)
+
+32.7  t  48.7
+However, it must be emphasized that the UAV is assumed to have knowledge only of the obstacle position at each sample instant. Hence, at a given sample instant, the new trajectory is computed with
+
+t
+
+in (4.7) held xed at the current sample time.
+
+With the path constraint in (4.7), the cost function for Scenario IIIA in equation (3.27) becomes
+
+tf
+
+J (X (·), U (·)) =
+where, from equation (3.25), with
+
+[r(x, y, z )]dt + A1 + A2
+t0
+the robustness function is given by
+
+(4.8)
+
+w = 0.5,
+
+r(x, y, z ) = 0.5 (ee
+
+-h1 (x,y,z )
+
+- 1)
+
+(4.9)
+
+In case of moving obstacle, it was found to be necessary to increase the robustness factor
+
+(w)
+
+because it was found that with the reduced robustness factor, each real-time trajectory
+
+(which was obtained under the assumption that the obstacle is stationary) passed too close to the obstacle, and since the obstacle was actually moving, collision occurred. As for Scenario IIB, the sampling frequency is
+
+5 Hz ,
+
+and a
+
+40
+
+nodes are used for each
+
+real-time solution. The resulting state trajectories are shown in Figures 4.89 to 4.98. The average time for solving the realtime problem is
+
+27.329 s and the total maneuver time is 55.54
+
+s.
+
+As shown in the gures, the UAV successfully avoids the moving obstacle. Of particular
+
+99
+
+interest is gure 4.93, where the UAV is avoiding the obstacle after it has already passed. This is because the realtime trajectory is determined based on instantaneous position of the obstacle only, without knowledge of its motion. The robustness function acts to push the UAV further to the left even though the obstacle has passed.
+
+Flight Trajectory at t=32.7 s Reference Trajectory Path of Moving Obstacle
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0
+
+Realtime Maneuver
+
+0
+
+100
+
+200
+
+300
+
+400 x (m)
+
+500
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+(a) 3D view
+
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=32.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.89: Realtime Maneuver, ight path at
+
+t = 32.7s
+
+100
+
+Flight Trajectory at t=38.7 s Reference Trajectory Path of Moving Obstacle
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0
+
+Realtime Maneuver
+
+100
+
+200
+
+300
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+x (m)
+
+(a) 3D View
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=38.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.90: Flight path at
+
+t = 38.7 s
+
+101
+
+Flight Trajectory at t=39.7 s Reference Trajectory Path of Moving Obstacle
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0
+
+Realtime Maneuver
+
+100
+
+200
+
+300
+
+400 x (m)
+
+500
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+(a) 3D view
+Realtime Maneuver
+
+1000
+
+900
+
+800
+
+700
+
+600 y (m)
+
+500
+
+400
+
+300
+
+200
+
+100
+
+Flight Trajectory at t=39.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+0
+
+(b) View in XY Plane
+Figure 4.91: Flight path at
+
+t = 39.7s
+
+102
+
+Flight Trajectory at t=40.7 s Reference Trajectory Path of Moving Obstacle
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0
+
+Realtime Maneuver
+
+100
+
+200
+
+300
+
+400 x (m)
+
+500
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+(a) 3D View
+Realtime Maneuver
+1000
+
+900
+
+800
+
+700
+
+600 y (m)
+
+500
+
+400
+
+300
+
+200
+
+100
+
+Flight Trajectory at t=40.7 s Reference Trajectory Path of Moving Obstacle
+
+0
+
+0
+
+100
+
+200
+
+300
+
+400
+
+500 600 x (m)
+
+700
+
+800
+
+900
+
+1000
+
+(b) View in XY Plane
+Figure 4.92: Flight path at
+
+t = 40.7 s
+
+103
+
+Flight Trajectory at t=42.7 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D View
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=42.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.93: Flight path at
+
+t = 42.7 s
+
+104
+
+Flight Trajectory at t=48.7 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 200 400 x (m) 600 800 1000
+
+(a) 3D view
+Realtime Maneuver
+1000
+
+900
+
+800
+
+700
+
+600 y (m)
+
+500
+
+400
+
+300
+
+200
+
+100
+
+Flight Trajectory at t=48.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+0
+
+(b) View in XY Plane
+Figure 4.94: Flight path at
+
+t = 48.7s
+
+105
+
+Flight Trajectory at t=55.54 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D view
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=55.54 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.95: Flight path at
+
+t = 55.54s
+
+106
+
+Reatime 
+50
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.96:
+
+ vs t
+
+Realtime 
+80 60  (degree) 40 20 0 -20
+
+
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.97:
+
+
+
+vs
+
+t
+
+Realtime Velocity (V)
+35
+
+Velocity (V)
+30 Velocity (V) (m/s)
+
+25
+
+20
+
+15
+
+10
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.98:
+
+V
+
+vs
+
+t
+
+107
+
+IIIB. Realtime: An Obstacle Moving in Curve Path
+Obstacle Moving in a circular path (in XY plane)
+Y 1000 Final Point (1000,1000,0) m
+
+800
+
+Spherical Shaped Moving Obstacle initially at (600,900,50) with radius of 30 m With it's center at height 50 m II
+
+Route of moving Obstacle
+
+y-axis in meter (m)
+
+600
+
+400
+
+Predefined Path represented by equation x=y At height 50 m
+
+200
+
+Initial Point (0,0,0) m X 0 200 400 600 800 1000 x-axis in meter (m)
+
+Figure 4.99: Scenario IIIB
+
+Similar to Scenario IIIA, the obstacle is dened in such a way that it remains stationary
+
+(600, 900, 50) m until 35 s and then starts moving in circular path with center of curvature at (700, 800, 50) m reaching (800, 700, 50) m 16 s later after passing through the reference trajectory at (836, 836, 50) m. The radius of curvature is found to be  r = 100 2 m. Initially the position of the obstacle in meters is given by
+with its center at
+
+xip = 700 + r cos() yip = 800 + r sin() zip = 50
+where,
+
+ = 135
+Let
+
+
+
+be the angle from the center of curvature between the initial position
+
+(600, 900, 50)
+
+m
+
+and the nal position
+
+(800, 700, 50) m.
+
+Then, since it takes
+
+16 s
+
+to travel from the start
+
+108
+
+to nish positions, the obstacle constraint is given by.
+
+h1 (x, y, z ) := ln
+
+x - (700 + r cos(135 - (t - 35)( /16))) 30
+2
+
+2
+
++
+
+y - (800 + r sin(135 - (t - 35)( /16))) 30 35s  t  51s  r = 100 2m
+
++
+
+z - 50 30
+
+2
+
+0
+
+(4.10)
+
+As in Scenario IIIA, the UAV is assumed to have knowledge only of the obstacle position at each sample instant. Hence, at a given sample instant, the new trajectory is computed with
+
+t
+
+in (4.10) held xed at the current sample time.
+
+With the path constraint in (4.10), the cost function for Scenario IIIB in equation (3.27) becomes
+
+tf
+
+J (X (·), U (·)) =
+where, from equation (3.25), with
+
+[r(x, y, z )]dt + A1 + A2
+t0
+we get
+
+(4.11)
+
+w = 0.5,
+
+r(x, y, z ) = 0.5 (ee
+
+-h1 (x,y,z )
+
+- 1)
+and a
+
+(4.12)
+
+As for Scenario IIIA, the sampling frequency is
+
+5 Hz ,
+
+40
+
+nodes are used for each
+
+real-time solution. The resulting state trajectories are shown in Figures 4.100 to 4.108. The average time for solving the realtime problem is is
+
+74.65 s,
+
+and the total maneuver time
+
+56.59 s.
+
+109
+
+Flight Trajectory at t=35 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D view
+Realtime Maneuver
+1000
+
+900
+
+800
+
+700
+
+600 y (m)
+
+500
+
+400
+
+300
+
+200
+
+100
+
+Flight Trajectory at t=35 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+0
+
+(b) View in XY Plane
+Figure 4.100: Flight path at
+
+t = 35s
+
+110
+
+Flight Trajectory at t=45.7 s Reference Trajectory Path of Moving Obstacle
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0
+
+Realtime Maneuver
+
+0
+
+100
+
+200
+
+300
+
+400 x (m)
+
+500
+
+600
+
+700
+
+800
+
+900
+
+1000
+
+(a) 3D View
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=45.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.101: Flight path at
+
+t = 45.7 s
+
+111
+
+Flight Trajectory at t=46.7 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D view
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 810 300 800 200 100 0 y (m) 870
+
+Realtime Maneuver
+
+860
+
+850
+
+840
+
+830
+
+820
+
+Flight Trajectory at t=46.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+790
+
+Flight Trajectory at t=46.7 s Reference Trajectory Path of Moving Obstacle
+800 810 820 830 840 850 x (m) 860 870 880 890
+
+780
+
+(b) View in XY Plane
+Figure 4.102: Flight path at
+
+t = 46.7s
+
+112
+
+Flight Trajectory at t=47.7 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 200 0 x (m) 400 800 600 1000
+
+(a) 3D View
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=47.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.103: Flight path at
+
+t = 47.7 s
+
+113
+
+Flight Trajectory at t=48.7 s Reference Trajectory Path of Moving Obstacle
+
+Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D View
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=48.7 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.104: Flight path at
+
+t = 48.7 s
+
+114
+
+Flight Trajectory at t=56.59 s Reference Trajectory Path of Moving Obstacle Realtime Maneuver
+
+100 z (m) 50 0 1000 800 600 400 200 y (m) 0 0 100 200 300 400 x (m) 500 600 700 800 900 1000
+
+(a) 3D view
+Realtime Maneuver
+1000 900 800 700 600 y (m) 500 400 300 200 100 0
+
+Flight Trajectory at t=56.59 s Reference Trajectory Path of Moving Obstacle
+0 100 200 300 400 500 600 x (m) 700 800 900 1000
+
+(b) View in XY Plane
+Figure 4.105: Flight path at
+
+t = 56.59s
+
+115
+
+Reatime 
+50
+
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.106:
+
+ vs t
+
+Realtime 
+100 80  (degree) 60 40 20 0 -20
+
+
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.107:
+
+
+
+vs
+
+t
+
+Realtime Velocity (V)
+35 30 Velocity (V) (m/s) 25 20 15 10
+
+Velocity (V)
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.108:
+
+V
+
+vs
+
+t
+
+From Scenarios IIIA and IIIB, it can be seen that the method is capable of generating trajectories in real-time to avoid moving obstacles, with only information about the obstacle's
+
+116
+
+instantaneous position.
+
+However, it can require increasing the robustness factor, which
+
+increases the computation time, as well as the total time for the maneuver.
+
+4.4
+
+Scenario IV. Pop-up Obstacle
+
+Apart from stationary and moving obstacles, it is a practical requirement that this method can handle obstacles that are detected suddenly. This particular situation can occur for
+
+example in crowded environments when one building is right behind the next building and is not detected until the rst building is passed. This situation can also be seen when Thus, autonomous
+
+the environment is foggy and the visibility of the aircraft is very low. avoidance of pop up obstacles is of signicant practical importance. consider such a scenario.
+
+In Scenario IV we
+
+In this section the method is implemented with two sub cases.
+
+First, when the obstacle is detected on the reference trajectory
+
+50 m
+
+ahead of UAV and second, when obstacle appears
+
+4 s prior to expected collision. A cuboid shaped structure with its base centered at (600, 650, 0) m and height of 60 m is considered as the pop-up obstacle. The obstacle has equal width and length of 100 m. Equation (4.13) shows the corresponding
+obstacle constraint equation.
+
+h1 (x, y, z ) := ln
+
+x - 600 50
+
+8
+
++
+
+y - 650 50
+
+8
+
++
+
+z - 30 30
+
+8
+
+0
+
+(4.13)
+
+117
+
+Pop-up Obstacle Configuration in X-Y plane
+Y 1000 Final Point (1000,1000,0) m
+
+800
+
+y-axis in meter (m)
+
+600
+
+Predefined Path represented by equation x=y At height 50 m
+
+400
+
+Cuboid Shaped Pop-up Obstacle at (600,650,0) with Sides 100 m Height 60 m
+
+200
+
+Initial Point (0,0,0) m X 0 200 400 600 800 1000 x-axis in meter (m)
+
+Figure 4.109: Scenario IV
+
+IVA. Realtime: An obstacle appears 50 m ahead
+In this case the obstacle is detected when it is trajectory rst passes through the detected when the UAV is
+
+50m ahead of the aircraft. Since the reference obstacle's surface at (600, 600, 50) m, the obstacle is
+
+50m
+
+ahead of this point. Hence the distance from the UAV to
+
+the obstacle along the reference trajectory is from UAV to obstacle is given by
+
+d(x, y, z ) =
+
+(x - 600)2 + (y - 600)2 + (z - 50)2 d  50m.
+
+and the obstacle constraint in (4.13) comes into eect when
+
+With the path constraint in (4.13), the cost function for Scenario IVA in equation (3.27) becomes
+
+tf
+
+J (X (·), U (·)) =
+where, from equation (3.25), with
+
+[r(x, y, z )]dt + A1 + A2
+t0
+we get
+
+(4.14)
+
+w = 0.25,
+
+118
+
+r(x, y, z ) = 0.25 (ee
+
+-h1 (x,y,z )
+
+- 1)
+
+(4.15)
+
+Unlike Scenario III, since the obstacle is not moving, we can get away with a smaller robustness factor (as will be seen), thereby decreasing computational time. As for Scenario II and III, the sampling frequency is
+
+5
+
+Hz, and
+
+40
+
+nodes are used for each
+
+real-time solution. The resulting state trajectories are shown in Figures 4.110 to 4.116. The average time for solving the realtime problem is of
+
+44.1311 s
+
+and a total maneuver time
+
+73.503 s.
+
+In this case even with decreased robustness factor it can be seen that the UAV
+
+successfully avoids the obstacle and returns to the reference trajectory.
+
+Figure 4.110: Pop-up Obstacle detected 50 m ahead: 3D view
+
+Figure 4.111: Pop-up Obstacle detected 50 m ahead: view in XZ plane
+
+119
+
+Figure 4.112: Pop-up Obstacle detected 50 m ahead: view in YZ plane
+
+Figure 4.113: Pop-up Obstacle detected 50 m ahead: view in XY plane
+
+120
+
+Realtime 
+50
+
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.114:
+
+
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+50 m
+
+ahead
+
+Realtime 
+100 80 60 40 20 0 -20
+
+
+
+ (degree)
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.115:
+
+
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+50 m
+
+ahead
+
+Realtime Velocity (V)
+35
+
+Velocity (V)
+30
+Velocity (V) (m/s)
+
+25 20 15 10
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.116:
+
+V
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+50 m
+
+ahead
+
+The discrepancies seen in the Figures 4.111 to 4.113 at the end of the trajectory is due to the propagation error as explained in subsection 4.1.
+
+121
+
+IVB. Realtime: An obstacle appears 4s prior to expected collision
+In this case the obstacle is detected
+
+4s prior to expected collision. From Scenario ID, the UAV reaches the point (600, 600, 50) m at 30s. Hence, with only the pop-up obstacle on its path, we assume the obstacle is detected at 26s of simulation time. Hence the obstacle constraint in equation (4.13) comes into eect after t = 26 s.
+The cost function for Scenario IVB is consequently the same as for Scenario IVA, with the only dierence being the time at which the obstacle constraint comes into eect. As for Scenario IVA, the sampling frequency is
+
+5
+
+Hz, and
+
+40
+
+nodes are used for each
+
+real-time solution. The resulting state trajectories are shown in Figures 4.117 to 4.123. The average time for solving the realtime problem is
+
+47.32s
+
+and a total maneuver time of
+
+70.6s.
+
+It can be seen that the UAV successfully avoids the obstacle and returns to the reference trajectory.
+
+Figure 4.117: Pop-up Obstacle detected
+
+4s
+
+prior to expected collision: 3D view
+
+Figure 4.118: Pop-up Obstacle detected
+
+4s
+
+prior to expected collision: view in XZ plane
+
+122
+
+Figure 4.119: Pop-up Obstacle detected
+
+4s
+
+prior to expected collision: view in YZ plane
+
+Figure 4.120: Pop-up Obstacle detected
+
+4s
+
+prior to expected collision: view in XY plane
+
+123
+
+Realtime 
+50
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.121:
+
+
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+4s
+
+prior to expected collision:
+
+Realtime 
+100 80 60  (degree) 40 20 0 -20
+
+
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.122:
+
+
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+4s
+
+prior to expected collision:
+
+Realtime Velocity (V)
+35 30 Velocity (V) (m/s) 25 20 15 10
+
+Velocity (V)
+
+0
+
+10
+
+20
+
+30
+
+40 time (s)
+
+50
+
+60
+
+70
+
+80
+
+Figure 4.123:
+
+V
+
+vs
+
+t
+
+: with pop-up obstacle detected
+
+4s
+
+prior to expected collision:
+
+To summarize both cases, the real-time trajectories generated for Scenarios IVA and IVB are shown in Figures 4.124 to 4.127.
+
+124
+
+Figure 4.124: Comparison of case IVA and IVB: 3D view
+
+Figure 4.125: Comparison of case IVA and IVB: XZ view
+
+Figure 4.126: Comparison of case IVA and IVB: YZ view
+
+125
+
+Figure 4.127: Comparison of case IVA and IVB: XY view
+
+The trajectories in both cases are similar and avoid the pop-up obstacles successfully.
+
+4.5
+
+Scenario V. Stationary, Pop-up and Moving Obstacles
+
+Finally, Scenario V includes stationary, pop-up and moving obstacles together, as shown in Figure 4.128 and 4.137. In this case, the stationary obstacle with its base centered at
+
+(350, 300, 0) m
+
+is cylindrical shaped with a height of
+
+80 m.
+
+The path constraint due to the
+
+stationary obstacle is given in equation (4.16). The pop-up obstacle is formed by a cuboid shaped structure with its base centered at
+
+m.
+
+The pop-up obstacle is detected
+
+(600, 650, 0) m and dimension of 100 × 100 × 60 just 50 m ahead by UAV on reference trajectory similar 30 m.
+According to the path
+
+to Scenario IVA. Similarly, the path constraint due to pop-up obstacle is given in equation (4.17). The moving obstacle is spherical shaped with radius of
+
+of the moving obstacle, Scenario V is further divided into two sub-cases. First, when the moving obstacle's path is a straight line and second when the path of moving obstacle is a curve.
+
+126
+
+h1 (x, y, z ) := ln
+
+x - 350 50
+
+2
+
++
+
+y - 300 50
+
+2
+
++
+
+z - 40 40
+
+8
+
+ 0; t  0
+
+(4.16)
+
+h2 (x, y, z ) := ln
+
+x - 600 50
+
+8
+
++
+
+y - 650 50
+
+8
+
++
+
+z - 30 30
+
+8
+
+ 0; d  50m
+
+(4.17)
+
+where,
+
+d(x, y, z ) =
+
+(x - 600)2 + (y - 600)2 + (z - 50)2
+
+VA. Realtime: Stationary, Pop-up and Moving (in straight line) obstacles.
+Moving Obstacle in Straight Line (in X-Y plane)
+Y 1000 Spherical Shaped Moving Obstacle at (600,900) with radius of 30 m With it's center at height 50 m Route of moving Obstacle 800 Final Point (1000,1000,0) m
+
+II
+y-axis in meter (m)
+
+I
+
+600
+
+Predefined Path represented by equation x=y At height 50 m
+
+400
+
+Cuboid Shaped Pop-up Obstacle at (600,650) with Sides 100 m Height 60 m
+
+200
+
+Cylindrical Shaped Stationary Obstacle at (350,300) with Diameter 100 m Height 80 m X
+
+Initial Point (0,0,0) m 0 200 400 600 800 1000
+
+x-axis in meter (m)
+
+Figure 4.128: Scenario VA
+
+In this case, the moving obstacle remains stationary till
+
+m
+
+and starts moving after
+
+38 s
+
+to reach the point
+
+38 s with its center at (600, 900, 50) (1000, 700, 50) m at 54 s passing through
+
+127
+
+the reference trajectory at
+
+46 s.
+
+The constraint due to moving obstacle is
+
+ h3 (x, y, z ) := ln 
+2
+
+x - 100(6 + 30 z - 50 30
+2
+
+(t-40) ) 4
+
+2
+
++
+
+y - 100(9 - 30
+
+(t-40) ) 8
+
+   0; 38  t  54
+(4.18)
+
++
+
+However, as before, it must be emphasized that the UAV is assumed to have knowledge only of the obstacle position at each sample instant. Hence, at a given sample instant, the new trajectory is computed with
+
+t
+
+in (4.18) held xed at the current sample time.
+
+Similarly, equation (3.27) denes the problem formulation for Scenario VA, with the path constraint due to obstacles given by equations (4.16), (4.17) and (4.18), and the cost function given by equation (4.19) implemented in realtime.
+
+tf
+
+J (X (·), U (·)) =
+where, from equation (3.25), with
+
+[r(x, y, z )]dt + A1 + A2
+t0
+on stationary and pop-up obstacle and
+
+(4.19)
+
+(w = 0.25)
+
+(w =
+
+0.5)
+
+on moving obstacle, we get
+
+r(x, y, z ) = 0.25 (ee
+With
+
+-h1 (x,y,z )
+
+- 1) + (ee 40
+
+-h2 (x,y,z )
+
+- 1) + 0.5 (ee
+
+-h3 (x,y,z )
+
+- 1) 24.32s
+
+(4.20)
+
+5 Hz
+
+updating frequency, and
+
+nodes, the realtime simulation results are shown in and total
+
+Figures 4.129-4.136. The average time for solving the realtime problem is maneuver time is
+
+62.365s.
+
+128
+
+(a) 3D view
+
+(b) View in XY Plane
+Figure 4.129: Flight path at
+
+t = 38s
+
+129
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.130: Flight path at
+
+t = 46 s
+
+130
+
+(a) 3D view
+
+(b) View in XY Plane
+Figure 4.131: Flight path at
+
+t = 48s
+
+131
+
+(a) 3D view
+
+(b) View in XY Plane
+Figure 4.132: Flight path at
+
+t = 54s
+
+132
+
+(a) 3D view
+
+(b) View in XY Plane
+Figure 4.133: Flight path at
+
+t = 62.365s
+
+133
+
+Realtime 
+50
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+70
+
+Figure 4.134:
+
+ vs t
+
+Realtime 
+100 80 60 40 20 0 -20
+
+
+
+ (degree)
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+70
+
+Figure 4.135:
+
+
+
+vs
+
+t
+
+Realtime Velocity (V)
+30 28 Velocity (V) (m/s) 26 24 22 20 18 16 14 0 10 20 30 time (s) 40 50 60 70
+
+Velocity (V)
+
+Figure 4.136:
+
+V
+
+vs
+
+t
+
+As can be seen, the UAV successfully avoids all obstacles while staying close to the reference trajectory.
+
+134
+
+VB. Realtime: Stationary, Pop-up and Moving (in curve path) obstacles.
+Obstacle Configurations in X-Y plane
+Y 1000 Spherical Shaped Moving Obstacle at (600,900) with radius of 30 m With it's center at height 50 m Final Point (1000,1000,0) m
+
+800
+
+Approximate Route of moving obstacle
+
+y-axis in meter (m)
+
+600
+
+Predefined Path represented by equation x=y At height 50 m
+
+400
+
+Cuboid Shaped Pop-up Obstacle at (600,650) with Sides 100 m Height 60 m
+
+200
+
+Cylindrical Shaped Stationary Obstacle at (350,300) with Diameter 100 m Height 80 m X
+
+Initial Point (0,0,0) m 0 200 400 600 800 1000
+
+x-axis in meter (m)
+
+Figure 4.137: Scenario VB
+
+In this case the moving obstacle changes its position in such a way that the the UAV becomes the time and
+
+y - position
+
+x - position
+is given by
+
+of the moving obstacle from
+
+31 s
+
+until
+
+x - position of 51 s of simulation
+
+y = 600 + rsin(n)
+at height of where,
+
+50 m.
+
+ r = 100 2m
+
+n = (90 - 0.5625(t - 31)5)
+135
+
+The decrease in the value of obstacle for every
+
+n
+
+by
+
+0.2 s
+
+of simulation time from
+
+-0.5625
+
+represents the change in the
+
+31 s
+
+to
+
+51 s.
+
+With this choice of obstacle
+
+y - position
+
+of the
+
+x - position,
+
+the obstacle tends to target the UAV as it crosses its path. This represents
+
+a challenging obstacle for the UAV to avoid. The above expression for the
+
+similar to Scenario IIIB. The problem formulation for Scenario VB is similar to that for
+Scenario V A, with the only dierence being the path constraint due to the moving obstacle
+
+y - position
+
+is
+
+which is given in equation (4.21) and its associated robustness function. Similar to Scenario
+IIIA, it was found that with robustness factor
+
+(w)
+
+of
+
+0.5
+
+the moving obstacle collided with
+
+the UAV, hence the robustness factor
+
+(w)
+
+of the moving obstacle is further increased to
+
+1.
+
+h1 (x, y, z, t) := ln
+
+x-x 30 z - 50 30
+2
+
+2
+
++
+
+y - (600 + r sin(n)) 30
+
+2
+
++ ···
+
+ 0; 31s  t  51s
+updating frequency and
+
+(4.21)
+
+As in the previous scenarios, a
+
+5 Hz
+
+40
+
+nodes are used for each
+
+open-loop computation in realtime simulation. Figures 4.138 to 4.147 show the results. The average time for solving each open-loop solution in the realtime problem is total maneuver time of
+
+63.72 s
+
+with a
+
+55.43 s.
+
+136
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.138: Flight path at
+
+t = 31s
+
+137
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.139: Flight path at
+
+t = 36s
+
+138
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.140: Flight path at
+
+t = 39s
+
+139
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.141: Flight path at
+
+t = 40s
+
+140
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.142: Flight path at
+
+t = 41s
+
+141
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.143: Flight path at
+
+t = 51s
+
+142
+
+(a) 3D View
+
+(b) View in XY Plane
+Figure 4.144: Flight path at
+
+t = 55.43s
+
+143
+
+Realtime 
+50
+
+
+ (degree)
+
+0
+
+-50
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.145:
+
+ vs t
+
+Realtime 
+100
+
+
+80  (degree) 60 40 20 0
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.146:
+
+
+
+vs
+
+t
+
+Realtime Velocity (V)
+35 30 Velocity (V) (m/s) 25 20 15 10
+
+Velocity (V)
+
+0
+
+10
+
+20
+
+30 time (s)
+
+40
+
+50
+
+60
+
+Figure 4.147:
+
+V
+
+vs
+
+t
+
+As can be seen, the method can successfully avoid the stationary, pop-up and moving obstacles while remaining close to the reference trajectory even in this challenging scenario.
+
+144
+
+This scenario is even more challenging than would be expected to encounter in practice. For example, moving obstacle would be much smaller, e.g. birds.
+
+145
+
+Chapter 5 Conclusion
+5.1 Research Conclusion
+
+The objective of this thesis was to determine the capability of the Legendre Pseudospectral method of optimal control for use in real-time autonomous obstacle avoidance by xedwing UAVs performing geophysical surveys. The UAV is required to avoid dierent types of obstacles such as stationary, moving and pop-up obstacles, while remaining close to the pre-determined nominal survey ight path. At the same time, the method needs to respect the aircraft's physical and dynamic limitations. In order to solve this problem, an appropriate optimal control problem was formulated, with the cost function dened so as to minimize the area between the actual ight path and the reference trajectory. As seen in the results, this particular denition directly leads to a ight path that remains close to the reference trajectory. A number of aircraft constraints were incorporated into the optimal control problem, including constraints on the aircraft turning and pull-up radii, climb and descend angles, aircraft acceleration and maximum and minimum speeds. Obstacles were modeled as path constraints. In addition to the obstacle path constraints, a robustness factor for each obstacle was included in the cost function, pushing the ight path further away from the obstacles for increased safety. Finally, the cost function has the option of including nal maneuver time, so as to reduce the overall amount of time taken to perform an avoidance maneuver. The formulated method has been tested numerically in a number of dierent scenarios, including stationary obstacles alone, moving obstacles alone, pop-up obstacles alone, and a combination of all three types of obstacles considered simultaneously. In every scenario considered, the UAV was able to successfully avoid the obstacles, while remaining close to the reference trajectory. Thus, this work has answered a key question regarding the applicability
+
+146
+
+of the Legendre pseudospectral method of optimal control for real-time obstacle avoidance for the type of UAV mission under consideration. Namely, this work has demonstrated that provided the computational requirements of the Legendre pseudospectral method can be met on-board a UAV, it will be able to successfully guide the UAV around a number of dierent types of obstacles, while staying close to the nominal ight path. This represents a signicant increase in capability over previously developed methods.
+
+5.2
+
+Future Work
+
+The successful implementation of the developed method of obstacle avoidance for a xedwing UAV depends on the computational power on board as well as computational burden of the method and the maneuverability of the UAV. This thesis does not develop the end product to be implemented directly into UAV, but provides a necessary stepping stone to build one. The next important step would be to develop a customized tool to solve the
+
+optimal control problem. The following is a list of recommendations for future work before this method can be actually applied on the UAVs.
+
+1. Development of the customized tool for the UAV to solve the optimal control problem, with a particular focus on reducing the computational burden. This would include
+
+looking at specic nonlinear program solvers, and the generation of suitable initial guesses. 2. Develop high delity UAV simulation with Autopilot and another realistic conditions including wind, measurement errors, obstacle detection errors and UAV limitations. 3. Integration of hardware and the customized tool to be used on the UAV 4. Test of the method in ight.
+
+147
+
+References
+[1] F. K. Lu, ed.,
+
+Cooperative Path Planning of Unmanned Aerial Vehicles, vol. 235, AIAA, Proc. American Control Conf., IEEE Robotics and Johns
+
+A John Wiley and Sons, Ltd., Publication, November 2010. [2] S. Borto, Path-planning for unmanned air vehicles,
+
+Chicago, pp. 364368, June 28-30 2000. Automation Magazine, vol. 13, Issue: Hopkins University Press, 2004.
+implications and legislative responses,
+
+[3] S. Griths and J. Saunders, Maximizing miniature aerial vehicles,
+
+3, pp. 3443, September 2006.
+
+[4] J. D. Anderson, Inventing ight: The wright brothers and their predecessors.,
+
+[5] R. M. Thompson II, Drones in domestic surveillance operations: Fourth amendment
+
+Congressional Research Service, April 3 2013. ISPRS TC VII Symposium,
+
+[6] T.-Y. Chou, M.-L. Yeh, Y.-C. Chen, and Y.-H. Chen, Disaster monitoring and management by the unmanned aerial vehicle technology, vol. XXXVIII, Part 7B, July 5-7 2010. [7] A. C. Watts, V. G. Ambrosia, and E. A. Hinkley, Unmanned aircraft systems in remote sensing and scientic research: Classication and consideration of use, vol. 4, pp. 16711692, June 8 2012. [8] L. P. Koh and S. A. Wich, Dawn of drone ecology: low-cost autonomous aerial vehicles for conservation,
+
+Remote Sensing,
+
+Tropical Conservation Science, vol. 5, pp. 121132, July 9 2012.
+
+[9] S. Owlia, Real-time autonomous obstacles avoidance for low-altitude xed-wing aircraft,
+
+M.A.Sc Thesis, Carleton University, January 2013.
+vol. Session 44, August
+
+[10] J. Barnard, Use of unmanned air vehicles in oil, gas and mineral exploration activities,
+
+AUVSI Unmanned Systems North America 2010 Conference,
+26 2010, Colorado Conference Center.
+
+148
+
+[11] K. P. Bollino and L. R. Lewis, Collision-free multi-uav optimal path planning and cooperative control for tactical applications, August 18-21, Honolulu, Hawaii 2008. [12] A. Cavoukian,
+
+AIAA Guidance, Navigation and Control,
+Toronto: Information
+
+Privacy and Drones: Unmanned Aerial Vehicles.
+
+and Privacy Commissioner, Ontario, Canada, August 2012. [13] C. C. Haddal and J. Gertler, Homeland security: Unmanned aerial vehicles and border surveillance,
+
+Congressional Research Service, July 8 2010. Proceedings of the 83rd Annual Meeting of
+
+[14] B. Coifman, M. McCord, R. G. Mishalani, and K. Redmill, Surface transportation surveillance from unmanned aerial vehicles,
+
+the Transportation Research Board, January 11-15 2004, Washington, DC.
+
+[15] W. Akihisa, Y. Toshiaki, M. Masaaki, A. Takanari, A. Hideo, and T. Hirokazu, A surveillance system using small unmanned aerial vehicle (uav) related technologies,
+
+NEC Technical Journal, vol. 8, September 2013.
+[16] D. W. Casbeer, S. M. Li, R. W. Beard, R. K. Mehra, and T. W. McLain, Forest re monitoring with multiple small uavs,
+
+ference (IEEE), pp. 530535, 8-10 June 2005, Portland Hilton and Towers in downtown
+Portland, Oregon.
+
+Proceedings of the 2005 American Control Con-
+
+[17] R. Forrester, S. Huq, M. Ahmadi, and P. Straznicky, Magnetic signature attenuation of an unmanned aircraft system for aeromagnetic survey,
+
+on Mechatronics, vol. 19, pp. 14361446, 2013.
+
+IEEE/ASME Transactions
+
+[18] J. Maley, An investigation into low-cost manufacturing of carbon epoxy composites and a novel "mouldless" technique using the vacuum assisted resin transfer moulding (vartm),
+
+MASc thesis, Carleton University, May 2008.
+
+[19] G. Fasano, D. Accardo, A. Moccia, C. Carbone, U. Ciniglio, F. Corraro, and S. Luongo, Multi-sensor based fully autonomous non-cooperative collision avoidance system for uavs,
+
+Journal of Aerospace Computing, Information and Communication, vol. 5, no. 10,
+
+pp. 338360, 2008. [20] A. Smith, D. Coulter, and C. Jones, Uas collision encounter modeling and avoidance algorithm development for simulating collision avoidance,
+
+Simulation Technologies Conference And Exhibit," AIAA, 18-21 August 2008, Honolulu,
+Hawaii.
+
+In "AIAA Modeling and
+
+149
+
+[21] P. Angelov, C. Bocaniala, C. Xideas, C. Patchett, D. Ansell, M. Everett, and G. Leng, A passive approach to autonomous collision detection and avoidance,
+
+ternational Conference on Computer Modeling and Simulation",
+2008 IEEE Computer Society (2008), Cambridge, UK.
+
+In "Tenth In-
+
+pp. 6469, 1-3 April
+
+[22] L. Peng and Y. Lin, A closed-form solution of horizontal maneuver to collision avoidance system for uavs.,
+
+In "Control and Decision Conference (CCDC)", pp. 44164421, 26-28 Robotics and
+
+May IEEE (2010), Xuzhou, China. [23] S. Karaman and E. Frazzoli, High-speed ight in an ergodic forest,
+
+Automation (ICRA), 2012 IEEE International Conference,
+2012, Saint Paul, MN.
+
+pp. 28992906, May 14-18
+
+[24] L. A. Loe and A. H. Soni., An algorithm for computer guidance of a manipulator in between obstacles,
+
+Industry 97(3), pp. 836842, 1975.
+
+Transactions of the ASME. Series B, Journal of Engineering for
+
+[25] L. Marce, M. Julliere, and H. Place, Strategy of obstacle avoidance for a mobile robot,
+
+RAIRO Automatique 15(1), pp. 518, 1981.
+[26] K. L. Doty and S. Govindaraj, Robot obstacle detection and avoidance determined by actuator torques and joint positions,
+
+'82", pp. 470473, April 4-7 IEEE (1982), Sandestin, Destin, Florida.
+ulator,
+
+In "Conference Proceedings of IEEE Southeastcon
+
+[27] B. L. Chapman and N. Perreira, Algorithm for intelligent control of a robot manip-
+
+In "Proceedings of the International MOTORCON Conference",
+
+pp. 334344,
+
+19-21 April Intertec Communications Inc, Orlando, FL, USA (1983). [28] O. Khatib, Real-time obstacle avoidance for manipulators and mobile robots,
+
+International Journal of Robotics Research,
+(1986).
+
+The
+
+vol. 5, pp. 9098, March ISSN 0278-3649
+
+[29] M. Hwangbo, J. Kuner, and T. Kanade, Ecient two-phase 3d motion planning for small xed-wing uavs,
+
+tion", pp. 10351041, 10-14 April Roma, Italy (2007).
+for unmanned vehicles,
+
+In "IEEE International Conference on Robotics and Automa-
+
+[30] J. Amin, J. Boskovic, and R. Mehra, A fast and ecient approach to path planning
+
+Exhibit", 21-24 August AIAA 2006-6103. Keystone, Colorado (2006).
+
+In "AIAA Guidance, Navigation and Control Conference and
+
+150
+
+[31] J. Saunders, B. Call, and A. Curtis, Static and dynamic obstacle avoidance in miniature air vehicles, (2005). [32] S. M. La Valle, [33] H. e. a. Choset,
+
+In "Infotech@Aerospace", September AIAA 2005-6950. Arlington, Virginia Planning Algorithms.
+Cambridge University Press, 2005.
+
+Principles of Robot Motion: Theory, Algorithms and Implementation.
+PhD thesis, University of Penn-
+
+Intelligent Robotics and Autonomous Agents series, A Bradford Book, 2005. [34] M. Zefran,
+
+Continuous Methods for Motion Planning.
+
+sylvania, December 1996. [35] L. P. R. Lewis, Rapid motion planning and autonomous obstacles avoidance for unmanned vehicles,
+
+Doctoral Dissertation, Naval Postgraduate School, December 2006. IEEE, vol. 1, pp. 313318, AIAA
+
+[36] B. Xu, D. Z. Chen, and R. J. Szczerba, A new algorithm and simulation for computing optimal paths in a dynamic and weighted 2-d environment, 8-11 October 2000, Nashville, TN. [37] P. Chandler, S. Rasmussen, and M. Pachter, Uav cooperative path planning,
+
+Guidance, Navigation and Control Conf., Denver. CO, AIAA-2000-4370,
+1306, August 14-17 2000, Denver. CO.
+
+pp. 1301
+
+[38] O. Khatib, Real time obstacle avoidance for manipulators and mobile robots,
+
+IEEE Int. Conf. on Robotics and Automation,
+St. Louis, MO, USA.
+
+Proc.
+
+vol. 2, pp. 500505, 25-28 March 1985,
+
+[39] L. C. Wang, L. S. Yong, A. Jr., and M. H., Hybrid of global path planning and local navigation implemented on a mobile robot in indoor environment,
+
+Symposium on Intelligent Control", Vancouver, Canada, pp. 2730, October 2002.
+position,
+
+In "International
+
+[40] F. Lingelbach, Path planning for mobile manipulation using probabilistic cell decom-
+
+Proc. of the 2004 IEEE/RSJ International Conference on Intelligent Robots and Systems, Sendal, Japan, 2 October 2004.
+[41] A. Poty, P. Melchior, and A. Oustaloup, Dynamic path planning for mobile robots
+
+Control, Communications and Signal Processing, 2004. First International Symposium on, IEEE, pp. 557561, March 21-24 2004, Hammamet,
+using fractional potential eld, Tunisia.
+
+151
+
+[42] M. Jun and R. D'Andrea, Path planning for unmanned aerial vehicles in uncertain and adversarial environments.,
+
+rithms", vol. 1, pp. 95110, 2003.
+
+In "Cooperative Control: Models, Applications and AlgoA MATLAB Application Package for Solving
+
+[43] I. M. Ross, A begineer's guide to dido,
+
+Optimal Control Problems (Ver. 7.3), 2007, Elissar, LLC. Mathematical and Computer Modelling, ELSEVIER,
+2006.
+
+[44] I. M. Ross and F. Fahroo, Issues in the real-time computation of opitmal control, vol. 43, pp. 11721188, May 4
+
+[45] J. R. Rea, A legendre pseudospectral method for rapid optimization of launch vehicle trajectories,
+
+Master Thesis, 2001. Journal of Guid-
+
+[46] J. T. Betts, Survey of numerical methods for trajectory optimization,
+
+ance, Control, and Dynamics, vol. 21, March-April 1998.
+vehicle trajectory optimization,
+
+[47] I. M. Ross, C. D'Souza, F. Fahroo, and J. B. Ross, A fast approach to multi-stage launch
+
+and Exhibit, Austin, Texas, August 11-14 2003.
+obstacle avoidance, 6-9 2009.
+
+AIAA Guidance, Navigation and Control Conference
+
+[48] M. A. Hurni, P. Sekhavat, and I. M. Ross, Issues on ugv optimal motion planning and
+
+AIAA Infotech@Aerospace Conference, Seattle, Washington, April
+
+[49] M. A. Hurni, P. Sekhavat, and I. M. Ross, Autonomous trajectory planning using realtime information updates,
+
+Exhibit, Honolulu, Hawaii, August 18-21 2008.
+cles,
+
+AIAA Guidance, Navigation and Control Conference and
+
+[50] K. P. Bollino, High-delity real-time trajectory optimization for resuable launch vehi-
+
+Doctoral Dissertation, Naval Postgraduate School, 2006. Tomlab Optimization, Sweden, February 2004. Technical Report, Stanford Business Software, Collegiate Publish-
+
+[51] I. M. Ross, User's manual for dido: A matlab application package for solving optimal control problems
+
+[52] P. Gill, W. Murray, and M. Saunders, User's guide for snopt 5.3: A fortran package for large-sclae nonlinear programming.,
+
+Inc., Palo Alto, CA, July 1998. ers, San Francisco, Carmel, 2009.
+
+[53] I. M. Ross, A primer on pontryagin's principle in optimal control,
+
+152
+
+[54] R. F. Hartl, S. P. Sethi, and R. G. Vickson, A survey of maximum principles for optimal control problems with state constraints, [55] B. Fornberg,
+
+SIAM, vol. 37, no. 2, pp. 181218, 1995.
+Cambridge Monographs on Cambridge
+
+A Practical Guide to Pseudospectral Methods,.
+
+Applied and Computational Mathematics, Cambridge, United Kingdom: University Press, 1998. [56] L. Trefethen,
+
+Spectral Methods in MATLAB.
+
+Society for Industrial and Applied Math-
+
+ematics Philadelphia, Pennsylvania: SIAM, 2000. [57] I. M. Ross and M. Karpenko, A review of pseudospectral optimal control: From theory of ight,
+
+Annual Reviews in Control, vol. 36, Issue:
+
+2, pp. 182197, December 2012.
+
+[58] I. M. Ross and F. Fahroo, Costate estimation by a legendre pseudospectral method,
+
+Journal of Guidance, Control, and Dynamics, vol. 24, pp. 270277, March-April 2001.
+[59] G. N. Elnagar and M. A. Kazemi, Pseudospectral legendre-based optimal computation of nonlinear constrained variational problems,
+
+Mathematics, ELSEVIER, no. 88, pp. 363375, 1997.
+large-scale nonlinear programming, June 16 2008.
+
+Journal of Computational and Applied
+
+[60] P. E. Gill, W. Murray, and M. A. Saunders, User's guide for snopt 7: Software for
+
+[61] Q. Gong, I. M. Ross, and W. Kang, A pseudospectral observer for nonlinear systems,
+
+Discrete And Continuous Dynamical Systems-Series B, vol. 8, October 2007.
+[62] K. P. Bollino, I. M. Ross, and D. D. Doman, Optimal nonlinear feedback guidance for reentry vehicles,
+
+AIAA Guidance, Navigation and Control Conference and Exhibit,
+
+21-24 August 2006, Keystone, Colorado. [63] I. Ross, P. Sekhavat, Q. Gong, and A. Fleming, Pseudospectral feedback control: Foundations, examples and experimental results,
+
+Navigation and Control Conference, August 21-24 2006, Keystone Colorado.
+constrainted feedback linearizable systems, vol. 51, pp. 11151129, 10 July 2006.
+
+Proceedings of the 2006 AIAA Guidance,
+
+[64] Q. Gong, W. Kang, and I. M. Ross, A pseudospectral method for the optimal control of
+
+IEEE Transactions on Automatic Control, Pro-
+
+[65] I. M. Ross and F. Fahroo, A unied framework for real-time optimal control,
+
+ceedings of the IEEE Conference on Decision and Control, Maui, vol. 3, pp. 22102215,
+9-12 December 2003.
+
+153
+
+[66] I. M. Ross, Q. Gong, and P. Sekhavat, Low thrust, high-accuracy trajectory optimization, 2007.
+
+Journal of Guidance, Control, and Dynamics, vol. 30, pp. 921933, July-August
+
+154
+
+

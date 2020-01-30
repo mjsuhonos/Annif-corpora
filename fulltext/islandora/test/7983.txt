@@ -1,0 +1,1777 @@
+Acquisition and Tracking Strategies for Satellite to Ground Optical Communication Systems
+by Nicole Liu Bachelor of Engineering, Ryerson University, (2016)
+
+A thesis presented to Ryerson University in partial fulfillment of the requirements for the degree of Master of Applied Science in the program of Aerospace Engineering
+
+Toronto, Ontario, Canada, 2018 c Nicole Liu, 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research. I understand that my thesis may be made electronically available to the public.
+
+ii
+
+ACQUISITION AND TRACKING STRATEGIES FOR SATELLITE TO GROUND OPTICAL COMMUNICATION SYSTEMS Nicole Liu Master of Applied Science, Aerospace Engineering, Ryerson University, Toronto (2018)
+
+ABSTRACT
+Optical wireless communication (OWC) offers a promising alternative to radio frequency (RF) based communication because it can support the increased demand for bandwidth in modern networks. This thesis examined three strategies that could be implemented to improve or simplify the design of a ground and satellite optical communication link. The acquisition of a laser beam emitted from a space orbiting satellite was examined. Atmospheric conditions and how they affect beam refraction was modeled using beam geometry and the refractive properties of air. Simulation results indicate that a beam with a large zenith angle is refracted to a higher degree than a beam with a smaller zenith angle. Beam refraction of an emitted beam with zenith angles of 61o and 82o reached the Earth surface with a peak power of 1179 photons/bit and 305 photons/bit respectively. Initial orbit estimation methods were examined, and it was found that Gauss' Angles Only method was able to predict the azimuth and elevation of a target satellite with an average error of 6.38e-1 . Which were positive results, and indicated that the Gauss method would be useful for initial orbit determination of an emitting satellite. Finally, a Extended Kalman Filter (EKF) state estimator was designed to evaluate whether the use of a Kalman filter is suitable for orbit determination when only using the angular observations that are available at an optical groundstation. Results indicated that when measurement errors of ±0.3 degrees were introduced into the system, position error state estimates reached a maximum of 6.9 km and 0.013 km/s. When the EKF was given smaller measurement errors of ±0.1 degrees, the errors in the state estimates were found to be a maximum of 1.4 km and 0.002 km/s. The results from the simulation for the state estimator indicated that an EKF can be applied to track the motion of a target satellite.
+
+ACKNOWLEDGEMENTS
+First and foremost, I wish to express my deepest gratitude to my academic advisor, Dr. John Enright, whose continuous support, unyielding patience, and vast expertise added considerably to my success. My time at the SAIL Ryerson Lab has been stellar. I shall be eternally grateful for the comeraderie of all of my lab mates, and especially thankful for all the help and advice that I received from Ilijia Jovanovic and Laila Kazemi. My sincerest thanks also goes to Mike Algers and Dmitri Ignakov who were always there to bounce ideas off of. Finally, I wish to express my thanks to my friends and family for all of their ongoing love and guidance. To my grandparents for their unwavering support. To my parents who taught me to be curious about the mysteries of the world. To my siblings, Ashley, Rebekah, Michael, Matthew, and Simmone for their friendship and unshakable faith in me. To my friends (both old and new), who stood by me in tough times and who kept me laughing through the good times. And most of all, to my loving, patient and thoughtful partner, Dylan Giuliano, for his dedicated support. I owe you all a big debt of gratitude. Thank you.
+
+iv
+
+CONTENTS
+
+AUTHOR'S DECLARATION ABSTRACT ACKNOWLEDGEMENTS LIST OF TABLES LIST OF FIGURES ABBREVIATIONS SYMBOLS
+
+ii iii iv vi vii viii x
+
+1 INTRODUCTION 2 BACKGROUND 2.1 Prior Works . . . . . . . . . . . . . . . . . . . . . . 2.2 Space Segment Acquisition and Pointing . . . . . . 2.3 Two-Line Element Position Estimate Accuracy . . 2.4 Ground Station Target Tracking . . . . . . . . . . 2.5 Overview Sinclair Interplanetary Optical Downlink 2.6 Research Goals . . . . . . . . . . . . . . . . . . . .
+
+1 3 3 5 7 9 10 11 12 12 12 12 14 17 17 17 21
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+3 OPTICAL COMMUNICATION AND TOTAL REFRACTION 3.1 Total Atmospheric Refraction . . . . . . . . . . . . . . . . . . . . . . 3.1.1 Atmospheric Refraction Layer Approximation . . . . . . . . . 3.1.1.1 Simple Planar Layers . . . . . . . . . . . . . . . . . 3.1.1.2 Concentric Spherical Layers . . . . . . . . . . . . . . 3.2 Atmospheric Refraction Conditions and Characteristics . . . . . . . 3.3 Optical Communication Gaussian Beam Link . . . . . . . . . . . . . 3.3.1 Paraxial Equation and the Gaussian Beam . . . . . . . . . . 3.3.2 Gaussian Beam Ray Model Approximation . . . . . . . . . . v
+
+. . . . . . . .
+
+. . . . . . . .
+
+. . . . . . . .
+
+. . . . . . . .
+
+. . . . . . . .
+
+. . . . . . . .
+
+. . . . . . . .
+
+3.4 3.5 3.6 3.7
+
+Link Acquisition through Atmospheric Refraction . . . . . . 3.4.1 Ground Station Based Beam Refraction . . . . . . . Satellite Orbit and Optical Communication Link Power and Total Atmospheric Refraction Simulation Parameters . . . . 3.6.1 Atmospheric Channel Data . . . . . . . . . . . . . . Simulation & Results . . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . Intensity . . . . . . . . . . . . . . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+23 23 27 31 32 33
+
+4 SATELLITE TRACKING INITIALIZATION AND SETUP 36 4.1 Gauss Angles Only Prediction Method to Azimuth and Elevation . . . . . . . . . 36 4.2 TLE Predictions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44 4.3 Simulation & Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 45 5 EXTENDED KALMAN FILTER 5.1 Kalman Filter Overview . . . . . 5.2 EKF Filter Formulation . . . . . 5.3 System Dynamics . . . . . . . . . 5.4 Simulation & Results . . . . . . . 6 CONCLUSION 51 51 53 54 56 60
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+. . . .
+
+Bibliography
+
+61
+
+vi
+
+LIST OF TABLES
+
+2.1 3.1 3.2 3.3 3.4 4.1 5.1
+
+Laser Downlink and Star Tracker Specifications [33] . . . . . . . . . . . . . . . . Lumped Parameter Refraction Model Comparison . . . . . . . . . . . . . . Optical Communication Acquisition Link Geometry and Beam Parameters Surface Distance of Refracted to Unrefracted Beam-Earth Intercept . . . . Peak Power (photons/bit) at Various Zenith Angles . . . . . . . . . . . . . NORAD Two-Line Element Set Key Information [51] . . . . . . . . . . . .
+
+11 17 32 33 35 45 56
+
+. . . . . . . . . . . . . . .
+
+EKF Initial Position and Velocity in ECI at 7:51:00 on May 20th, 2018 . . . . . .
+
+vii
+
+LIST OF FIGURES
+
+2.1 2.2
+
+Satellite point-ahead configuration. [15] . . . . . . . . . . . . . . . . . . . . . . . Sinclair Interplanetary star tracker and telescope setup for optical communication. [33] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Snell's laws for parallel layers [19]. . . . . . . . . . . . . . . . . . . . . . . Evolution of the beam profile along the beam's axis of propagation. [39] . Evolution of the radius of curvature as seen in the equiphase surface. [39] Refracted and unrefracted ray geometry. . . . . . . . . . . . . . . . . . . . Discrete total atmospheric refraction model comparison. . . . . . . . . . . Satellite orbit beam emission geometry . . . . . . . . . . . . . . . . . . . Emitted beam ray approximation. . . . . . . . . . . . . . . . . . . . . . . Emitted Gaussian beam satellite and groundstation contact. . . . . . . . . Satellite peak power difference for different zenith angles. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+6 10 13 20 20 24 27 28 29 31 34 47 47 48 49 49 50 57 58 58 59
+
+3.1 3.2 3.3 3.4 3.5 3.6 3.7 3.8 3.9 4.1 4.2 4.3 4.4 4.5 4.6 5.1 5.2 5.3 5.4
+
+Gauss' Initial orbit determination method variables. . . . . . . . . . . . . . . . . Finding Azimuth and elevation from Gauss' predictions. . . . . . . . . . . . . . . Azimuth and elevation error predictions for Gauss' method over time with J2. . . Azimuth and elevation error predictions for Gauss' method at 5 minutes with J2. Position prediction errors without J2. . . . . . . . . . . . . . . . . . . . . . . . . Velocity prediction errors without J2. . . . . . . . . . . . . . . . . . . . . . . . . EKF EKF EKF EKF position state estimates in the Rx , Ry , Rz directions ±0.1o . position state estimates in the Rx , Ry , Rz directions ±0.3o . position state estimates in the Rx , Ry , Rz directions ±0.5o . velocity state estimates in the vx , vy , vz directions ±0.5o . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+viii
+
+ABBREVIATIONS
+
+ECEF ECI EKF FOV FSO GAO GEO KF LKF LEO LOS OWC SGP TLE UAV UKF
+
+Earth Centred Earth Fixed Earth Centred Inertial Extended Kalman Filter Field Of View Free Space Optics Gauss Angles Only GEostationary Orbit Kalman Filter Linear Kalman Filter Low Earth Orbit Line of Sight Optical Wireless Communication Simplified General Perturbations Two Line Element Unmanned Aerial Vehicle Unscented Kalman Filter
+
+ix
+
+SYMBOLS
+
+Ad ao alt E Eo f F g G hatm k L LST LSTG P P Pg Q I I0 J n1
+
+Area of Detector Observer Altitude Satellite Altitude Electric Field Electric Field at Beam Waist Lagrangian Constant State Matrix Lagrangian Constant Observer Position in the ECI Frame Altitude of Atmosphere Running Variable East Longitude Local Sidereal Time Greenwich Sidereal Time Power Process Covariance Matrix [-] Power at Ground Process Noise Intensity Intensity at Beam Waist Intertia Incoming Refraction Angle x
+
+m2 [m] [m] [N/C] [N/C] [-] [-] [-] [m] [m] [m] [-] [deg] [deg] [photons/bit]
+
+[W] [-] [W/M2 ] [W/m2 ] [kg·m2 ] [rad]
+
+n2 M r R R1,2,3 Rc REF Ri Re t wz w0 X z Z
+
+Outgoing Refraction Angle Gaussian Beam Parameter Radial Distance from Beam Centre Geocentric Position Vector ECI Frame Geocentric Position at time=1,2,3 Radius of Curvature Refraction at Layer i Radius of Earth Time Beam Size at Distance 'z' Beam Size at Beam Waist State Estimate Propagation Distance from Beam Source Observations [deg]
+
+[rad] [-] [m] [m] [m] [m] [rad] [km] [s] [m] [m] [m,km/s] [m]
+
+     µ   i  o   o  ^
+
+Topocentric Right Ascension Geodetic Latitude Topocentric Declination Wavelength Azimuth Index of Refraction Elevation Nadir Angle Nadir Angle at Increment i Beam Divergence Angle Beam Phase Shift True Refracted Zenith Angle Apparent Unrefracted Zenith Angle Ideal Unrefracted Zenith Angle Slant Range
+
+[rad] [rad] [rad] [m] [rad] [-] [rad] [rad] [rad] [deg] [m] [rad] [rad] [rad] [m]
+
+xi
+
+I dedicate this to my friends, family and loved ones.
+
+CHAPTER 1 INTRODUCTION
+
+Traditionally, communication between Earth and Earth-orbiting satellites were performed by using radio frequency communication (RF) links. This method of communication was selected because transmitters and receivers could be designed within a reasonable mass and power budget. Optical wireless communication (OWC) systems for space applications have become a particularly interesting field, because it overcomes RF based limitations such as lower data rates, high installation costs, and overcrowded spectra [1]. Despite its appeal, optical wireless communications face an important hurdle: its reliance on an accurate pointing method in order to establish an Earth-satellite communication link. In recent years, with the appearance of lighter and steerable optics, free-space optical communication has become an attractive alternative to its traditional counterpart. Evidence indicates that it is possible to develop a portable OWC based ground station through the use of a telescope and star tracker [2]. This paper will investigate three strategies that can be used to set up, acquire and track an optical communication link between a transportable groundstation and Earth-pointing satellite. Chapter 2 will provide a brief overview of existing optical communication systems, and will discuss the key problems that OWC systems commonly face. Chapter 3 will examine the fundamental Gaussian beam and consider how it can be combined with an atmospheric refraction model to estimate ray bending in an optical communication link. Chapter 4 will compare the Gauss prediction method with SGP4 data that is available through NASA's Horizons database. Once the observer at the groundstation can predict where the optical communication link will be transmitted, it is possible to steer the groundstation configuration to match the direction of motion of the orbiting satellite. Satellite tracking initialization is necessary for pointing the groundstation receiver in the direction of the incoming communication link. Chapter 5 will discuss the design of an Extended Kalman Filter to track a target satellite as it passes overhead. A brief conclusion is included in Chapter 6 to summarize the results that were found after examining several acquisition, prediction and tracking methods. It is intended that the work 1
+
+presented in this paper will be used to help with satellite-groundstation design configurations for optical communication systems.
+
+2
+
+CHAPTER 2 BACKGROUND
+
+2.1
+
+Prior Works
+
+Optical wireless communication systems (OWC) are an alternate method of communication for channels that require high bandwidth and an unrestricted spectra. OWC systems can be broadly classified as either an indoor or outdoor optical wireless communication system. Indoor optical communication systems are categorized by its system configuration. Outdoor optical communication systems are classified by its communication link type (i.e.: terrestrial link or space link) and are commonly called free space optical communication (FSO) systems. This chapter will review some of the missions and briefly discuss the scientific milestones that were achieved throughout the development of OWC systems. Particular attention will be given to the development of FSO systems and the role that they play in the aerospace industry today. Research in the field of OWC first started in the aerospace and defence industry 50 years ago, and has since expanded into other technical fields. In 1967, Fried published work that explored the theoretical effects of atmospheric turbulence on an optical communication link [3]. As a beam is transmitted through the atmosphere, the composition of the atmosphere causes power losses due to the absorption and scattering of the incident beam. Fried's work was the first to specifically examine the effect of atmospheric turbulence on an optical communication link that was propagated in a vertical direction from a laser transmitter on the ground to a point in space. Temperature variations in the atmosphere can also cause beam spreading, and temporal and spatial fluctuations in the laser beam. This behaviour is called scintillation, and causes signal power loss. After Fried's publication, other theoretical studies pertaining to the scintillation statistics and the effects of pointing jitter of an OWC system were conducted. Titterton used Fried's work to evaluate the power fluctuations caused by narrow beam motion in the far field of the transmitter [4]. Yura formulated general equations that could be used to model the mean duration of an infrared (IR) laser communication system signal fades and surges [5]. The formulations made by Fried, Titterton and Yura created the theoretical foundation that was needed for the OWC to progress. 3
+
+The advancement of research in the field of OWC systems made it possible for several small scale experiments to succeed. An experiment lead by Bufton was able to successfully acquire data that demonstrated the effects of scintillation on a communication link between the GEOS-II and an earth-based ground station [6]. Experiments performed by Aruga et. al with the Japanese Test Satellite-3 (ETS-3) showed that pitch, roll, and yaw angles of the satellite could be determined from a laser beam transmitted from an Earth-based ground station to a satellite located in a geosynchronous orbit [7]. In this experiment, satellite attitude estimations were estimated by tracking the laser beam centroid and by detecting the polarization of the laser beam source. Aruga's results proved useful to the field of OWC because it could be extended and applied to antenna pointing estimations and models for the differential absorption of light through the atmosphere. These preliminary satellite optical communication experiments contributed to the OWC field by demonstrating that an OWC link could be maintained between a ground station and satellite. The experiments that were performed in the early development of the OWC field created the foundation that was necessary to develop the first Earth-to-space optical communication systems. The Relay Mirror Experiment (RME) was a system that sent a retro-reflected beam to a satellite at an altitude of 350km. The RME uplink and retro-reflected irradiances were measured and used to evaluate the temporal effects of scintillation on the fade statistics of an optical communications link [8]. In 1992, the Galileo optical experiment (GOPEX) successfully sent the longest range optical wireless communication transmission from the Galileo satellite as it travelled from Earth and made its way to Jupiter. The experiment lasted 8 days, and confirmed that it is possible to transmit an optical communication link over a distance of 6 million km [9]. Soon after, in 1995, the Ground/Orbiter Lasercomm Demonstration (GOLD) was the first mission to send and receive information through an optical communication link. GOLD was an international cooperative experiment between NASA and the Japanese Test Engineering Satellite (ETS-VI) that demonstrated the feasibility of a two-way acquisition and tracking of a optical communication system. The two-way optical data that was gathered during the experiment was used to measure bit error rates and atmospheric transmission losses [10]. The success of ground-to-space optical communication experiments led to an increased interest in ground-to-satellite and satellite-to-satellite optical communication systems. The first successful ground-to-satellite optical communication link was performed with the ETS-VI satellite in Kongei, Japan [11]. In 2002, the Semi-conductor Intersatellite Link Experiment (SILEX) was the first mission that successfully transmitted Earth observation data through an optical communication link from the SPOT4 to the ARTEMIS satellite while in orbit. The in-orbit
+
+4
+
+communication link that was performed during this experiment helped test and validate acquisition and tracking methods for an optical communication system. The data that was collected during this experiment was compared to predictive models and gave insight into bit error rate measurements and data transmission structures [12]. In 2005, the National Space Development Agency of Japan (JAXA) successfully completed a series of optical communication experiments between the OICETS and ARTEMIS satellites. The experiment focused on collecting statistical data that was related to satellite link tracking and pointing, degradation characteristics of optical devices, and satellite micro-vibration effects on the optical communication link. This experiment demonstrated that an optical communication link can be used reliably to send and receive data from a ground station at the Earth's surface and can also effectively transmit data between two orbiting satellites The optical wireless communication (OWC) field has evolved from Fried's theoretical research to a technology that has been advantageous to several missions in the field of aerospace. Applications of OWC link systems have also extended to aircraft-to-GEO link and UAV-to-ground link configurations [13], [14]. New developments and research initiatives appear every year, and support the continuous growth of OWC technologies. As a result, OWC systems will continue to be an integral part of the satellite and aircraft industries for years to come.
+
+2.2
+
+Space Segment Acquisition and Pointing
+
+OWC systems require fine pointing parameters in order to be able to track and maintain an optical communication link. This chapter will discuss the pointing characteristics that are considered by both a satellite and optical communication groundstations. The transmitter and receiver of the optical system need to be aligned in order to maintain a communication link. The term pointing is used to describe the process where the transmitter is aimed in the appropriate direction. Spatial acquisition is a term that is used to describe the operation where the receiver is pointed in the direction that is required to capture the incoming beam. Maintaining the pointing and tracking of the optical communication system is called spatial tracking. Optical communication links are easiest to acquire if there is a reasonably long transit time of the communicating satellite. A point-ahead set up is commonly adopted in order to maximize the contact time of the satellite with the groundstation. The point-ahead angle (ph ) is determined by the speed of light (c) and speed (v ) of the satellite in the direction perpendicular to the line of sight. The point-ahead angle is a measure that gives consideration to the motion of the satellite that occurs when a beam is transmitted from 5
+
+Figure 2.1: Satellite point-ahead configuration. [15]
+
+the satellite to the groundstation, and back to the satellite again. It is a useful measure that helps estimate the future position of the satellite as it moves along it's propagation path during transmission times. The Earth's atmosphere distorts the signal that is transmitted between transmitter and receiver. Distortion of the beam can be seen in the power fluctuation and phase change of the emitted signal. Changes to the beam geometry make the task of pointing and spatial acquisition of an optical link more challenging. Severe bending of an optical communication link can shrink the time-window in which the link is available or cause it to be missed by the receiver. Ground based atmospheric refraction was studied by many researchers [16],[17], [18], and was typically used to estimate the true and apparent position of stars as seen from Earth. Noerdlinger was the first to propose reversing the atmospheric refraction model, and use it to estimate the atmospheric refraction effects of a beam that is emitted from space [19]. Noerdlinger's model is a useful tool that helps determine the nominal refraction of an optical communication link that undergoes atmospheric bending. Phase distortions and signal amplitude loss occurs as a result of the turbulent nature of the atmosphere, and causes angle-of arrival fluctuations and channel fading at the receiver. Adaptive optics systems rely on measuring the phase changes of a predetermined source, and applies corrections to the distortions that are sensed. In a vertical optical communication link, the 6
+
+2 ) is needed to better understand the signal flucindex of refraction structure parameters (Cn
+
+tuations along the link path. Several optical turbulence models have been explored over land and sea environments and during the daytime and nighttime cycles [20]. It was found that each turbulence model should be applied to specific environments with limited weather conditions. The Hufnagel-Valley (H-V) profile model is an atmospheric turbulence model that is used for theoretical studies. The H-V5/7 is the most common model used, and defines the atmospheric root-mean-square wind speed as 21 m/s and the nominal ground turbulence levels as 1.7x10-14 m2/3 [15]. In some experimental setups, it is possible to use a guide star to include atmospheric turbulence in the point-ahead estimation. A guide star is used as a reference becaon, because it is not affected by the Earth's atmospheric turbulence. The angular distance over which the atmospheric turbulence is considered constant is called the isoplanatic angle (0 ). The isoplanatic angle can be useful to an adaptive optic system, because it describes the wavefront distortions of a propagated beam in the direction that the atmospheric turbulence is measured. In practice, it was found that the point-ahead angle is typically near 50µ rad, which is typically much greater than the magnitude of the isoplanatic angle in the direction of motion of the satellite. As a result, it is concluded that the isoplanatic angle might not be very useful measure for correcting wavefront distortions, that are caused by atmospheric turbulence, along the tracking path [15]. Beam bending due to atmospheric refraction is needed for the preliminary set up of the pointing and spatial acquisition operations of the OWC system. Signal fade statistics and angle or arrival fluctuations are measures that indicate the beam quality of the incoming signal once the communication link between the transmitter and receiver has been established. The research considered in this work focused on examining the effects of atmospheric refraction that would impact the initial link setup. Atmospheric refraction was combined with the dynamic motion of the satellite, and used to estimate the variation of the point-ahead angle of the satellite along its propagation path. Atmospheric distortion effects due to beam bending through the atmosphere are modeled both by using ray geometry and atmospheric data retrieved from weather balloons. The models that were developed are further discussed in Chapter 3.
+
+2.3
+
+Two-Line Element Position Estimate Accuracy
+
+Two-line element (TLE) sets were first designed as a means to standardize the method by which satellite motion was tracked and archived. This chapter will briefly discuss the applicability and accuracy of TLE sets to satellite orbit determination. 7
+
+Today, TLE elements provide information about the mean orbital elements of satellites and other orbiting bodies. The North American Aerospace Defense Command/United States Strategic Command (NORAD/USSTRATCOM) monitors and archives the TLE information of several thousands of orbiting bodies, and makes it available to the general public. In the 1960s. the Simplified General Perturbations (SGP) models was developed for the purpose of orbit determination. Due to its deficiencies in orbit propagation, new mathematical techniques were developed, and the SGP was replaced by other variants of the Simplified General Perturbations model [21]. The SGP, SGP4, SDP4, SGP8, and SDP8 are the five orbit propagation models are currently available to the public. Each of the propagation models have their own atmospheric and gravitational parameters. In comparison to the SGP4 model, the SDP4 model includes deep-space perturbations. The SGP8 and SDP8 models were developed as a closed form solution to special cases for orbit decay and re-entry. Each of the five models are compatible with TLE sets. Vallado et. al published work that described the differences between each propagation model, but does not indicate the accuracy that can be achieved with each model [21]. Hoots and Roehrich also warn that erroneous orbital parameters can be calculated if an incompatible propagation method is used with TLE sets [22]. Two-line element sets have been used successfully in many applications relating to satellite orbit determination, space debris collision avoidance, and satellite sensor calibration [23],[24],[25]. When TLE sets are properly combined with the correct propagator, useful orbit determination estimates are generated. Unfortunately, as was discussed by Fruh and Schildknecht, the success of using TLE sets is highly dependent on the specific mission in which they are applied [26]. TLE sets are not only limited by the capacity of the Space Surveillance Network and the orbit determination resources, but also by the total number of decimal digits it can store for each orbital element. For example, the epoch field can contain up to eight decimal places, which yields an accuracy of 0.0004s. Fruh and Schildknecht pointed out that an object in Low Earth Orbit (LEO) could move as much as 3m within the 0.0004s timespan. Given that an object in LEO can move several meters in the short timespan, it is clear that the limited accuracy of the TLE set can affect future orbit determination predictions. [26]. TLE sets can be a source for less accurate orbital information when collected after a satellite launch or manoeuvre. A comparison of the CanX-2. PROBA 2, and PRISMA mission TLE estimates and GPS data was performed by Kahr, Montenbruck and O'Keefe [27]. Results indicated that the most significant degradation in TLE estimates were when manoeuvres were performed and can be as high as 20 km in the along track at the time of ephemeris. Results also indicated that good TLE estimates need to be observed over a longer period in order to be able 8
+
+to estimate the short-term perturbations that are not included in the model. If GPS data is available, reasonably small corrections to the short-term TLE can be achieved by implementing a least-squares estimator [27],[28]. TLE sets are useful source that is used to find initial position estimates of a target satellite. The availability of a TLE set is sometimes delayed for newly launched satellites [29] and can contain errors when generated over a short observation period, or after a satellite manoeuvre. Given the set up of the optical communication ground station, it is possible to measure the right ascension and declination of an orbiting satellite as it appears in the field of view of the ground station. Orbit state vectors can be estimated by combining these telescope observations with Gauss' angles only method. The research presented in this work set its goal to examine whether the orbital information of a satellite could be estimated and propagated by using optical observations. The estimations were made with Gauss' method, and then compared to the known estimated TLE sets. The model that was used is further discussed in Chapter 4.
+
+2.4
+
+Ground Station Target Tracking
+
+Satellite tracking is commonly performed at a ground station in order to maintain the communication link quality within a specified limit. Due to the Earth's atmosphere, satellites that are seen from the ground can also overshoot its target and appear to jitter in the image plane in which it is observed. As a result of this residual motion, tracking methods need to be used in conjunction with satellite position estimates in order to maintain the communication link. Kalman filters are good tools that can both track and propagate a satellites position. This section will briefly discuss the use of Kalman filters for tracking a target satellite in an optical communication system as it flies overhead. A Kalman filter is a linear quadratic estimator that uses a series of measurements with premodeled system dynamics to yield unknown state estimates. Kalman Filters (KF), Extended Kalman Filters (EKF), Unscented Kalman Filters (UKF) are the three main types of Kalman filters that are used in satellite position and attitude estimation. The EKF is different from the KF algorithm in that it is applied to non-linear systems, and as such it contains a Jacobian matrix in its Kalman gain component. The UKF was developed with the intention of addressing instances where the EKF would have suboptimal performance or fail to converge to a solution. The UKF is most similar to the EKF, but differs by the method in which the Gaussian random variables are propagated through the algorithm [30].
+
+9
+
+Kalman filters have been used to successfully capture the motion of a satellite as it travels along its orbital path. Kalman filters are useful for orbit determination because it optimally combines the satellite's system dynamics with measurement updates. Several studies have been conducted to validate the application of a Kalman filter for satellite position and attitude estimates [31], [32]. The research that was conducted during this thesis applied the EKF algorithm to optical observations and predicted the position and velocity of a target satellite. This model is further discussed in Chapter 5.
+
+2.5
+
+Overview Sinclair Interplanetary Optical Downlink
+
+Sinclair Interplanetary (SI) is a company that provides hardware, software, and training for spacecraft related technologies. Within their Optical Communication division, they have designed systems for optical crosslinks and downlinks. Figure 2.2 shows the star tracker and telescope configuration that is proposed by SI.
+
+Figure 2.2: Sinclair Interplanetary star tracker and telescope setup for optical communication. [33]
+
+The work that was considered in this thesis based its models on the optical downlink configuration that was designed by SI. The downlink system that is proposed by SI uses a star tracker for satellite guidance, and features a 22" Newtonian telescope with silicon APD at the optical groundstation. A summary of the laser downlink and star tracker specifications are listed in Table 2.1. The SI optical downlink system combines a star tracker with a telescope and groundstation software. This thesis used these specifications to evaluate the effects of atmospheric refraction, to model the Gauss-Angles only problem, and to design an EKF state estimator.
+
+10
+
+Table 2.1: Laser Downlink and Star Tracker Specifications [33]
+
+Characteristic Data Rate Star Tracker Performance Cross-Boresight Star Tracker Performance Cross-Boresight Acquisition and Tracking Envelope Transmitter Ground Receiver Diameter Nominal Power Downlink Power Star Tracker Power Mass Volume
+
+Value 1 Gbits/s at 1000km range 5 arcseconds 55 arcseconds Tolerates 2o spacecraft pointing error. 1W at 785nm 0.55 m +28 V < 10 W < 1W 335 g 79 mm x 68 mm x 68 mm (including baffle)
+
+2.6
+
+Research Goals
+
+OWC systems offer certain benefits when compared to a traditional RF system. The use of an OWC system appeals to many because it overcomes the typical problems that an RF system encounters with crowded spectra, slower data transmission rates, and higher installation costs. Despite these benefits, OWC systems have their own drawbacks that can severely impair an optical communication link. This work aims to develop strategies that can improve the pointing and tracking mechanisms of an optical communication ground station, in order to avoid scenarios where link impairment may occur. The primary mission goals and objectives are summarized below. 1. Evaluate the bending effects imparted by the Earth's atmosphere on an incoming optical communication link from a satellite in LEO. 2. Observe and model the dynamic evolution of an orbiting body in LEO using Gauss' Angles-Only method, and compare it to available Two-Line Elements (TLE) sets. 3. Evaluate weather an EKF state estimator can be used to predict the position and velocity of an orbiting body in space with an accuracy of < 12km by using optical ground station observations (right ascension and declination). It is predicted that the Earth's atmosphere would cause scintillation effects on the optical communication channel. This thesis wanted however to focus on the primary acquisition of the incoming signal. As a result, the scintillation effect on the optical communication channel quality will not be included in this report, and will be left for future works. 11
+
+CHAPTER 3 OPTICAL COMMUNICATION AND TOTAL REFRACTION
+
+3.1
+
+Total Atmospheric Refraction
+
+Light that travels from space to an observer on Earth is bent by the Earth's atmosphere. The change in direction of the emitted ray is modeled by considering the physical characteristics of the atmosphere and position of the light source. The atmospheric model with parallel planes is the simplest case, but becomes less accurate when observing objects with moderate to large zenith angles (> 45o ). In limited cases, atmospheric refraction modeled as parallel planes can be used as a good starting estimate[34]. In general cases, the Earth's atmospheric refraction is modeled as a set of concentric shells. The concentric shells atmospheric model, is more difficult to implement, but yields more accurate results. The concentric shell model can be simplified, Simplifications to the concentric shell model can be made, but the refraction estimates typically depends on observation models [19] that are developed for specific climates. This section will discuss the full and simplified concentric shells total atmospheric refraction model.
+
+3.1.1
+
+Atmospheric Refraction Layer Approximation
+
+Total refraction can be approximated by using a simple planar layer model or a concentric shell model. The primary difference between both models is that the planar model assumes that the area of intersection between neighbouring layers is flat. Both types of atmospheric refraction models are briefly discussed in this section.
+
+3.1.1.1
+
+Simple Planar Layers
+
+The refraction of light that is transmitted from objects with small zenith angles can be approximated by using a series of parallel planes. This case is a unique instance when the curvature of 12
+
+atmospheric layers can be neglected. The refraction of light through neighbouring atmospheric layers can be approximated by using Snell's law [34]. n2 sin 2 = n1 sin 1 (3.1)
+
+Given that neighbouring layers intersect as parallel planes, it can be shown that the refracted beam angle that enters a layer at P is equal to the incident beam angle that is leaving the same layer at Q. Figure 3.1 illustrates the true and apparent positions of the observed celestial body.
+
+Figure 3.1: Snell's laws for parallel layers [19].
+
+The bounding surface of an arbitrary amount of parallel layers can be regarded as a series of small refraction angles. As a result of the simplified geometry, the refracted beam angle at the ground can be expressed in terms refraction constant of air at the Earth's surface (µ0 ) and in space (µs ), and the refraction angle at the ground (0 ) and in space (s ) [35]. µs sin(s ) µ0
+
+sin(0 ) =
+
+(3.2)
+
+The planar layers model makes approximations that allow the refraction model to be solved quickly. Despite the appeal of a quick calculation, given that the curvature of the Earth's surface is an important characteristic of the refraction model, the planar model does not yield results that are accurate enough for OWC acquisition and tracking predictions.
+
+13
+
+3.1.1.2
+
+Concentric Spherical Layers
+
+The concentric shells atmospheric model uses geometry to relate a geocentric distance of a celestial object to the Earth's atmospheric refraction. In contrast to it's simpler counterpart, the concentric shell model incorporates the curvature of the atmosphere into its geometric formulation. The refraction (REF Ri ) of a beam as it passes from one adjacent layer (i) to another was defined by Smart [34] as a series of small refraction angles that are incrementally changed by neighbouring atmospheric layers. The full derivation of Equation (3.3) was omitted for convenience, but can be found in [34] and [17]. Ri+1 µ2 µ i+1 sin  2 2 2 2 1/2 µi+1 (Ri µi - Ri+1 µ2 i+1 sin  )
+
+REF Ri =
+
+(3.3)
+
+If it is assumed that the atmospheric refraction constant in space is approximately 1, the total (REF R) refraction through the atmosphere can be calculated by evaluating the integral in Equation (3.3).
+µ0 1
+
+REF R = aµ2 0 sin 
+
+µ(R2 µ2
+
+dµ 2 1/2 - a2 µ2 0 sin  )
+
+(3.4)
+
+where a and R are the geometric distance of the observer and celestial object respectively, and µ0 is the atmospheric refraction constant at the Earth surface. If higher order terms are neglected, the height of the atmosphere (s) can be expressed in terms of R and a as shown in Equation (3.5). R =1+s a
+
+(3.5)
+
+In the concentric shells model, it is acceptable to neglect higher order terms of s (i.e.: s2 , s3 , etc.) because the height of the atmosphere is much smaller than the radius of the Earth [34]. Considering the denominator of the total refraction.
+
+2 -1/2 -1/2 = (a2 (1 + s)2 µ2 -2 µ2 (R2 µ2 - a2 µ2 0 sin  ) 0 sin  ) 1 2 2 -1/2 = (µ2 - mu2 0 sin  + 2sµ ) a 14
+
+(3.6)
+
+Using a Maclaurin series approximation, x2 + ... 2!
+
+f (s)  f (0) + f (0)s + f "(0)
+
+(3.7)
+
+2 2 -1/2 f (s) = (µ2 - mu2 0 sin  + 2sµ )
+
+(3.8)
+
+2 -1/2 f (0) = (µ2 - mu2 0 sin  )
+
+(3.9)
+
+1 2 2 -3/2 f (s) = - (µ2 - mu2 2µ2 0 sin  + 2sµ ) 2
+
+(3.10)
+
+2 -3/2 2 f (0) = -(µ2 - mu2 µ 0 sin  )
+
+(3.11)
+
+Taking the lower order terms,
+
+2 -1/2 2 -3/2 f (s)  (µ2 - µ2 - (µ2 - µ2 (sµ2 ) 0 sin  ) 0 sin  ) 2 -1/2 = (µ2 - µ2 1- 0 sin  )
+
+sµ2 2 µ2 - µ2 0 sin 
+
+(3.12)
+
+The total refraction can thus be separated into two integrals.
+µ0 µ0 1
+
+REF R = µ0 sin 
+1
+
+dµ - µ0 sin  2 2 µ( µ - µ 2 0 sin  )
+
+( µ2
+
+sµdµ 2 3/2 - µ2 0 sin  )
+
+(3.13)
+
+REF R = D1 + D2
+
+(3.14)
+
+Each integral (D1 and D2) can also be evaluated using binomial expansion. Ignoring higher order terms, the solution to the first integral can be approximated by the following.
+
+D1 = (µ0 - 1) tan 
+
+(3.15)
+
+15
+
+The Gladstone-Dale law expresses the relationship between the index of refraction and atmospheric density ( ) through a constant value (c) [19].
+
+dn = cd
+
+(3.16)
+
+If Equation (3.16) is combined with the second integral (D2) a solution can be approximated by the following [19].
+
+D2 = -
+
+c a
+
+tan  sec2  (3.17)
+2
+
+= -B tan  sec 
+c a
+
+where B is a value that is defined by
+
+times the mass of the column of the layer considered.
+
+The total refraction for a spherical atmosphere can thus be written as shown below.
+
+REF R = (µ0 - 1) tan  + B tan  (1 + tan2  ) = ((µ0 - 1) + B ) tan  + B tan3  = A tan  + B tan3  (3.18)
+
+where A is a function of B. Lumped parameter models were developed by many authors. Tobias Mayer was the first to express atmospheric refraction constant in terms of meteorological conditions [36]. A numerical comparison of the models that were authored by Mayer, Bessel, Saar, Kaplan, Eisele & Shannon, Doggett, Bennett was presented by Wittmann [37]. It did not include the methods that were proposed by Smart, Auer & Standish, Noerdlinger, and Stone. Each lumped parameter method is constructed with a subset of fixed conditions in the atmosphere, for the emitted beam or for the weather conditions at the observer's groundstation. A comparison of the conditions and limitations of these methods are summarized in Table 3.1. Given that Noerdlinger's model had the least amount of fixed conditions and could be used to estimate refraction up to 90 degrees, Noerdlinger's lumped parameter refraction equations was selected to be used for further analysis in later chapters of this report.
+
+16
+
+Table 3.1: Lumped Parameter Refraction Model Comparison
+
+Author Smart [34] Auer & Standish [38] Stone [16] Noerdlinger [19]
+
+Fixed Conditions Pressure and Temperature at Ground Two (N=2) Stage Atmosphere Operational Wavelength None
+
+Zenith Limitations 0 < 75o 0 < 90o 0 < 75o 0 < 90o
+
+3.2
+
+Atmospheric Refraction Conditions and Characteristics
+
+The characteristics of the Earth's atmosphere, such as the pressure and temperature at different altitudes, affects channel behaviour of an optical communication link. Atmospheric conditions at different altitudes were retrieved from two sources. A bried discussion of these data sources are considered in this chapter.
+
+3.3
+
+Optical Communication Gaussian Beam Link
+
+The plane wave is the simplest way to model the propagation of an electromagnetic wave through a medium. Unlike a plane wave, Gaussian beams have electric field variations in the direction that is perpendicular to its axis of propagation. As such, the Gaussian beam model is a common tool that is used to describe laser beam propagation behaviour. Gaussian beams play an integral role in the field of optical communications, and as a result its theory and interpretations will be discussed in this section.
+
+3.3.1
+
+Paraxial Equation and the Gaussian Beam
+
+Wave propagation analysis can easily become a very complex vector problem, but can be simplified by making a few key assumptions. An electromagnetic wave that propagates with a constant field distribution is modeled as a plane wave. In the plane wave model, the electric and magnetic fields amplitudes are constant, and both exist in planes that are mutually perpendicular to the wave's axis of propagation. The plane wave is the most ideal formulation of the wave propagation model, but since it omits field variations in the transverse direction, it has limitations to its use. If it is assumed that the original beam source is largely collimated, and thus has a distinct direction of propagation coupled with mild variations in the transverse direction, a paraxial wave model can be developed. A paraxial wave is similar to a plane wave, such that it maintains that the electric and magnetic fields are mutually perpendicular, but 17
+
+since beam diffraction is considered, the field distribution becomes dependent on position. If the direction of propagation of a wave is in the z-direction, an element propagated through an electric field (E ) can be described by the following [39].
+
+E (x, y, z ) = u(x, y, z ) exp -jkz
+
+(3.19)
+
+where u describes the non-planar characteristics of the emitted beam. An element of an electromagnetic wave that travels through a uniform medium can be described by the Helmholtz wave equation. A wave propagation equation can be approximated if Equation (3.19) is combined with the Helmholtz equation. This formulation is fundamentally based on a quasi-plane wave solution, and is thus sometimes called the reduced wave equation. u 2u 2u 2u + 2 + 2 - 2jk =0 2 x y z z
+
+(3.20)
+
+Simplifications to the reduced wave equation can be made if it is assumed that the amplitude variation caused by diffraction is small with respect to the wavelength of the propagated beam. This assumption indicates that the third term in Equation 3.20 is much smaller than the other terms, and can therefore be neglected. The paraxial wave equation is obtained from the reduced wave equation by omitting small axial variations, and can be expressed in rectangular coordinates as follows [40]. u 2u 2u + 2 - 2jk =0 2 x y z
+
+(3.21)
+
+The errors that are introduced by the simplification of the reduced wave equation was studied by Couture, B´ elanger, Agrawal, and Pattanayak [41], [42]. A formal bound within which the paraxial equation can be applied has not been rigorously defined, but as a general rule of thumb, it is assumed that it is a reasonable approximation to the wave propagation model if the divergence angle is less than or equal to 0.5 radians [39]. Gaussian beam modes are solutions to the paraxial wave equation. The simplest solution is the TEM00 mode (fundamental) Gaussian beam. A fundamental Gaussian beam model was used to model the laser beam propagation throughout this work. The complete expression for the fundamental Gaussian Beam is defined as follows [40].
+
+18
+
+E (x, y, z, t) = E0
+
+w0 x2 + y 2 k (x2 + y 2 ) z · exp - 2 · exp - i - tan-1 wz w (z ) 2 Rc (z ) z0
+
+· (3.22)
+
+exp i(kz - wt)
+
+Where E0 is the amplitude of the electric field at the centre of the focal plane (i.e.: x = y = z = 0), R(z ) is the radius of curvature, and w(z ) is the beam width. Equation (3.22) written in polar form, and described in its characteristic components is shown below [43].
+
+E (r, z ) = E0
+
+r2 w0 · exp - 2 (amplitude factor) wz w (z ) k (r2 ) z · exp - i - tan-1 (longitudinal factor) 2 R (z ) z0 (radial phase factor)
+
+(3.23)
+
+· exp i(kz - wt)
+
+A Gaussian beam is fully described by combining the electric field equation with three key values: the radius of curvature (Rc ), beam radius (w), and beam phase shift (0 ). These three values change along the beam's axis of propagation. The radius of curvature describes the roundness of the beam wavefront along an equiphasal surface. The beam radius defines the span of the beam at a distinct point in the direction of the beam propagation. Finally, the phase shift is a measure that describes the relative phase variation of the beam at a fixed plane a distance z away from the beam waist. Each of these characteristics can be calculated using the following equations. 1 Rc = z + z
+2 w0  2
+
+(3.24)
+
+w = w0 1 +
+
+z 2 w0 z 2 w0
+
+(3.25)
+
+tan 0 =
+
+(3.26)
+
+The propagation of a Gaussian beam and some key characteristics are shown in Figure 3.2 and Figure 3.3. These figure show the evolution of both the radius of curvature and the beam waist along the axis of propagation. 19
+
+Figure 3.2: Evolution of the beam profile along the beam's axis of propagation. [39]
+
+Figure 3.3: Evolution of the radius of curvature as seen in the equiphase surface. [39]
+
+This section briefly discussed the Hemholtz equation and its relation to a Gaussian beam. The Gaussian beam is a solution to the Hemholtz equation which applies in a very specific set of circumstances. The formulation of the Gaussian beam as an electric field and in terms 20
+
+of its propagation characteristics is useful for understanding beam behaviour and for defining Gaussian beam attributes.
+
+3.3.2
+
+Gaussian Beam Ray Model Approximation
+
+A brief derivation of the Gaussian beam equation from the Hemholtz wave equation was discussed in the previous section. This section will focus on discussing the interpretation of the Gaussian beam equation, and describe the ray approximation was used in the atmospheric refraction model. The intensity of a Gaussian beam [I (r, z )] is the squared magnitude of the electric field. Thus, the equation for the Gaussian beam intensity is found by calculating the magnitude of Equation 3.23. During this operation, the imaginary components of the polar form of the electric field equation reduce to 1, and produce Equation (3.27).
+
+I (r, z ) = |E (r, z )|2 = I0 (0, z ) exp - r2 w 2 (z ) (3.27)
+
+where, I0 (0, z ) =
+2 w0 w2 (z )
+
+(3.28)
+
+From the conservation of energy, the power is the square magnitude of the electric field integrated over the area of the beam. Thus, the intensity of the Gaussian beam integrated over a transverse plane produces the following relationship [43].
+
+P =
+
+IdA
+
+(3.29)
+
+
+
+P =
+0
+
+I (r, z ) · 2r P = I0 2 (w0 ) 2
+
+dr
+
+(3.30) (3.31)
+
+I (r, z ) =
+
+2P 2r 2 exp - w2 (z ) w 2 (z ) 21
+
+(3.32)
+
+Gaussian beam parameters such as the beam intensity and beam waist describe the beam source parameters, whereas the radial distance (r) and beam waist at a distance (z ) away from the source define the beam characteristics in a plane that is perpendicular to the direction of propagation of the source. For a Gaussian beam at an arbitrary distance (z ) from the source, where the on-axis intensity is normalized to 1, the beam spot size and radial distance at full width half-maximum intensity (FWHM) can be related by a constant as follows. r2 w 2 (z )
+
+0.5 = (1) exp
+
+(3.33)
+
+w (z ) =
+
+r
+1 2
+
+(3.34)
+
+ln 2
+
+w(z ) = 1.699 r
+
+(3.35)
+
+The far field divergence angle () of the Gaussian beam can be approximated as shown in Equation (3.36) and (3.37) [44]. The angle (r ) of a point at a radial distance (r) and propagation distance (z ) from the source was defined by using trigonometry and followed from the Gaussian beam geometry.
+
+=
+
+w (z ) z M 2 w0
+
+(3.36)
+
+=
+
+(3.37)
+
+tan (r ) =
+
+r z
+
+(3.38)
+
+where M is a factor that defines the deviation of the beam's intensity profile from the the perfect Gaussian beam distribution. In this work, it was assumed that the satellite emitted optical link was nearly ideal. As such, M was set to equal 1. The divergence angle (1 ) at specific distances along the propagation path was separated into smaller angles, and by using geometry, they were treated as a discrete set of rays that were 22
+
+emitted from a finite extent. The single ray approximation of the Gaussian beam was used to estimate the change in intensity throughout the Gaussian beam profile as it traveled through the atmosphere. The Gaussian beam parameters that were discussed in this chapter were used to model optical communication power fluctuations due to refraction. This was achieved by approximating the laser beam behaviour as a ray that is emitted through the atmosphere, and is further discussed in the next Chapter of this report.
+
+3.4
+
+Link Acquisition through Atmospheric Refraction
+
+Spatial link acquisition through the atmosphere is challenging due to the bending effects that are experienced by the laser beam. Laser beam bending behaviour was approximated by using ray geometry coupled with the Gaussian Beam equation. The geometric model that was used to define the satellite and groundstation configurations are discussed in this section.
+
+3.4.1
+
+Ground Station Based Beam Refraction
+
+The general atmospheric refraction model is difficult to use in practice, because the model requires knowledge of the beam's incident angle prior to refraction (s ). Noerdlinger proposed a solution to this problem in [19] by showing that total refraction can be expressed as a function of the apparent displacement of a refracted beam emitted from space. The algorithm that was proposed is discussed in this section. Noerdlinger's refraction estimation method approximates the refracted zenith angle at the Earth's surface by combining geometry with a lumped parameter formulation of the total atmospheric refraction process. This method is convenient when a fast solution is required and can be split up into three simple steps.
+
+1. Establish a relationship between the zenith angles of the ideal unrefracted ray with the true refracted ray. 2. Use geometry to relate the incoming ray geometry with the Earth's surface 3. Calculate refraction for beams with large and small zenith angles using Noerdlinger's spliced lumped parameter formula.
+
+23
+
+Figure (3.4) shows the ray geometry of the ideal un-refracted (0 ), true refracted ( ), and apparent refracted ( ) zenith angles.
+
+' 0 h A dang q R
+
+p
+
+ k
+
+(q)
+
+
+
+Figure 3.4: Refracted and unrefracted ray geometry.
+
+The relation between the true and ideal zenith angles are independent of the atmospheric structure. Instead, the angle between them is a result of the sphericity of the Earth. Chauvenet showed in [17], when exploring the corrections for eclipse and occulation predictions at observing sites, that a running variable projected along an emitted ray (k ) is related to atmospheric refraction (µ) by a constant. The running variable is a the point along the emitted ray (k ) at which the interception of segment q and the emitted ray are considered. The location at which k intercepts the ray will determine the initial value of  (q ). In this thesis, the interception point was taken at the location in space where the effects of atmospheric refraction start to impact the incoming ray (80, 000km).
+
+qµ sin [ (q )] = constant or equivalently, qµ sin (or ) = b
+
+(3.39)
+
+(3.40)
+
+where or is the running zenith angle of the running length (q ). Although the original application of the equation was created with a different purpose in mind, Chauvenet's equation applies to refracted beam for an optical communication link because the ray geometry is the same. If 24
+
+Equation (3.39) is applied at the point where the ideal un-refracted ray intersects the Earth's surface, since q is equal to A, it becomes the following.
+
+A sin (0 ) = b
+
+(3.41)
+
+Both formulations for the refracted and ideal unrefracted beams are related to the constant b. From Snell's law (Equation (3.2)), the true and apparent zenith angles can be described in terms of atmospheric refraction. If combined with the Equations (3.39) and (3.41) an expression for the refracted ray at the Earth surface can be found. From the geometry of the proposed problem, an expression for dang can also be formulated.
+
+ = arcsin
+
+sin (0 ) µ0
+
+(3.42)
+
+dang =
+
+d = 0 -  A
+
+(3.43)
+
+where µ0 and d are the atmospheric refraction at the ground and the refracted distance of the beam along the Earth's surface. An expression that relates  and  is need to calculate the refraction distance. Noerdlinger's lumped parameter refraction equation is a modified version of Hohenkerk's atmospheric refraction equation. The full derivation is described in [18]. Similar to the atmospheric refraction models discussed in Chapter (2), the difference between the Hohenkerk and Noerdlinger formulations were in terms of how the A and B constants were derived. According to Noerdlinger, the refraction equation (REF R) should be spliced at 83.9o to avoid discontinuities, and to maximize the range of applicability of the model.
+
+REF R =
+
+(µ - 1) · tan (z ) - 0.00117 tan 3 ( ) 1 + (W/A)
+
+(f orH > 6.06o )
+
+(3.44)
+
+REF R = (0.00167o )
+
+.28Pmb 1 · To tan[(H + 7.31)/(H + 4.4)]
+
+(f orH < 6.06o ) (3.45)
+
+H=
+
+180 ·  25
+
+ - 2
+
+(3.46)
+
+where W , Pmb , T o are the atmospheric density scale height, pressure in millibars, and temperature in degrees. Noerdlinger's lumped parameter formulation was derived by assuming that neighbouring atmospheric layers were concentric and spherically symmetric. Noerdlinger's conceptual formulation of refraction was expanded to account for local atmospheric temperature and pressure variations. Noerdlinger's method assumes that the total refraction at the observing station is equal to the standard atmospheric constant. This paper used the 1976 Standard Atmosphere and radiosonde (or weather balloon) data to model the atmospheric environment. Each model of the atmosphere was used with the intention of finding a better representation of the atmospheric conditions at the observing site. Similar to Noerdlinger's method, it was assumed that the atmosphere was made up of concentric shells and sypherically symmetric. Both the 1976 Standard Atmospheric model and radiosonde data was used to calculate the atmospheric refraction of neighboring atmospheric layers. The running zenith angle equation was used to find the incident angle at the uppermost portion of the Earth's atmosphere.
+
+atm = arcsin
+
+Re sin or (Re + hatm )qµ
+
+(3.47)
+
+where hatm is the height of the atmosphere above the Earth's surface. The total refraction was calculated (Ref rlayers ) by applying the refraction change equation (Equation (3.3)) at every altitude where atmospheric data was available. The total refraction was calculated by summing the individual refractive contribution for all atmospheric layers (N ).
+N
+
+REF Rlayers =
+i=1
+
+Ri+1 µ2 µi - µi+1 i+1 sin  2 2 2 2 1/2 µi+1 (Ri µi - Ri+1 µ2 i+1 sin  )
+
+(3.48)
+
+By this method, the incoming zenith angle is also affected by the refraction experienced at each atmospheric layer.
+
+26
+
+'
+
+p
+
+0 h
+
+ (q) k q rs 
+
+A
+
+dang
+
+Figure 3.5: Discrete total atmospheric refraction model comparison.
+
+Two total atmospheric refraction geometries were considered in this section. The first model was designed by Noerdlinger and uses a lumped parameter model to predict the bending as it enters the atmosphere. Noerdlinger's lumped parameter model will be referred to as Model 1 in the following sections of this report. A discrete version of Noerdlinger's method was developed in this thesis. This was done with the aim of investigating the effect of the total atmospheric refraction gradient that is present through the atmosphere at various altitudes.
+
+3.5
+
+Satellite Orbit and Optical Communication Link Power and Intensity
+
+The primary purpose of this work was to find strategies for implementing a ground to satellite communication system. As such, a method for expressing the orbital geometry in terms of the beam refraction and beam power of the emitted optical link was needed. Additional variables were incorporated in order to fully define the satellite orbit geometry. Figure (3.6) illustrates the geometric relation that was defined for both the observer and object. This model was expanded from the orbit geometry model in [45] and combined with Noerdlinder's geometry to find the point of intersection of an refracted ray of light with an observer station at different zenith angles and for different beam conditions.
+
+27
+
+satellite target
+
+Re
+
+G
+
+'
+
+ R
+
+
+alt
+
+
+
+Figure 3.6: Satellite orbit beam emission geometry
+
+The angular radius of the Earth () was calculated by using the altitude of the celestial object (alt) and the radius of the Earth (Re ). Re Re + alt
+
+sin  =
+
+(3.49)
+
+The longitude and latitude of the observing station and satellite were used to find the nadir angle of the satellite ( ) and satellite elevation ( ) as follows [45].
+
+cos  = sin s sin t + cos t cos s cos L
+
+(3.50)
+
+tan  = where,
+
+sin sin  1 - sin cos 
+
+(3.51)
+
+L = Ls - Lt
+
+(3.52)
+
+The refracted angle of the emitted light (dang ) was used to estimate the apparent nadir (i ) of the celestial body. Small angular deviations were added (z i ) in order to examine the refraction of off-axis optical light rays.
+
+28
+
+satellite
+
+ refr
+target
+
+i R
+
+i
+
+G
+i
+
+Emitted Beam as Rays
+
+Figure 3.7: Emitted beam ray approximation.
+
+Through geometry, the relationship shown in Figure 3.8 were established as follows. ri represents the angular distance of the ray from the centre of the beam.
+
+i =  + ref r + ri
+
+(3.53)
+
+cos
+
+i
+
+=
+
+sin i sin 
+
+(3.54)
+
+i =
+
+ - 2
+
+i
+
+- i
+
+(3.55)
+
+The angles  ,  form an obtuse triangle when the refracted beam intercepts the target. If we let the third angle be named w , to avoid angular ambiguities, the refracted earth centred refraction angle was calculated as follows.
+
+w =
+
+R G sin i
+
+(3.56)
+
+where if, w <  2 29 w =-w (3.57)
+
+Through this formulation, it was thus possible to calculate the expected elevation ( i ) and Earth central angle (i ) of both on-axis and off axis rays (i). Gaussian beam geometry was incorporated into the observer-satellite geometric formulation. As discussed in Chapter (3), if the full-width half-maximum angle (F W HM ) of the beam is known, then the beam waist (w0 ) and beam divergence angle can be found by combining Gaussian beam equations as follows. M 2 z  (1.699r)
+
+w0 =
+
+(3.58)
+
+z=
+
+r tan h
+
+(3.59)
+
+w0 =
+
+M 2  (1.699 tan h )
+
+(3.60)
+
+ = 1.699 tan h where, F W HM 2
+
+(3.61)
+
+h =
+
+(3.62)
+
+Thus, that the beam intensity from Equation (3.32) can be written in terms of the propagation distance and local on-axis offset (i ) and  components in the x and y directions as shown in Equation (3.63). 2 tan2 i P exp - 2 (z)2 2
+
+I (r, z ) =
+
+(3.63)
+
+For small angles, this equation can be simplified.
+2 P 2 i exp - 2 (z)2 2
+
+I (r, z ) =
+
+(3.64)
+
+The ray approximation geometry combined with the satellite position is shown for reference in Figure ?? 30
+
+Towards Nadir
+
+ Satellite Beam Source ri z i Towards Groundstation
+
+Figure 3.8: Emitted Gaussian beam satellite and groundstation contact.
+
+If the detector size (Ad ) at the observing station is known, the power spectrum of the refracted beam at the ground (Pg ) can be calculated by using intensity. Power was converted into photons (P ) per bit by using Plank's constant (n) and the beam's wavelength () [43].
+
+P = ne e= h 
+
+(3.65) (3.66) (3.67)
+
+Pg = Ad I (r, z )
+
+Successful acquisition of an optical communication link depends on whether the sensor at the groundstation can see the incoming signal. The total refraction geometry presented in this chapter was used relate atmospheric data and satellite geometry to beam refraction. A simulation was created to explore the effects that the atmosphere would have on an incoming optical communication link. The simulation parameters and results are discussed in the following sections.
+
+3.6
+
+Total Atmospheric Refraction Simulation Parameters
+
+The satellite-groundstation pointing geometry and beam parameters that were used are summarized in Table 4.1.
+
+31
+
+Table 3.2: Optical Communication Acquisition Link Geometry and Beam Parameters
+
+Symbol  alt a0 Re  rd F HW Mx F HW My M n
+
+Description Wavelength [nm] Orbit Altitude [km] Altitude of Observer [m] Radius of Earth [km] Earth Centred Observation Angle [deg] Detector Radius [m] Full Width Half Max Angle in x [deg] Full Width Half Max Angle in y [deg] Gaussian Beam Mode Planck's Constant [Js·e-34 ]
+
+Value 785e 500 130 6371 7 0.3 0.01 0.06 1 6.626
+
+Two experiments were performed. The first experiment modified the beam geometry to compare the power fluctuation change that was received at the groundstation for various zenith angles. Since it most ideal to have the longest connection between the groundstation and satellite large zenith angles were primarily considered. The second experiment considered comparing the change in the power predictions if higher precision data was used for modeling the atmospheric channel.
+
+3.6.1
+
+Atmospheric Channel Data
+
+Two sources of atmospheric data were used in the total refraction estimation. The first was the ICAO Standard Atmosphere table [46]. The standard atmosphere table provided the pressure, temperature and density of the atmospheric layers above the Earth surface, and up to 80,000km. The atmospheric refraction model that was developed using the ICAO standard tables is hereafter referred to as Model 2. Radiosonde data was retrieved from the Integrated Global Radiosonde Archive. This database catalogues the pressure, temperature, and density of the atmosphere close to local weather station. Atmospheric data is available up to 30,000km. Since there is not a weather station near Toronto that offers this type of atmospheric data, the weather station in Trenton Arpt with ID CAM00071621 was used. This was selected as the local weather station because it is located at a latitude and longitude of 44.1170 and -77.5330. The atmospheric refraction model that was developed using weather balloon data is hereafter referred to as Model 3.
+
+32
+
+3.7
+
+Simulation & Results
+
+The geometry that was presented in Figure (3.5) was used as a basis for the satellite point-ahead simulation. Multiple beam refraction models were considered, and are described in Chapter 2 of this report. Among them, the following models of refraction Three models were simulated in MATLAB. Atmospheric Conditions and Atmospheric Geometry Model Types: 1. Model 1: Uniform Atmosphere Model (Noerdling Model) with ICAO constants 2. Model 2: Concentric Shells Atmosphere with ICAO constants 3. Model 3: Concentric Shells Weather Balloon data Noerdlinger's model was designed to make total refraction predictions based on the atmospheric refraction constant at the groundstation. Model 2 was proposed in this paper, and uses ICAO Atmospheric Standard constants to model total refraction in neighboring layers. Finally, Model 3 was developed in a similar method to Model 2, except local weather balloon data was used to model atmospheric conditions. Zenith angles measuring between 61 and 82 were considered. Beam refraction geometry was used to find the refracted interception of the beam with the Earth's surface. The surface distance of the beam interception from the groundstation was calculated and used to relate the expected power spectrum of the beam at that location. A summary of the results are listed in Table 3.4.
+Table 3.3: Surface Distance of Refracted to Unrefracted Beam-Earth Intercept
+
+Model 1 Zenith Angle [deg] 61 64 67 70 74 77 82 Distance [m] 19.0103 25.9684 37.2711 57.5649 100.3159 221.856 1011.9432
+
+Model 2 Distance[m] 21.2303 28.4957 40.1627 60.8282 103.5720 221.3575 919.4074
+
+Model 3 Distance [m] 25.9285 34.7902 48.9918 74.0665 125.6455 266.2178 1072.2262
+
+33
+
+The displacement of the beam peak value was also graphed for various zenith angles in Model 3 (see Figure 3.9). Results indicate that a 20 degree difference in zenith angle can cause beam refraction surface distances to reach up to 1km.
+
+1200
+
+Power Vs refraction distance for varied zenith angles Modeled as concentric layers using weather balloon data
+62 deg 70 deg 82 deg
+
+1000
+
+Power (photons/bit)
+
+800
+
+600
+
+400
+
+200
+
+0 -15
+
+-10
+
+-5
+
+0
+
+5
+
+10
+
+15
+
+20
+
+Distance from unrefracted beam intercept (km)
+
+Figure 3.9: Satellite peak power difference for different zenith angles.
+
+The expected power that was predicted by each model (for the same zenith angle) varied very little. As such, it was concluded that a higher precision atmospheric model does not offer a larger advantage over Noerdlinger's lumped parameter model in terms of it's power prediction capabilities. The higher precision atmosphere would however help with beam refraction centroiding at the groundstation if the refraction predictions are taken into account, and the groundstation points it's receiver in the most optimal direction for peak power. Table 3.4 lists a comparison of the power in terms of photons/bit.
+
+34
+
+Table 3.4: Peak Power (photons/bit) at Various Zenith Angles
+
+Model 1 Zenith Angle [deg] 61 64 67 70 74 77 82 Peak Power [ph/bit] 1.1785306e+03 1.026634e+03 8.782027e+02 7.333956e+02 5.9183e+02 4.51671e+02 3.046865e+02
+
+Model 2 Peak Power [ph/bit] 1.1785354e+03 1.026639e+03 8.782070e+02 7.333993e+02 5.78326e+02 4.516706e+02 3.046565e+02
+
+Model 3 Peak Power [ph/bit] 1.178546e+03 1.026650e+03 8.782200e+02 7.334145e+02 5.91853e+02 4.51696e+02 3.047060e+02
+
+The experiment presented in this section looked at the comparison between the expected peak power for satellites at different zenith angles. Results indicated that there was a trade off between having a shorter period of contact with the groundstation (i.e.: with smaller zenith angles) and the peak power that can be seen by the groundstation. The experiment that was performed showed that an incident beam with an unrefracted zenith angle of 61 degrees has a peak power of 1179 photons/bit and can drop down to 305 photons/bit for the same configuration, but with a zenith angle of 82 degrees. Results showed that if a higher peak power is required for ground-to satellite optical communication acquisition, a smaller zenith angle may be necessary.
+
+35
+
+CHAPTER 4 SATELLITE TRACKING INITIALIZATION AND SETUP
+
+Two methods for orbit determination were considered as ways to predict the location of appearance of an orbiting satellite communication system. Two-line element (TLE) sets were considered a good candidate as a data source for orbital information because a large catalogue of TLE sets were often updated and archived. Gauss'-Angles-Only (GAO) method was also considered as an initial orbit determination method because it interfaced well with a transportable groundstation set up. The GAO method uses three observations of right ascension and declination that are spaced out in time to estimate the position and velocity vectors of an orbiting body. Once the position and velocity of the orbiting body was known, it was possible to calculate the azimuth and elevation of the satellite in the observer's frame. This chapter will discuss this process.
+
+4.1
+
+Gauss Angles Only Prediction Method to Azimuth and Elevation
+
+Gauss' orbit determination method was revolutionary, at the time of its invention, because it distanced itself from the methods that were based on hypothetical assumptions, and instead, relied upon classical geometry [47]. The success of his method and its continued use today is due to the fact that it can predict the motion of a rotating body from the measurements made with a telescope [48][49]. A brief overview of Gauss' method as described by Curtis [50] will be presented in the following section. Gauss' method was implemented in MATLAB and it's prediction accuracy was compared against NASA Horizons data. Consider three observations that were made at times t1 ,t2 , and t3 . The geocentric position vector of the observer at these times were represented by vectors G1 , G2 , and G3 . Similarly, the geocentric position of the orbiting body were defined by vectors R1 , R2 , and R3 . The 36
+
+relative position vector of the orbiting body relative to the observer was denoted by , and  ^ is a unit vector that points in the direction of the orbiting body. Since the earth is a slightly oblate spheroid, the geocentric position vector (G) was resolved in terms of the geodetic latitude () and local sidereal (LST ) time of the observer as shown in Equation 4.1 [50].
+
+G=
+
+Re 1 - (2f - f 2 )sin2  ^) + sin(LST )J
+
+^+ + H cos (cos(LST )I Re (1 - f )2 1 - (2f - f 2 ) sin2  (4.1) ^ + H sin K
+
+where Re , H , and f were the Earth radius, observer height and Earth flatness factor (respectively). Here, the local sidereal time was taken as the angle between the vernal equinox direction and the local equinox. This was calculated by adding the Greenwich sidereal (LSTG ) time to the east longitude (L).
+
+LST = LSTG + L The relationship between the observer and body was described by Equations (3)-(5).
+
+(4.2)
+
+R1 = G1 +  ^1 R2 = G2 +  ^2 R3 = G3 +  ^3
+
+(4.3) (4.4) (4.5)
+
+Suppose we use a non-rotating topocentric equatorial frame that coincides with the inertial geocentric equatorial coordinate system. The unit vector in the direction of the orbiting body was defined in terms of the topocentric right ascension () and declination ( ) by Equation (6). To avoid errors caused by parallax, the vectors r and  are considered uniquely.
+
+^ + cossinJ ^ + sin K ^  ^ = coscosI
+
+(4.6)
+
+At this point, it was concluded that with the topocentric right ascension and declination, latitude of the observer, and local sidereal time of the observations, it is possible to find the vector 37
+
+quantities G and  ^. Thus, all that was left to find were the three components of the position vectors R at the time instances t1 , t2 , and t3 and the magnitudes of the slant range 1 , 2 , and 3 .
+
+From the conservation of angular momentum, it was assumed that the three vectors R1 , R2 , and R3 lie in the same plane. As a result, they were expressed as follows.
+
+R2 = c1 R1 + c3 R3 Assuming that the time diffrence between observations are small, let:
+
+(4.7)
+
+1 = t1 - t2 3 = t3 - t2  = 3 - 1
+
+(4.8) (4.9) (4.10)
+
+Through several steps of algebraic manipulation, it can be shown that the coefficients c1 and c3 can be expressed in terms of the slant range as follows.
+
+G2 + 2  ^2 = c1 (G1 + 1  ^1 ) + c3 (G3 + 3  ^3 ) Let,
+
+(4.11)
+
+D0 =  ^1 · ( ^2 ×  ^3 )
+
+(4.12)
+
+Multiplying each term in Equation (13) by  ^2 ×  ^3 , yielded the following equation for 1 . 1 D0 1 c3 D21 - D31 c1 c1
+
+1 =
+
+- D11 +
+
+(4.13)
+
+By a similar approach, if the terms in Equation (13) were multiplied by  ^1 ×  ^3 and  ^1 ×  ^2 it was possible to find terms for 2 and 3 . 1 D0
+
+2 =
+
+- c1 D12 + D22 - c3 D32 38
+
+(4.14)
+
+3 =
+
+1 D0
+
+-
+
+c1 1 D13 + D23 - D33 c3 c3
+
+(4.15)
+
+where the D terms represent scalar triple products.
+
+D11 = G1 · ( ^2 ×  ^3 ) D12 = G1 · ( ^1 ×  ^3 ) D13 = G1 · ( ^1 ×  ^3 )
+
+D21 = G2 · ( ^2 ×  ^3 ) D22 = G2 · ( ^1 ×  ^3 ) D23 = G2 · ( ^1 ×  ^3 )
+
+D31 = G3 · ( ^2 ×  ^3 ) D32 = G3 · ( ^1 ×  ^3 ) D33 = G3 · ( ^1 ×  ^3 )
+
+(4.16) (4.17) (4.18)
+
+After several algebraic manipulations of the Lagrangian coefficients, coefficients c1 and c3 can be approximated in terms of the time difference of the observations as follows.
+
+c1 
+
+3 1 µ 2 2 1+ 3 ( - 3 )  6 R2 1 µ 2 1 2 1+ 3 ( - 1 )  6 R2
+
+(4.19)
+
+c3  -
+
+(4.20)
+
+Substituting the definition of c1 and c3 into Equation (14) yielded a correlation between the slant range and the magnitude of the position r2 . µB 3 R2
+
+2 = A + where, A= B= 1 D0 - D12
+
+(4.21)
+
+1 3 + D22 + D32  
+
+(4.22) (4.23)
+
+1 3 2 2 1 D12 (3 -  2 ) + D32 ( 2 - 1 ) 6D0  
+
+By a similar approach, by substituting the values of c1 and c3 into Equation (15) and (16), the following was found.
+
+1 1 = D0
+
+ 3 2 2 1 1 6 D31  3 + D21 3 R2 + µD31 ( -1 ) 3 3 + µ( 2 -  2 ) 6R2 3
+
+- D11
+
+(4.24)
+
+39
+
+1 3 = D0
+
+ 3 2 2 3 3 6 D13  1 + D23 1 R2 + µD13 ( -3 ) 1 3 + µ( 2 -  2 ) 6R2 1
+
+- D33
+
+(4.25)
+
+Substituting Equation (21) into Equation (4) and expanding terms yielded an 8th degree polynomial.
+
+8 6 3 R2 + aR2 + bR2 +c=0
+
+(4.26)
+
+where
+
+a = -(A2 + 2AE + G2 2) b = -2µB (A + E ) c = -µ2 B 2
+
+(4.27) (4.28) (4.29)
+
+Solving for the positive roots of Equation (26) yielded the magnitude of R2 . Substituting this value into Equation (21) to (25) lead to values for the slant ranges 1 , 2 , and 3 . Thus, from Equation (3) to (5) the values for the vectors R1 , R2 , and R3 can be calculated.
+
+Lagrangian coefficients (f and g ) contain information about state vectors at an instance in time, and how these states change as a function of time. Thus, in the case of relative two body motion, it can be shown that the position and velocity are linear combinations of the position and velocity vectors at another time multiplied by Lagrangian coefficients. Within the context of this problem, considering R1 and R3 this can be expressed as follows.
+
+R1 = f1 R2 + g1 v 2
+
+(4.30)
+
+R3 = f3 R2 + g3 v 2
+
+(4.31)
+
+Given that 1 and 3 are assumed to be small time intervals, the first two terms of the Lagrangian series expansion for f and g can be evaluated as follows.
+
+40
+
+f1  1 -
+
+1 µ 2 3 1 2 R2 1 µ 2 3 3 2 R2 1 µ 3 3 1 6 R2 1 µ 3 3 3 6 R2
+
+(4.32)
+
+f3  1 -
+
+(4.33)
+
+g1  1 -
+
+(4.34)
+
+g3  3 -
+
+(4.35)
+
+An equation for v 2 was found by combining Equation (30) and (31). 1 (-f3 R1 + f1 R3 ) f1 g3 - f3 g1
+
+v2 =
+
+(4.36)
+
+Vector v 2 can be calculated by substituting the results from Equation (32) to (35) into Equation (36). Gauss' initial orbit determination method can be improved by finding better values for the Lagrangian coefficients f1 and f3 . The process outlined in this section was proposed in [50].
+
+Stumpff's transcendental equation of Kepler's universal equation can be written as in terms of the time difference 1 and 3 as follows [50].   R 2 vR 2 2 3 2  1 C (2 1 ) + (1 - R2 )1 S (1 ) + R2 1 µ R 2 vR 2 2 3 2  3 C (2 3 ) + (1 - R2 )3 S (1 ) + R2 3 µ
+
+µ1 = µ1 =
+
+(4.37) (4.38)
+
+where the magnitude of R2 and velocity v 2 are calculated from the results that were found by Gauss' initial orbit determination method. The reciprocal of the semi-major axis (), radial velocity (vR2 ), and initial guess (0 ) components were found as follows. v2 2 - 2 R2 µ 41
+
+=
+
+(4.39)
+
+vR 2 = 0 = 
+
+v 2 · R2 R2 µ |  | i
+
+(4.40) (4.41)
+
+where µ and i were the Earth's gravitational parameter and time of interest. The Stumpff functions S (2 ) and C (2 ) were defined by:           
+  y -sin y  3 ( y)   -y - -y sinh  ( -y )3
+
+(y > 0) (y < 0) (y = 0) (4.42)
+
+S (y ) =
+
+1 6  1-cos y y  cosh -y -1 -y 1 2
+
+C (y ) =
+
+          
+
+(y > 0) (y < 0) (y = 0) (4.43)
+
+y = 2
+
+(4.44)
+
+The Lagrangian coefficients that were presented in Equation (30) and (31) were expressed in terms of Kepler's universal anomaly () and Stumpff function as follows. 2 1 C (2 1) R2 2 3 C (2 3) R2
+
+f1 = 1 - f3 = 1 -
+
+(4.45) (4.46) (4.47) (4.48)
+
+1 g1 = 1 -  3 S (2 1) µ 1 1 g3 = 3 -  3 S (2 3) µ 3
+
+1 and 3 from Equation (37) and (38) were solved through Newton's iterative process. Once 1 and 3 values were found under the desired tolerance level, they were used in Equation (44) to (47) to find better values for f1 , f3 , g1 , and g3 .
+
+42
+
+Coefficients c1 and c3 were written in terms of the Lagrangian coefficients as shown in Equation (48) and (49).
+
+c1 =
+
+g3 f1 g3 - f3 g1
+
+(4.49)
+
+c3 = -
+
+g1 f1 g3 - f3 g1
+
+(4.50)
+
+These results were combined with Equation (15) to (17) to calculate new slant range magnitudes 1 , 2 , and 3 . The process of estimating new slant range magnitudes were repeated until there weren't any significant changes between the new and old calculated values of the slant range. From here, a new estimate of the position and velocity vector of the orbiting body was found following the steps that were outined in Section 3.1 of this report. The sate vector (r ,v ) of an orbiting body and its time-derivative were found in terms of Lagrangian coefficients (f, g ) using the method presented in [50].
+
+R = f R2 + g v 2 v = fR2 + g  v2
+
+(4.51) (4.52)
+
+The Lagrangian and change in Lagrangian coefficients can be written in terms of the Stumpff coefficients by: 2 C (2 ) R2
+
+f =1-
+
+(4.53)
+
+1 g = t -  3 S (2 ) µ  µ f = [3 S (2 ) - ] R2 g  =1- 2 C (2 ) R
+
+(4.54) (4.55) (4.56)
+
+where t is the new time of interest for the new predictions.
+
+43
+
+The universal anomaly () and the Stumpff coefficients were found by using the same method that was outline in Section 3.2 of this report. Equation (51) and (52) were then used to find a new state vector at the specified change in time t.
+
+The azimuth () and angular elevation ( ) angle of the orbiting body after a time lapse t was found as follows. Using Equation (1), the geocentric position vector (G) at the new sidereal time () was calculated. The slant range was found by using Equation (57), and converted from the geocentric equatorial coordinate system to the North-East-Up topocentric frame (T ) by using the rotation matrix shown in Equation (58).
+
+=R-G
+
+(4.57)
+
+
+
+- sin(LST )
+
+cos(LST )
+
+0
+
+ (4.58)
+
+   C GT =  - sin  cos( LST ) - sin  sin( LST ) cos    cos  cos(LST ) cos  sin(LST ) sin 
+
+T = C GT T where  is the geodetic latitude of the observer.
+
+(4.59)
+
+The unit vector of the slant range ( ^T ) was described in terms of the azimuth and elevation by: ^  ^T = cossin^ i + coscos^ j + sin k (4.60)
+
+The elevation and azimuth of the orbiting body was found by combining the results from Equation (58) with the definition of the slant unit vector from Equation (60), and isolating for  and . Flow charts in Figure 4.1 and 4.2 illustrate the correlation between key values in Gauss' method.
+
+4.2
+
+TLE Predictions
+
+TLE information for many satellites are available for free download on the Celestrak website. It was noticed however that TLE information for the same satellite was often only available twice 44
+
+a day. As such, a propagation method would be necessary to calculate the expected location of appearance of the orbiting satellite system. Given that a transportable groundstation is equip to find the right ascension and declination of an orbiting object, it was decided that Gauss' Angles only method would be best suited. The Horizons data that was generated for comparison in the following section were generated by NASA's JPL lab through a propagator that sources it's information from NORAD's TLE sets. Key NORAD TLE components are itemized in Table (4.1) for completeness.
+Table 4.1: NORAD Two-Line Element Set Key Information [51]
+
+Line 1 1 1 1 2 2 2 2 2 2 2
+
+Column 01 03-07 19-20 21-32 09-16 8-25 27-33 35-42 44-51 53-63 64-68
+
+Description Line Number of Element Data Satellite Number Epoch Year (Last two digits of year) Epoch (Day of the year and fractional portion of the day) Inclination [Degrees] Right Ascension of the Ascending Node [Degrees] Eccentricity (decimal point assumed) Argument of Perigee [Degrees] Mean Anomaly [Degrees] Mean Motion [Revs per day] Revolution number at epoch [Revs]
+
+The orbital information that was retrieved from the Horizons propagator was converted into a position and velocity state vectors in the ECI and ECEF frames by using the standard method outlined in [50]. These vectors were then used to find the azimuth and elevation of the orbiting body. The right ascension and declination in the inertial frame was used to estimate the position of an Earth orbiting object in the telescope's image plane and is discussed in Chapter (6).
+
+4.3
+
+Simulation & Results
+
+As discussed in [49] and [48], Gauss's method is still used today as a way to make an initial estimate of a body's position and velocity vectors. Its continued use and relevance was one of the reasons that this method of orbit determination was selected for the work presented in this paper. This section will discuss the simulation that was designed in MATLAB and compares
+
+45
+
+the results that were found for the position and velocity estimates to database information that was derived from TLE sets. NASA JPL's Horizons system is a database that converts TLE sets (for comets, asteroids, planes, and satellites) into state vectors and orbital elements by using an SPG4 propagator. The Horizons database offers a large range of astronomical datasets and provides statistical uncertainties for the information that is generated. Horizons creators estimate that there is a 3 standard deviation statistical uncertainty for orbit quantities that are generated for asteroids and comets.This statistical estimate assumes that the orbit observational errors are random, and expects that there is a 99.7% chance that the predicted value is within the sigma bound [52]. Statistical uncertainties for other celestial bodies are not indicated. The Horizons database was selected as a source for orbit information due to its availability and because of the precision of the orbital quantities that were outlined for a subset of celestial bodies. Gauss' orbit determination method makes it possible to calculate the future state vectors (r ,v ) of an orbiting body from angular measurements made with a telescope. This information can then be used to calculate the altitude and elevation of an orbiting body at future instances in time. A MATLAB code was developed using Gauss' method to predict future state vectors of the International Space Station (ISS) and were compared to the propagated SPG4 values that were available on NASA JPL's Horizons. The model that was created and the results that were found are presented in this chapter. The MATLAB model that was developed made the following key assumptions.
+
+· The observer-ISS model was a two-body problem. · The time between observations of the ISS were small.
+
+The state vector of the ISS was calculated by using the extended Gauss orbit determination method. The future states of the ISS were predicted by using Lagrangian coefficients. Flow charts in Figure 4.1 and 4.2 illustrate the correlation between key values in Gauss' method.
+
+46
+
+Figure 4.1: Gauss' Initial orbit determination method variables.
+
+Figure 4.2: Finding Azimuth and elevation from Gauss' predictions.
+
+The right ascension and declination, at the time of the ISS' appearance, were retrieved from JPL's Horizons System [53]. Five different time windows were evaluated between November 10th, 2017 and November 11th 2017. This data was generated from the web-interface on November 15th, 2017. The sample ephemeris data considered were selected at times when the ISS was 47
+
+visible from Toronto. Three local apparent right ascension, declination and sidereal time were sampled at 1 minute intervals for each trial. NASA's Horizons web-interface right-ascension and declination predictions were made for an airless environment. The azimuth and elevation predictions were adjusted for light-time, gravitational deflection of light, precession and nutation. Internally, the Barycentric Dynamical Time scale was used for all predictions. For future predictions, the last known leap second was implemented into time conversions [53]. Each right ascension and declination measurement was propagated forward in time up to 5 minutes into the future, and used to predict the ISS' azimuth and elevation as seen from Toronto. As seen in Figure (4.3) Results indicated that the error of the prediction increased on average as the predictions were made further into the future.
+
+Figure 4.3: Azimuth and elevation error predictions for Gauss' method over time with J2.
+
+Gauss' method was also able to predict the azimuth and elevation for each sample with an average error of 6.38e-3 degrees after 5 minutes if the J2 effects are included. Position and and velocity error predictions dropped to a maximum of 0.5e-4 km and 0.8e-6 km/s when the J2 effects were not included in the vector estimations.
+
+48
+
+Figure 4.4: Azimuth and elevation error predictions for Gauss' method at 5 minutes with J2.
+
+Figure 4.5: Position prediction errors without J2.
+
+49
+
+Figure 4.6: Velocity prediction errors without J2.
+
+The comparison of Gauss' method with Horizons SPG4 data indicates that Gauss' method would be a good way to approximate the orbital characteristics of the ISS. Horizon's data is derived from TLE data that were generated several hours before a groundstation might try to connect with the ISS. As such, Gauss' method can be used instead from telescope measurements at the early stages of the ISS' orbital pass. The correct position a velocity vectors will allow the groundstation tracking manoeuvre to be more accurate.
+
+50
+
+CHAPTER 5 EXTENDED KALMAN FILTER
+
+The Kalman Filter (KF) was first developed by R.E. Kalman in 1961 as a method to optimally filter process the noise in the system dynamics and the measurement noise present in the sensor readings [32]. The KF has found its use in numerous industries and practical applications today. This chapter will discuss the design of the Extended Kalman Filter (EKF) that was developed for the optical communication tracking problem. This EKF formulation was implemented in a MATLAB simulation. The results of the simulation are discussed at the end of the chapter.
+
+5.1
+
+Kalman Filter Overview
+
+A Kalman filter is an algorithm that provides a recursive solution to dynamical system. Kalman filters are an attractive solution generators because it does not store all previously observed data. Instead, it uses a recursive approach which relies only on the last state vector estimate and most recent measurement update. By this, Kalman filters are computationally more efficient than a system where all archived data is used in a state estimate. This section will give a brief overview of the components that are used in an EKF algorithm. Kalman filters in its primary process contains a state vector (xj ), a state transition matrix (j +1,j ), and process noise (Qj ). The KF requires that a linear, time-varying, and uniquely defined dynamic model be designed in order to estimate the system state over time. The state transition matrix propagates the evolution of the state and its errors from one instance in time (j ) to the next (j + 1). The process noise represents the random changes in the dynamic system over time. It is assumed that the process noise is white Gaussian and additive. The state transition matrix, at time t, is approximated by using a Taylor series expansion.
+
+ ¨ t ¯ j +1 = X ^j +X ^ ^ + ... X j t + X j 2!
+
+(5.1)
+
+51
+
+If Equation 5.1 is placed into the dynamic model, the state transition matrix can be defined as follows.
+2
+
+¯ j +1 = X ^ j + FX ^ j t + . . . ^ j t + F 2 X X 2! where,
+
+(5.2)
+
+F (t) =
+
+ f (X ) X t 2 + ... 2!
+
+(5.3)
+
+ = I + F t + F 2
+
+(5.4)
+
+A standard Kalman Filter can only be used for a linear system. For some systems, it is possible to create a Linearized Kalman Filter (LKF) by linearizing about the state. The EKF algorithm is similar to the LKF formulation, but it updates the reference state when an observation is collected. This state updates enables the EKF to experience few divergence issues when there is a sizeable difference in the measurement data. As such, it was found that an Extended Kalman Filter would suit the orbit determination estimation problem best. The observation matrix (H ) is defined as the change of the state with respect to the change in the observations, and is typically calculated analytically.
+
+H=
+
+observationsj +1 ¯ j +1 X
+
+(5.5)
+
+The predicted state noise, measurement covariance, process noise covariance matrices are initialized at the beginning of the EKF algorithm and are given values based on the dynamic problem that is considered. It is sometimes difficult to correctly initialize the process and observation noise covariances, and so additional tuning may be required. This section focused on describing key components of the Kalman filter. Non-linear systems can sometimes use an LKF, but might encounter issues with convergence. As such, the EKF algorithm is often preferred. Although the EKF is better equip to handle large differences in observational data, it should be noted that the EKF is more computationally expensive because an integration is performed to find the error state transition matrix at each observation time. Despite the additional computational expense, the EKF method was selected for this work.
+
+52
+
+5.2
+
+EKF Filter Formulation
+
+The Extended Kalman Filter method uses state, error covariance, and observation information recursively in order to predict the state of the system at a specific time in the future. This chapter will summarize the steps that are used in the EKF algorithm. The variables that are essential to the EKF algorithm were discussed in the previous chapter. The evolution of these system components are co-dependent and are used to estimate the state as shown in the below [54]. The process is first initialized with values for the state, process noise and measurement covariance, and then the following measurement matrix is calculated. Z ^ j +1 X
+
+H j +1 = The predicted state cycle is defined by, ¯ (tj +1 |tj ) = X
+
+(5.6)
+
+tj +1 tj
+
+ dt + X ¯j ¯ X j
+
+(5.7)
+
+ ^ X tj +1 F = , ^ X t
+j +1
+
+ (tj +1 , tj ) = F (t)(tj +1 , tj ) 
+
+(5.8)
+
+The error covariance prediction is determined by, ¯ j +1 = P ^ j T + Q P (5.9)
+
+where the state update was initialized as follows. ¯ j +1 = 0 x (5.10)
+
+The measurement update sequence involves calculating the estimated observation, Kalman gain, state error estimate, and error covariance estimate, and are represented by Equation 5.11 to Equation 5.14 (respectively). The measurement update sequence is performed when a new measurement is introduced into the system. If there isn't a new measurement that is input into the system, the algorithm will continue to cycle through the state prediction process until observation data is available. 53
+
+The measurement update cycle is defined by,
+
+~j +1 = Z - H j +1 X ¯ j +1 b
+
+(5.11)
+
+~j +1 ^ j +1 b ^ j +1 = K x
+
+(5.12)
+
+-1
+
+K j +1
+
+T ¯ j +1 H T ¯ =P j +1 H j +1 P j +1 H j +1 + R
+
+(5.13)
+
+^j +1 = P ¯ j +1 - K j +1 + H j +1 P ¯ j +1 P Finally, the state estimate was made with the following.
+
+(5.14)
+
+^ j +1 = X ¯ j +1 +  x ^ j +1 X
+
+(5.15)
+
+Once the new estimated state and process covariance are calculated, the EKF algorithm is repeated from state prediction cycle until the desired timestep k. This section gave a brief summary of the EKF state estimation process. The following chapter will discuss how each parameter within the algorithm were modeled.
+
+5.3
+
+System Dynamics
+
+The EKF algorithm was used to estimate the position and velocity (r, v ) of a target satellite. To set up the EKF method, the state matrix and the observation matrix needed to be described analytically. The method that was used to define these characteristics are discussed in this section. The state vector (X ) of the system was defined as the position and velocity of the orbiting satellite.
+
+T
+
+X = rx ry rz vx vy vz 54
+
+(5.16)
+
+Using the equations of motion, a 2-body orbiting system, the state matrix was defined as follows.  X X
+
+F =
+
+(5.17)
+
+ v
+
+x
+
+F =
+
+r  vx  y  rx  vz  rx   rx  rx  r  y  rx rz rx
+
+vx ry vy ry vz ry rx ry ry ry rz ry
+
+vx rz vy rz vz rz rx rz ry rz rz rz
+
+vx vx vy vx vz vx rx vx ry vx rz vx
+
+vx vy vy vy vz vy rx vy ry vy rz vy
+
+vx vz vy   vz  vz   vz  rx  vz   ry  vz  rz vz
+
+
+
+(5.18)
+
+
+
+0
+
+0 0 0
+3µrx ry |R | 5 µr2 µ - |R|3 + |R|y5 3µry rz |R | 5
+
+0 0 0
+µrx rz |R |5 3µry rk |R |5 2 µrz µ - | R |3 + 3 |R |5
+
+  0   0  2 F = 3µrx µ -  |R |3 + |R | 5  µrx ry   |R |5
+3µrx ry |R |5
+
+ 1 0 0  0 1 0   0 0 1  0 0 0   0 0 0  0 0 0
+
+(5.19)
+
+where |R| is the magnitude of the position vector and µ is the Earth gravitational constant. The observation matrix was found by calculating the partial derivative of the state vector with respect to the observations. In this thesis, the optical observations that were input into the system are made with respect to a ground station. As such, the observation matrix was defined in terms of the slant range (), satellite position (r ) and observer position (G).
+
+ = x y z
+
+(5.20)
+
+=R-G
+
+(5.21)
+
+H=
+
+obs   obs obs = · = ·I R  R 
+
+(5.22)
+
+55
+
+ y -  2 2 y +1  x 2 x H=    y - x  where, =
+
+1 x
+2 y +1 2 x
+
+0
+3/2
+
+      1
+
+
+(5.23)
+
+ z - y 
+
+
+
+1 2 2 2 x +y +z
+
+-
+
+2 z 2 2 2 x +y +z
+
+·
+
+1-
+
+2 x
+
+p2 z 2 3/2 (2 + 2 y + z ) 2 x + 2 y + z
+
+(5.24)
+
+The state matrix was defined by using the equations of motion of an orbiting satellite and the observation matrix was found by taking the partial derivative of the slant range with respect to the optical observations. Both of these matrices were used in the MATLAB simulation that was developed to apply the EKF method to the optical communication target tracking problem.
+
+5.4
+
+Simulation & Results
+
+The EKF state estimation method was simulated in MATLAB to evaluate its ability to use optical observations for satellite target tracking. This section will present the experiments that were conducted and discuss the significance of the results. The trials that were evaluated aim to determine whether the EKF is a suitable state estimation propagator when only angular information about the satellite is available. A few simulation parameters were defined for the EKF estimator. Given that the measurement data can change based on the observer's location, it was decided that the observer would be located in Toronto (latitude: 43.6532o , longitude: -79.3832o , altitude: 62 × 10-3 km). Also, since the ISS information is continuously available at regular intervals, the simulation used the position and velocity of the ISS that was reported at 7:51:00 on May 20th, 2018. The initial state parameters in the ECI frame were as follows.
+Table 5.1: EKF Initial Position and Velocity in ECI at 7:51:00 on May 20th, 2018
+
+State Position [km] Velocity [km/s]
+
+Vector (6415.7,-2192.3,0.1730) (0.9,2.0,-7.4)
+
+Measurement errors were introduced into the EKF data inputs to evaluate the suitability of the Kalman filter for the angles-only orbit determination problem. The addition of normally 56
+
+distributed random variables within three ranges (±0.1, ±0.3, and ±0.5 degree) were added to the measurement data. The Kalman filter was able to estimate the position and velocity of the satellite within the 3 range. As expected, larger error deviations were found when more error was introduced into the measurement information. The Kalman filter was unable to find position estimates that were within the sigma bound for angles that were greater than 0.5 degrees. The error of the position for all three tests are included below.
+
+50
+
+error (km)
+
+error rx 3-sigma
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+50
+error ry 3-sigma
+
+error (km)
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+50
+error rz
+
+error (km)
+
+3-sigma
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+
+Figure 5.1: EKF position state estimates in the Rx , Ry , Rz directions ±0.1o .
+
+57
+
+50
+
+error (km)
+
+error r x 3-sigma
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+50
+error r y 3-sigma
+
+error (km)
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+50
+error r z 3-sigma
+
+error (km)
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+
+Figure 5.2: EKF position state estimates in the Rx , Ry , Rz directions ±0.3o .
+
+40
+
+error (km)
+
+20 0 -20 -40 0 50 100 150 200 250 300 350 400 450 500
+error rx 3-sigma
+
+time (s)
+40
+error ry 3-sigma
+
+error (km)
+
+20 0 -20 -40 0 50 100 150 200 250 300 350 400
+
+450
+
+500
+
+time (s)
+50
+error rz
+
+error (km)
+
+3-sigma
+
+0
+
+-50 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+
+Figure 5.3: EKF position state estimates in the Rx , Ry , Rz directions ±0.5o .
+
+58
+
+In the instance where a 0.1 degree measurement error was introduced, the position and velocity prediction errors could be as large as 1.4 km and 0.002 km/s respectively. Similarly, for the experiment with 0.3 degree error, errors found were a maximum of 3.6 km and 0.0077 km/s. Finally, when a measurement error of 0.5 degrees was included, errors were up to 6.9 km and 0.013 km/s. Error in the velocity state predictions were small for all three angle ranges considered. An example of the velocity error is included here for completeness.
+
+2
+
+error (km/s)
+
+error v x 3-sigma
+
+0
+
+-2 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+2
+error v y 3-sigma
+
+error (km/s)
+
+0
+
+-2 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+2
+error v z 3-sigma
+
+error (km/s)
+
+0
+
+-2 0 50 100 150 200 250 300 350 400 450 500
+
+time (s)
+
+Figure 5.4: EKF velocity state estimates in the vx , vy , vz directions ±0.5o .
+
+This section examined whether an EKF state estimator could be used to predict the position and velocity of an orbiting satellite when only measurement information is available. Results indicated that it is possible to make state estimation predictions, but the measurement error would need to be less than 0.5o in order to remain within the 3 bound.
+
+59
+
+CHAPTER 6 CONCLUSION
+
+This thesis examined three strategies relating to the acquisition of a refracted communication beam, validated an angles only orbit determination method, and designed a groundstation controller for satellite tracking maintenance. The first strategy examined explored the effects of atmospheric conditions on the refraction of a satellite-to-ground emitted beam. Beams that are emitted from space experience refraction that can be modeled by Snell's law. It was shown that Snell's law can be used to approximate refraction between spherical concentric atmospheric layers, or be simplified to a planar layer model. Since optical communication systems start operation at high zenith angles (i.e.: at least greater than 45o ), it was concluded that the planar refraction approximation could not be applied. Empirical refraction models that were developed by Smart, Auer Standish, Stone, and Noerdlinger were considered. However, since Noerdlinger's empirical model had the largest amount of flexibility it was selected as a central model in the test scenarios that were performed. Nodlinger's empirical model assumed that atmospheric layers were concentric, but relatively uniform throughout. As such, Noerdlinger's model was compared with two discrete atmospheric model that used weather balloon data and ICAO standard atmospheres to model atmospheric conditions. Results indicated that atmospheric layers had the greatest impact on beams with large zenith angles and a lesser impact on beams with smaller zenith angles. Through a simulation it was found that the power of a refracted beam with an incident zenith angle of 61 deg would emit 1179 photons/bit of power, whereas an incident zenith angle of 82 deg would emit a peak power of 305 photons/bit. Through the simulation it was also found that the power predictions made by Noerdlinger's empirical refraction model did not differ substantially from the predictions that were made by the concentric stratified atmospheric refraction model. As such, it was concluded that the detailed atmospheric model did not add any benefits to the power predictions, but could benefit if precise beam centroiding was necessary. Setting up a groundstation to receive a communication link from an orbiting satellite requires precise knowledge of the location of the emitted beam. Satellite position estimation was achieved by estimating the state vectors (r,v) of the orbiting satellite. TLE information is available 60
+
+for many satellites and is updated 2-3 times per day. An SPG4 propagator can be used to propagate the orbital elements to a later time in the day to describe a more current set of orbital parameters. This work used Gauss' angles only method to use information that is observable with a telescope to define state vectors. Gauss' method was considered because it could be implemented with real-time observations and could estimate the most current orbital parameters as a satellite travels through the sky. To validate the use of Gauss' method, it was compared to the SPG4 data that is generated by NASA. Results indicated that Gauss' method can make azimuth and elevation predictions with an average error of 6.38e-1 degrees. Similarly, it was found that prediction errors for the satellite position and velocity were 0.5e-4 km and 0.8e-6 km/s respectively. Although it was found that Gauss' method was appropriate for satellite state estimation, results indicated that the error of the predictions grew as predictions were made further in the future. As such, caution should be used when applying this estimation method over long periods of time. Tracking a satellite from an optical ground station is necessary for maintaining an optical communication link. As such, an Extended Kalman Filter was designed to observe and predict the position of a target satellite. Through a MATLAB simulation, it was possible to examine the effects that incorrect observation data could have on state predictions. In this experiment, the right ascension and declination of a satellite in LEO was subjected to errors between three ranges (±0.1, ±0.3, and ±0.5 degrees). Results showed that the EKF could still predict the state variables of the satellite errors that were as small as 1.4km and 0.002km/s and as large as 6.9km and 0.013 km/s. The studies presented in this work demonstrated that strategies can be put in place to improve or simplify the setup and design of a ground and satellite optical communication system. The results that were found are positive and indicate that the a satellite to ground optical system can implement strategies to increase the chances of a successful link acquisition and tracking.
+
+61
+
+BIBLIOGRAPHY
+
+[1] Ghassemlooy Z., W. Popoola, and S. Rajbhandari. Optical Wireless Communications. Taylor Francis Group, Boca Raton, Florida, 2013. [2] H. Yoon, K. Riesing, and K. Chaoy. Satellite tracking system using amateur telescope and star camera for portable optical ground station. Department of Aeronautics and Astronautics, MIT, 2016. [3] DL Fried. Scintillation of a ground-to-space laser illuminator. JOSA, 57(8):980­983, 1967. [4] Paul J Titterton. Power reduction and fluctuations caused by narrow laser beam motion in the far field. Applied optics, 12(2):423­425, 1973. [5] HT Yura and WG McKinley. Optical scintillation statistics for ir ground-to-space laser communication systems. Applied Optics, 22(21):3353­3358, 1983. [6] Jack L Bufton. Scintillation statistics measured in an earth­space­earth retroreflector link. Applied optics, 16(10):2654­2660, 1977. [7] T Aruga, K Araki, T Igarashi, F Imai, Y Yamamoto, and H Sakagami. Earth-to-space laser beam transmission for spacecraft attitude measurement. Applied optics, 23(1):143­ 147, 1984. [8] Paul A Lightsey. Scintillation in ground-to-space and retroreflected laser beams. Optical Engineering, 33(8):2535­2544, 1994. [9] KE Wilson and JR Lesh. An overview of the galileo optical experiment (gopex). 1993. [10] KE Wilson. An overview of the gold experiment between the ets-vi satellite and the table mountain facility. The Telecommunications and Data Acquisition Progress Report 42-124, October­December 1995, pages 8­19, 1996.
+
+62
+
+[11] Masahiro Toyoda, Morio Toyoshima, Tetsuo Takahashi, Motokazu Shikatani, Yoshinori Arimoto, Kenichi Araki, and Tadashi Aruga. Ground-to-ets-vi narrow laser beam transmission. In Free-Space Laser Communication Technologies VIII, volume 2699, pages 71­81. International Society for Optics and Photonics, 1996. [12] Toni Tolker-Nielsen and Gotthard Oppenhauser. In-orbit test result of an operational optical intersatellite link between artemis and spot4, silex. In Free-Space Laser Communication Technologies XIV, volume 4635, pages 1­16. International Society for Optics and Photonics, 2002. [13] Vincent Cazaubiel, Gilles Planche, Vincent Chorvalli, L´ ena¨ ic Le Hors, Bernard Roy, Emmanuel Giraud, Ludovic Vaillon, Francois Carre, and Eric Decourbey. Lola: A 40.000 km optical link between an aircraft and a geostationary satellite. In International Conference on Space Optics--ICSO 2006, volume 10567, page 1056726. International Society for Optics and Photonics, 2017. [14] Gerardo G Ortiz, Shinhak Lee, Steve P Monacos, Malcolm W Wright, and Abhijit Biswas. Design and development of robust atp subsystem for the altair uav-to-ground lasercomm 2.5-gbps demonstration. In Free-Space Laser Communication Technologies XV, volume 4975, pages 103­115. International Society for Optics and Photonics, 2003. [15] Larry C Andrews and Ronald L Phillips. Laser beam propagation through random media, volume 152. SPIE press Bellingham, WA, 2005. [16] Ronald C Stone. An accurate method for computing atmospheric refraction. Publications of the Astronomical Society of the Pacific, 108(729):1051, 1996. [17] William Chauvenet. A manual of spherical and practical astronomy: embracing the general problems of spherical astronomy, the special applications to nautical astronomy, and the theory and use of fixed and portable astronomical instruments, with an appendix on the method of least squares, volume 2. JB Lippincott, 1908. [18] P Kenneth Seidelmann. Explanatory supplement to the astronomical almanac. University Science Books, 2005. [19] Peter D Noerdlinger. Atmospheric refraction effects in earth remote sensing. ISPRS journal of photogrammetry and remote sensing, 54(5-6):360­373, 1999. [20] Sergey Bendersky, Norman S Kopeika, and Natan Blaunstein. Atmospheric optical turbulence over land in middle east coastal environments: prediction modeling and measurements. Applied optics, 43(20):4070­4079, 2004. 63
+
+[21] David Vallado, Paul Crawford, Ricahrd Hujsak, and TS Kelso. Revisiting spacetrack report# 3. In AIAA/AAS Astrodynamics Specialist Conference and Exhibit, page 6753, 2006. [22] Felix R Hoots and Ronald L Roehrich. Models for propagation of norad element sets. Technical report, AEROSPACE DEFENSE COMMAND PETERSON AFB CO OFFICE OF ASTRODYNAMICS, 1980. [23] Chen Lei, Zhou Bozhao, and Han Lei. An analytic method of collision detection for active spacecrafts. In 55th International Astronautical Congress, 2004. [24] Alana R Muldoon, Gabriel H Elkaim, Ian F Rickard, and Brian Weeden. Improved orbital debris trajectory estimation based on sequential tle processing. In Paper IAC-09. A6. 2.9 presented at the 60th International Astronautical Congress. Daejeon, South Korea. Citeseer, 2009. [25] Changyong Cao, Michael Weinreb, and Hui Xu. Predicting simultaneous nadir overpasses among polar-orbiting meteorological satellites for the intersatellite calibration of radiometers. Journal of Atmospheric and Oceanic Technology, 21(4):537­542, 2004. [26] Carolin Fr¨ uh and Thomas Schildknecht. Accuracy of two-line-element data for geostationary and high-eccentricity orbits. Journal of guidance, control, and dynamics, 35(5):1483­ 1491, 2012. [27] Erin Kahr, Oliver Montenbruck, and Kyle PG O'Keefe. Estimation and analysis of two-line elements for small satellites. Journal of Spacecraft and Rockets, 50(2):433­439, 2013. [28] Oliver Montenbruck. An epoch state filter for use with analytical orbit models of low earth satellites. Aerospace Science and Technology, 4(4):277­287, 2000. [29] Ray new Hoad. Cubesats Why are is there so much TLE confusion when 2018.
+
+launched?
+
+https://www.amsat.org/
+
+why-is-there-so-much-tle-confusion-when-new-cubesats-are-launched/, [Online; accessed 28-Mar-2018].
+
+[30] Simon Haykin. Kalman filtering and neural networks, volume 47. John Wiley & Sons, 2004. [31] Gil Shorshi and Itzhack Y Bar-Itzhack. Satellite autonomous navigation based on magnetic field measurements. Journal of Guidance, Control, and Dynamics, 18(4):843­850, 1995. [32] Son-Goo Kim, John L Crassidis, Yang Cheng, Adam M Fosbury, and John L Junkins. Kalman filtering for relative spacecraft attitude and position estimation. Journal of Guidance, Control, and Dynamics, 30(1):133­143, 2007. 64
+
+[33] Sinclair Interplanetary.
+
+Preliminary Datasheet Laser Downlink plus Star Tracker.
+
+http://www.sinclairinterplanetary.com/opticalcomms/downlink%202017b.pdf? attredirects=0&d=1, 2018. [Online; accessed 10-Nov-2017]. [34] WM Smart. Spherical astronomy, ch. 14, 1977. [35] Judith Ann Irwin. Astrophysics: decoding the cosmos. John Wiley & Sons, 2007. [36] Johann T Mayer. De refractionibus astronomicis commentatio. Grattenauer, 1781. [37] AD Wittmann. Astronomical refraction: formulas for all zenith distances. Astronomische Nachrichten, 318(5):305­312, 1997. [38] Lawrence H Auer and E Myles Standish. Astronomical refraction: computational method for all zenith angles. The Astronomical Journal, 119(5):2472, 2000. [39] C.C Tsai. Gaussian Beam Propagation. www.phys.ncku.edu.tw/~cctsai/teaching/ 10202/gaussian%20beam%20derive.pdf, 1997. [Online; accessed 1-Oct-2017]. [40] Charles A DiMarzio. Optics for engineers. Crc Press, 2011. [41] G. P. Agrawal and D. N. Pattanayak. Gaussian beam propagation beyond the paraxial approximation. J. Opt. Soc. Am., 69(4):575­578, Apr 1979. [42] Marc Couture and Pierre-A Belanger. From gaussian beam to complex-source-point spherical wave. Physical Review A, 24(1):355, 1981. [43] Daniel A Steck. Classical and modern optics. course notes available online at http://steck. us/teaching, 2015. [44] Haiyin Sun. A practical guide to handling laser diode beams. Springer, 2015. [45] Wiley J Larson and James Richard Wertz. Space mission analysis and design. Technical report, Microcosm, Inc., Torrance, CA (US), 1992. [46] RA Minzner. The 1976 standard atmosphere and its relationship to earlier standards. Reviews of Geophysics, 15(3):375­384, 1977. [47] J. Tannenbaum and B. Director. How Gauss Determined the Orbit of Ceres. https:// www.schillerinstitute.org/fid_97-01/982_orbit_ceres.pdf, 1997. [Online; accessed 10-Nov-2016]. [48] V. Arroyo and et al. Artificial satellites preliminary orbit determination by the modified high-order gauss method. International Journal of Computer Mathematics, (89):347­56, 2012. 65
+
+[49] G. Gronchi. Classical and modern orbit determination for asteroids. Proceedings of the International Astronomical Union, (196):293­303, 2004. [50] H. Curtis. Orbital mechanics for engineering students. Butterworth-Heinemann, 2013. [51] T.S Kelso. NORAD Two-Line Element Set Format. https://www.celestrak.com/NORAD/ documentation/tle-fmt.aspf, 2000. [Online; accessed 10-Jan-2018]. [52] NASA Jet Propulsion Laboratory. Horizons Web Interface. https://ssd.jpl.nasa.gov/ horizons.cgi, 2017. [Online; accessed 17-Feb-2017]. [53] NASA Jet Propulsion Labratory. HORIZONS Web-Interface. http://ssd.jpl.nasa.gov/ horizons.cgi, 2016. [Online; accessed 17-Nov-2016]. [54] David A Vallado. Fundamentals of astrodynamics and applications, volume 12. Springer Science & Business Media, 2001.
+
+66
+
+

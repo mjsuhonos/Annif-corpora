@@ -1,0 +1,1192 @@
+ 
+
+STEREO VISIONBASED VISUAL ODOMETRY FOR PLANETARY  EXPLORATION 
+  by    Kieran Kneisel  B.Eng, Ryerson University, 2009      A thesis  presented to Ryerson University  in partial fulfillment of the  requirements for the degree of  Master of Applied Science  in the Program of  Aerospace Engineering        Toronto, Ontario, Canada, 2011  ©Kieran Kneisel 2011 
+
+   
+
+Author's Declaration 
+I hereby declare that I am the sole author of this thesis or dissertation.  I authorize Ryerson University to lend this thesis or dissertation to other institutions or  individuals for the purpose of scholarly research.      I further authorize Ryerson University to reproduce this thesis or dissertation by  photocopying or by other means, in total or in part, at the request of other institutions  or individuals for the purpose of scholarly research.                     
+
+ii   
+
+Abstract 
+STEREO VISIONBASED VISUAL ODOMETRY FOR PLANETARY EXPLORATION  by  Kieran Kneisel  B.Eng, Ryerson University, 2009    A thesis presented to Ryerson University in partial fulfillment of the requirements for  the degree of Master of Applied Science in the Program of Aerospace Engineering    Ryerson University  Toronto, Ontario, Canada, 2011    The ability to localize an unmanned vehicle is an essential requirement for  extraterrestrial robotic exploration missions.  The goal of this thesis is to develop a  visual odometry algorithm capable of operating in realtime and in natural unstructured  environments.  Accuracy, repeatability and computational cost were the primary  considerations during the development of the algorithm.  The resulting visual odometry  algorithm can operate in realtime and provides the foundations for further  development.  More commonly used approaches for localization include the use of  inertial measurement units (IMU) or wheel odometry, which are prone to drift and  slippage respectively, making them unreliable for long duration missions.  Visual  odometry also experiences error accumulation, however, it offers the possibility of  mitigating this problem through techniques such as loop closing and bundle adjustment.   The performance of the Iterative Closest Point (ICP) algorithm in conjunction within the  visual odometer was also evaluated and shown to have improved overall localization  performance.      iii   
+
+ 
+
+iv   
+
+Acknowledgements 
+I would like to first acknowledge my academic supervisor, Dr. G. Okouneva, as well as  my industry supervisors, Dr. F. Aghili and S. Gemme from the Canadian Space Agency.   Without their guidance, criticism and continuous support this project could not have  been carried out.  I would also like to thank our research partners, the Canadian Space Agency and the  Neptec Research Group.  I would especially like to thank Sébastien Gemme from the CSA  for contributing so much of his time and expertise which proved invaluable in making  the project a success.  I would also like to thank Erick Dupuis from the CSA and Chad  English from Neptec for making my presence at the CSA possible.  Next I would like to thank the members the CSA Robotics Group for welcoming me into  the department and always making themselves available to me.  Finally I would like to thank those people who are closest to me that have never failed  to offer me with their support and encouragement.  Especially my parents, who inspired  me to reach this point in my career path and to whom I owe so much else.  To my sister  and friends, for reminding me of the value of laughter and keeping me sane when the  stress began to get to me.  Finally to Reda El Amraoui and Sana Medelci, for welcoming  me into their home and making me feel like family during my time in Montreal.             
+
+v   
+
+ 
+
+ 
+
+vi   
+
+            Dedicated to my family                                  vii   
+
+ 
+
+viii   
+
+Table of Contents 
+Abstract ...............................................................................................................................   iii  Acknowledgements  ..............................................................................................................   v  Table of Contents ................................................................................................................  ix  List of Tables .......................................................................................................................  xi  List of Figures .....................................................................................................................  xii  List of Appendices .............................................................................................................  xiv  Nomenclature ....................................................................................................................  xv  Abbreviations ..................................................................................................................  xviii  1 Introduction and Previous Work  ......................................................................................  1  1.1 Motivation .................................................................................................................  1  1.2 Previous Work ...........................................................................................................  2  1.3 Scope of this Thesis ...................................................................................................  5  1.4 Thesis Organization ...................................................................................................  6  2 Theoretical Foundations of the Work .............................................................................. 9  2.1 Summary of Camera Mathematics ........................................................................... 9  2.1.1 Epipolar Geometry .............................................................................................  9  2.1.2 Fundamental Matrix .........................................................................................  10  2.2 Feature/Interest Point Detection ............................................................................ 12  2.2.1 Scale Invariant Feature Transform (SIFT) ......................................................... 13  2.2.2 Speeded Up Robust Features (SURF) ............................................................... 14  2.2.3 GPUSURF .........................................................................................................  16  2.3 Data Correspondence  ..............................................................................................  17  2.3.1 Descriptor Matching Schemes .......................................................................... 17  2.3.2 Outlier Rejection/Inlier Acceptance ................................................................. 17  2.4 Pose Estimation .......................................................................................................  18  2.4.1 Triangulation  .....................................................................................................  18  2.4.2 Horn Method ....................................................................................................  19  2.4.3 Iterative Closest Point Algorithm ..................................................................... 20  ix   
+
+2.5 Coordinate Systems  .................................................................................................  23  3 Preliminary Studies for VisualOdometer Development ............................................... 27  3.1 Preliminary Studies..................................................................................................  27  3.1.1 Maximum Tracking Range ................................................................................ 27  3.1.2 Impact of Maximum Tracking Range in an Unstructured Environment .......... 30  3.2 Data Collection ........................................................................................................  32  4 Visual Odometer Design ................................................................................................  35  4.1 Triangulation & Alignment ......................................................................................  37  4.2 Feature Association & Outlier Rejection ................................................................. 38  4.3 Selection of a Feature Detector .............................................................................. 41  5 Experimental Characterization ......................................................................................  43  5.1 Experimental Setup .................................................................................................  43  5.2 Experimental Results ...............................................................................................  44  5.2.1 Characterization of the Visual Odometer  ......................................................... 44  5.2.2 Impact of ICP  .....................................................................................................  50  5.2.3 Computational Cost ..........................................................................................  55  5.3 Functionality Verification ........................................................................................  56  6 Conclusions ....................................................................................................................  61  6.1 Summary of Specific Results ...................................................................................  62  6.2 Future Work ............................................................................................................  63  Appendices ........................................................................................................................  65  Appendix A: Algorithm Characterization Figures .......................................................... 65  Appendix B: Camera Specifications ............................................................................... 71  References ........................................................................................................................  73   
+
+x   
+
+List of Tables 
+Table 1  Average algorithm processing time for different feature detectors ................. 41  Table 2  Average error experienced during multiple traverses ....................................... 46  Table 3  Average errors shown in order of the length of the associated traverse ......... 47  Table 4  Characterization case 1 average error ............................................................... 51  Table 5  Characterization case 2 average error ............................................................... 54  Table 6  Average computational cost .............................................................................. 55  Table 7  Transformation applied to the synthetic data ................................................... 58  Table 8  Average error in localization estimates for synthetic data ................................ 59 
+
+xi   
+
+List of Figures 
+Figure 1  Mars Emulation Terrain at the Canadian Space Agency .................................... 2  Figure 2  Bumblebee® stereo camera system ................................................................... 6  Figure 3  Epipolar geometry [31] .......................................................................................  9  Figure 4  Projection of point x onto the image planes [31] ............................................. 11  Figure 5  Visual representation of the SIFT descriptor assignment [42] ......................... 14  Figure 6  Left: Approximation of the Gaussian second order partial derivative in the y  direction; Right: Corresponding boxfilter approximation [7] .......................................... 15  Figure 7  Pose estimation using the ICP algorithm .......................................................... 23  Figure 8  Bodycentered frame relative to the stereo camera  ........................................ 24  Figure 9  CSA Mars Emulation Terrain with world coordinate frame ............................. 24  Figure 10  Maximum Tracking Range Experiment Setup: A ­ Bumblebee® camera  system; B ­ Default tracking pattern ................................................................................ 27  Figure 11  Constant Radius Patterns Results, Radius of Circles is 0.01 m ....................... 28  Figure 12  Constant Distance Pattern Results, Distance Between Circles is 0.06 m ....... 29  Figure 13  Scaled Pattern Results ....................................................................................  29  Figure 14 ­ Sample of terrain used for the visual odometry algorithm development  ..... 30  Figure 15  Sample left camera frame with descriptors ................................................... 31  Figure 16  Matched descriptors overlaid on the associated left and right camera frames ........................................................................................................................................... 31  Figure 17 ­ Aerial view of the Mars Emulation Terrain at the Canadian Space Agency .. 32  Figure 18  Instrumented cart used for data collection .................................................... 33  Figure 19 ­ Visual odometer structure ............................................................................. 36  Figure 20  Time required to match for a set of descriptors using varying search areas . 39  Figure 21  Number of inliers detected for varying search area sizes .............................. 40  Figure 22 ­ The MRT equipped with a stereo camera and GPS frame ............................. 43  Figure 23  Various environmental conditions experienced during the characterization of  the visual odometer ..........................................................................................................  45  Figure 24  Comparison of rover traverses 2 and 8 .......................................................... 47  xii   
+
+Figure 25  Displacement error vs. the length of the traverse ......................................... 48  Figure 26  Yaw error vs. the length of the traverse ......................................................... 48  Figure 27  Graphical output of offline processing ........................................................... 49  Figure 28  Characterization case 1 rover trajectory ........................................................ 50  Figure 29  Characterization case 1 terrain texture .......................................................... 50  Figure 30  Characterization case 1 rover displacement .................................................. 51  Figure 31  Characterization case 1 rover yaw angle ........................................................ 52  Figure 32  Characterization case 2 shown on a CAD model of the MET ......................... 53  Figure 33  Characterization case 2 terrain texture .......................................................... 53  Figure 34  Characterization case 2 rover displacement .................................................. 54  Figure 35  Characterization case 2 rover yaw angle ........................................................ 55  Figure 36  Outlier rejection results during varying weather conditions ......................... 57  Figure 37  Synthetic data used to compare the modes of the visual odometry algorithm ........................................................................................................................................... 58  Figure 38  Traverse 3 displacement error  ........................................................................ 65  Figure 39  Traverse 3 yaw angle error ............................................................................. 66  Figure 40  Traverse 4 displacement error  ........................................................................ 66  Figure 41  Traverse 4 yaw angle error ............................................................................. 67  Figure 42  Traverse 5 displacement error  ........................................................................ 67  Figure 43 ­ Traverse 6 displacement error ....................................................................... 68  Figure 44  Traverse 7 displacement error  ........................................................................ 68  Figure 45  Traverse 8 displacement error  ........................................................................ 69  Figure 46  Traverse 8 yaw angle error ............................................................................. 69  Figure 47  Bumblebee® camera specifications [65] ........................................................ 71  Figure 48  Bumblebee® camera dimensional drawings [65] ........................................... 72   
+
+xiii   
+
+List of Appendices 
+Appendices ........................................................................................................................  65  Appendix A: Algorithm Characterization Figures .......................................................... 65  Appendix B: Camera Specifications ............................................................................... 71 
+
+ 
+ 
+
+ 
+
+xiv   
+
+Nomenclature 
+                      Ai,j  b  C  D  Dxx        e  F  fij  f                                                Euclidean distance between descriptors  Error threshold for the ICP cost function  Error threshold for the ICP relative magnitude of rotation matrices  Error threshold for the ICP relative magnitude of translation matrices  Error threshold for the ICP absolute magnitude of rotation matrices  Error threshold for the ICP absolute magnitude of translation matrices  Rover pitch  Epipolar plane  Standard deviation, scale  Rover roll  Rover yaw  Image pixel  Baseline  Camera center  Points representing the Data set for ICP  Approximation of the second order derivative of the Gaussian function  Descriptor value for dimension i  Haar wavelet response in the x direction  Haar wavelet response in the y direction  Epipole  Fundamental matrix  Entry of the fundamental matrix corresponding to position (i,j)  Camera focal length  xv   
+
+g  H  H  I  i  K  k  Lij  l  M  Mi,j  n  P  Q 
+
+                           
+
+Gaussian function  Homography mapping all points x to their corresponding points x'  Hessian matrix  Image  Point Index  Camera calibration matrix  Number of trials required by RANSAC  Convolution of the Gaussian second order derivative  Epipolar line  Points representing the Model set for ICP  Image gradient magnitude  Number of data points randomly selected by RANSAC   Camera projection matrix  Rotation matrix to transform coordinates from the rover frame into the   world frame 
+
+R  Ri,j  rl  rr  r'  rl,c  s  T  w 
+
+                 
+
+Rotation matrix  SIFT keypoint orientation  Current coordinate frame vector  Previous coordinate frame vector  Point coordinate expressed relative to the centroid of the data set  Coordinates of the data set centroid expressed in the left frame  Scale factor  Translation matrix  Probability that a given feature correspondence is an inlier  xvi 
+
+ 
+
+X  Xr  Xw  x  X  x  xc  Y  y  yc  Z  z 
+
+                       
+
+Point in 3D space  Point in 3D space, rover bodycentered frame  Point in 3D space, world frame  Image point  Cartesian xaxis coordinate  Pixel x axis coordinate for image point x  Pixel xaxis coordinate of the camera focal point in the image  Cartesian yaxis coordinate  Pixel y axis coordinate for image point x  Pixel yaxis coordinate of the camera focal point in the image  Cartesian zaxis coordinate  Probability that a random selection of n feature correspondences consists   entirely of inliers 
+
+xvii   
+
+Abbreviations 
+API  CCD  CSA        Application Programming Interface  Charge Coupled Device  Canadian Space Agency  Graphics Processing Unit  Iterative Closest Point Algorithm  Iterative Dual Correspondence  Iterative MatchingRangePoint  Inertial Measurement Unit  Light Detection and Ranging  Mars Emulation Terrain  Mars Rover Testbed  Polar Scan Matching  Random Sampling Consensus  Real Time Kinematic  ScaleInvariant Feature Transform  Simultaneous Localization and Mapping  SpeededUp Robust Features  Visual Motion Estimation  Visual Odometry 
+
+GPU    ICP  IDC     
+
+IMRP    IMU   
+
+LIDAR    MET    MRT    PSM    RANSAC  RTK  SIFT     
+
+SLAM    SURF    VME     VO   
+
+ 
+      xviii   
+
+1 Introduction and Previous Work 
+1.1 Motivation 
+Localization is an essential capability for a robotic vehicle on an extraterrestrial  exploration mission.  The time delay for communication from Earth to other bodies  makes it impractical to have a human component in the loop to performing this task.   Additionally, the lack of Earthbased assets, such as the Global Positioning System (GPS),  means that a vehicle cannot rely on them for localization.  The localization problem is  currently is being addressed through the development of visual odometry algorithms.  Visual odometry, or visual motion estimation, is a method of performing localization.   This can be performed using one or more cameras and can be done using any  combination of feature detection, feature matching, outlier rejection and pose  estimation techniques.  In the case of stereobased visual odometry, the task is to  determine motion from the images captured by the stereo camera system.  Localization algorithms have most commonly been developed using wheel odometry or  inertial measurement units (IMU).  Wheel odometry is unreliable due to the wheel  slippage on terrain where traction is poor and IMUs become unreliable as they drift over  time.  These problems cause error to accumulate in the sensor readings causing  increasingly large errors in localization estimates.  Light detection and ranging (LIDAR) equipment has been used to perform localization,  however they have a high mass, volume and power consumption, compared to a stereo  camera system.  It is extremely important to minimize these factors when designing  space missions and hardware for them.  Finally, LIDAR has the additional drawback of  requiring the vehicle to stop movement while it scans the terrain, whereas a camera can  collect imagery in realtime.  Stereo camera systems have also been used to perform obstacle avoidance and slip  detection when wheel odometry was used as the primary localization method.  The  results of these algorithms demonstrated the potential of visualodometry and also  1   
+
+show wed that the error accum mulation in wheel w  odome etry could be greatly red duced  throu ugh the use of o  this system.  Curre ent visual od dometry algo orithms, while gradually improving in accuracy, have either  postprocessed data d  or requi ired that the eir vehicles m move slowly y.  A major fo ocus of this  thesis s is the deve elopment an nd testing of a visual odo ometry algor rithm capable of  opera ating in realtime while providing ac ccurate locallization estim mates.  Anot ther goal wa as  to ass sess the utility of incorp porating the Iterative Clo osest Point (ICP) algorith hm into the  visual odometer to improve localization estimates.  A All experime ental charact terization of f  the completed algorithm was performed d using an ac ctual rover in n the Canadian Space  Agency's Mars Em mulation Ter rrain (MET) shown s  in Fig gure 1. 
+
+  Figure 1  Mars Emulation E  Te errain at the e Canadian S Space Agenc cy 
+
+1.2 Previous P  Wo ork 
+Visua al odometry is a branch of o  computer r vision that is essential to the advan ncement of  auton nomous robotics.  It esti imates a rigid transform mation betwe een data points or  descr riptors obtained from ca amera frame es.  Egomot ion estimation, or estim mation of a  vehic cle's motion, , through vis sual odometry has applic cations for a all manner o of vehicles.   2   
+
+Autonomous navigation of rovers designed for planetary exploration is the application  for which the visual odometry algorithm presented here is intended.  Other applications  include navigation of vehicles such as cars ([14] and [75]), rescue vehicles [19] and even  robotic museum tour guides [6].  Visual odometry can also be used as a secondary  system to complement localization estimates obtained through other means such as  wheel odometry ([12],[33] and [47]).  A variety of camera configurations exist for visual  odometry including stereo ([15],[20],[35],[48],[58],[59], [67] and [69]), monocular  omnidirectional ([13] and [75]) and multiocular omnidirectional [66] configurations.  Feature detection and description, the process by which data is obtained from images, is  essential to visual odometry.  Building on the work of Canny [11] and Moravec [55],  Harris and Stephens first developed an algorithm capable of locating corners within  images, an approach which gained wide acceptance within the image processing  research community [30].  Much of the work in visual odometry has been either directly  or indirectly based on Harris and Stevens.  One such example is the algorithm developed  by Lowe [40], called scale invariant feature transform (SIFT).  SIFT is currently the most  widely used feature descriptor in use within the visual odometry community.    While SIFT feature descriptors have been proven to be robust in a variety of  environmental conditions ([3]), the high cost in terms of computation is a drawback for  realtime systems.  Further development has resulted in a large number of variations  and alternatives including Speeded Up Robust Features (SURF) [7], maximally stable  extremal regions, MSER [49], PCASIFT [37] and gradient location and orientation  histogram, GLOH [50].  SURF in particular is gaining wide acceptance as it provides  comparable accuracy to SIFT with less intensive computation requirements.  This is due  to SURF's use of a 64 dimension descriptor [7] as opposed to the 128 dimension  descriptor used by SIFT [40][44].  Finally, SURF also offers 32 dimension and 128  dimension descriptor versions as well as upright SURF, or USURF, which forgoes  rotation invariance for increased speed [7].  Work has also been performed by Valgren 
+
+3   
+
+and Lilienthala on determining the robustness of SIFT and SURF to the environmental  changes caused by changing seasons [78].  Feature association, or feature matching, is inherently linked with feature detection and  description.  Unless an association of descriptors can be achieved between frames,  there is not enough available information to perform pose estimation.  Methods of  performing feature matching are largely derivatives of the NearestNeighbour matching  technique [40] which matches descriptors based on the lowest Euclidean distance  between them ([35], [42], [61] and [66]).  Variations of the NearestNeighbour approach  include NearestNeighbour Ratio ([6], [51] and [75]), NearestNeighbour Threshold ([58]  and [59]) and Preferred Mate matching [61].  An alternative method has been proposed  by Zhang et al. to match using an iterative heuristic greedy rounding process [81] and  another has been described by Zhang et al. using epipolar geometry [82].  In both cases  the alternative approaches were found to perform similarly or better than typical  nearest neighbour approaches.  Erroneous matches are inevitable when matching large data sets against one another.   In the majority of work performed in visual odometry, outlier rejection is performed  independently of feature association and is almost synonymous with using the Random  Sample Consensus (RANSAC) to estimate the epipolar geometry of the images and  eliminate the matches that do not fit the model [24].  The work of Zhang et al. estimates  and utilizes the epipolar geometry as part of the feature association step instead of  performing it independently after matching is completed [82].  Pose estimation can be performed a variety of ways.  Optical flow is a viable method for  performing pose estimation and has been used by Corke et al. [13].  During  development of the algorithm presented here, the Horn method [34] was chosen to  determine the initial pose estimation for the ICP algorithm.  A number of other  approaches have been used as well including sparse bundle adjustment as used by  Sünderhauf et al. ([22] and [74]) and the Hough transform approach used by Se et al.  [71].  4   
+
+The ICP algorithm, developed by Besl and McKay [9], is an integral part of the visual  odometry algorithm presented here.  Alternative approaches to the ICP algorithm have  been proposed.  The Iterative Duel Correspondence (IDC) algorithm, a hybrid of the  original ICP algorithm and the new Iterative MatchingRangePoint (IMRP) algorithm  was proposed by Lu and Milios [45].  As well, Diosi and Kleeman developed the Polar  Scan Matching (PSM) algorithm [16] and have demonstrated its value for simultaneous  localization and mapping (SLAM) algorithms [17].  Past research into visual odometry has yielded promising results.  All of the reported  data indicates that visual odometry is reliable for translational motion.  The stereo based visual odometry algorithm reported by Helmick et al. consistently achieved an  overall displacement error of less than 2.5 % [32].  Similarly, Olson et al. were able to  achieve a displacement error of approximately 1.2 % with their stereobased visual  odometry algorithm [63].  Finally, the work of Nistér et al. [61] demonstrated a visual  odometry algorithm with a 12 % error in displacement and up to 5° in rotation.   Rotation is a particularly difficult aspect of motion for a visual odometer to estimate, as  features pass out of the field of view faster than when undergoing translational motion.  Alternative approaches to visionbased pose estimation have included radar [18], sonar  ([21],[76] and [80]), and LIDAR based systems ([20] and [45]), as well as inertial systems  [5]. 
+
+1.3 Scope of this Thesis 
+
+ 
+
+The primary contribution of this thesis is the design of a visual odometry algorithm that  is capable of operating in realtime to localize a vehicle in an unstructured environment,  without the use of external infrastructure, such as artificial markers.  This addresses the  problem of determining position and orientation information for a vehicle while seeking  to reduce the limitations visual odometry can impose in terms of the vehicle's speed.  The algorithm also provides the basis for conducting future research by offering a  framework on which to build.  As well, this thesis provides an evaluation of the 
+
+5   
+
+capab bility of ICP to t  improve pose p  estimat tes obtained d from stere eo imagery.   Chara acterization of the algor rithm as a wh hole and of t the ICP algo orithm is don ne by  proce essing the im magery from the stereo camera c  syst em shown in n Figure 2.    Due to t  the use of f ICP by the visual v  odom meter, it is ne ecessary to g generate 3D Cartesian  coord dinates for each e  descript tor.  Conseq quently the w work presented here len nds itself to  fusion with a mapping algorit thm, howev ver, there are e certain cap pabilities of such an  rithm that ar re outside of f the scope of o  this thesis s.  The algori ithm has bee en tested in  algor simpl le traverses in both labo oratory and relevant r  fiel d environme ents.  Capab bilities such  as the e loop closin ng problem and a  kidnapp ped robot sce enario are b beyond the scope of this  work. 
+
+  Figure 2  Bumbleb bee® stereo camera syst tem 
+
+1.4 Thesis T  Organization 
+Chapter I discusses the motiv vation behin nd the projec ct, previous work perfor rmed by  r researchers and a brief f description n of the scop pe of the the esis.    other Chapter II contain ns a discussi ion of the de efinitions an d theoretica al knowledge e required  for th his work.   
+
+6   
+
+Chapter III contains a description of the preliminary experiments performed to  determine the capabilities of the hardware with which development would be  conducted as well as the data collection process.  Chapter IV describes the different components of the visual odometry algorithm.  The  decision making processes used in selecting the components are also discussed.    Chapter V outlines the characterization experiments conducted to test the finalized  algorithm as well as presenting the testing methodology used in Canadian Space  Agency's Mars Emulation Terrain (MET) on the CSA Mars Rover Testbed (MRT).  Chapter VI outlines the specific conclusions of the research and makes  recommendations for future work.  
+
+ 
+                          7   
+
+ 
+
+8   
+
+2 Theoretical Foundatio F ns of the Work W  
+A sign nificant num mber of algor rithms and concepts c  are e required in n order to co onstruct a  funct tional visual odometer.  The followin ng section co ontains nece essary theor retical  found dations for the t  project. 
+
+2.1 Summary S  of f Camera Mathematic M cs 
+2.1.1 Epipolar Ge eometry  The epipolar e  geometry is the e projective geometry g  be etween two views, and i is  indep pendent of the scene vie ewed by the cameras.  T The primary applications s of the  epipo olar geometr ry are the ou utlier rejection techniqu ue, RANSAC, and the tria angulation of  the matched m  ster reo pairs.  Th he only relev vant parame eters are the e internal camera  param meters, bein ng the focal length l  and the coordina tes of the pr rinciple poin nt, and the  relati ive pose between camer ras.    Suppose a point, X, in 3D spa ace is imaged d in two view ws, let x den note the ima age point in  the fi irst image an nd x' in the second. s   The e camera cen nters for eac ch view are d denoted as C  and C' C  respective ely.  It can be e seen in Figure 3 that ra ays backpro ojected from m the camera a  cente ers through the t  image points will int tersect at X.  Thus, X, x, x x', C and C' are coplanar.   This plane p  is referred to as th he epipolar plane p  [31]. 
+
+  Figure F  3  Epi ipolar geom metry [31]  9   
+
+Also shown in Figure 3 is the epipolar line corresponding to x', denoted l', as well as the  epipoles of each view, denoted e and e' respectively.  The line connecting camera  centers C and C' is referred to as the baseline.  The epipole of an image is located at the intersection of the baseline with the image  plane.  This point corresponds to the location of the camera center of one view in the  other view.  An epipolar line, l, is a line in the image plane that intersects the image  epipole, e, and the image point, x.  Each epipolar line intersects the image epipole.   Additionally, each epipolar plane contains the baseline and intersects the image planes  along the epipolar lines [31].  These relations are of particular importance to visual odometry and scene  reconstruction.  More specifically, this directly impacts feature correspondence  between images.  Knowledge of epipolar geometry can be used to speed up feature  matching by limiting the search to the correct epipolar line.  This also has implications  for outlier rejection as well, in that correct matches should be located along the  corresponding epipolar lines.  Feature correspondence and outlier detection is discussed  further in Section 2.4.  2.1.2 Fundamental Matrix   The fundamental matrix, F, is a 3x3 homogeneous matrix of rank 2 that encapsulates the  geometry of a stereo camera system.  It is a mapping from one point in one image to the  corresponding epipolar line in another image.  The following is a geometric derivation as described by Hartley and Zisserman [31].  An  algebraic derivation in terms of the camera projection matrices, P and P', can be found  in G. Xu and Z. Zhang's text Epipolar Geometry in Stereo, Motion and Object Recognition  [81].  There are two steps when deriving the fundamental matrix geometrically.  The first is to  map x from one image to x' in the other image through the plane .  The plane  does  not intersect either camera center.  The ray through the first camera and the image  10   
+
+point t x intersects s the plane  at X.  The world w  point X  is then pro ojected onto o the other  image at x'.  As th he point X lies on the ray connecting g x with the correspond ding camera  cente er, the projected point x' x  must lie on n the epipola ar line l', wh hich is the im mage of the  ray in n the other image.  This is illustrated d in Figure 4. . 
+
+  gure 4  Proj jection of po oint x onto t the image p planes [31]  Fig The set s  of all poin nts xi and the correspon nding point x x'i are projec ctively equiv valent to Xi  and are a  therefore e projectivel ly equivalent to each oth her.  Hence, , there is a  trans sformation, H, that maps s xi to x'i, sho own by Figu re 4.  The second s  step in deriving the t  fundame ental matrix geometrically is to dete ermine the  epipo olar line from m the point projected p  on nto the othe er image.  Kn nowing that the epipolar r  line, l' l , passes thr rough x' and d e', we can write the eq quation of th he epipolar line as                            (1 1) 
+
+re  e '  is the e skew symm metric matrix x  wher 0         0 0 11                    (2 2) 
+
+Since x' can be expressed as         
+
+ , we can write that                       (3) 
+
+From (3) it can been seen that the fundamental matrix is a mapping of x to l', or of x' to  l, as expressed by (4a) and (4b) respectively.                                                (4a)        (4b) 
+
+     
+
+where,                        0                        (5a)        (5b) 
+
+0     
+
+It can be easily shown that if a point, X, in 3D space is imaged in two views denoted by x  and x', then the image points must satisfy the correspondence condition.              0                  (6) 
+
+This relation also has significant implications for visual odometry.  It is the basis of  outlier rejection, namely RANSAC, applied to the feature matches obtained as part of  the visual odometry algorithm and is further described in Section 2.4.2. 
+
+2.2 Feature/Interest Point Detection 
+Feature detection is an integral part of a visual odometry algorithm, and can be broken  down into two main steps.  First, interest points must be detected in the images from  unique areas of each image.  Typically, such areas are characterized by corners, T junctions and blobs.  The most important property for feature detection is repeatability  in detection of these areas.   If an algorithm cannot detect the same interest points in  the same scene, but viewed under different conditions, then correct matches are  unlikely.  Second, the area surrounding each interest point must be described by a  vector which must be both unique and robust to noise and detection errors [7].  12   
+
+2.2.1 Scale Invariant Feature Transform (SIFT)  The first feature detection method evaluated for use in the visual odometer is Scale  Invariant Feature Transform (SIFT) developed by Lowe [40].  The algorithm consists of  both feature detection and feature description.  For detection, a Gaussian pyramid is  constructed.  A Gaussian pyramid is created by repeatedly blurring and scaling down a  series of images.  Doing this multiple times results in a collection of successively smaller  images.  Local maxima and minima, referred to as keypoints or interest locations, are  identified in the pyramid using multiple differenceofGaussian images.  Because the 2D  Gaussian function is separable, Lowe computes each convolution by applying the 1D  Gaussian function, given by (7), in the horizontal, followed by the vertical direction:              ,               (7) 
+
+
+
+Where x is the image coordinate, and  is the standard deviation of the Gaussian  distribution, which is taken to be 2.  The image gradient magnitude, Mp,q, and  orientation, Rp,q, at each pixel are determined:                   
+,
+
+,
+
+,
+
+,
+
+,
+
+,
+
+        (8)          (9) 
+
+,
+
+tan
+
+,
+
+,
+
+,
+
+,
+
+  
+
+where Ap,q is the pixel associated with the pixel coordinate (p,q).  Each key is assigned an  orientation, determined by a peak in a histogram of local image gradient, to ensure  rotation invariance.  The histogram is created using a Gaussianweighted window with a  standard deviation which is three times higher than that used for smoothing when  creating the Gaussian pyramid.  Finally, for each keypoint, the pixel sampling from the pyramid level at which this  keypoint was detected is used to assign it a descriptor.  SIFT uses an orientation  histogram formed from the gradient orientations, for each region of a 4x4 grid assigned  to each keypoint.  With eight orientation planes being used for each of the regions of  13   
+
+the 4x4 4  grid assig gned to the keypoint, k  the resulting d descriptor ha as 128 dime ensions.   Orien ntation plane es are define ed by Lowe as a  represent tations of th he local imag ge region  using g multiple im mages repres senting each of a numbe er of orientations.  Finall ly, the  descr riptor is norm malized to unit length to o improve in nvariance to illumination n changes. 
+
+  Figure 5  Visual rep presentation n of the SIFT T descriptor assignment [42]  The assignment a  of o  the descri iptor based on o  the orien ntation plane es is illustrat ted in Figure e  5 whe ere the arrows show the e gradient magnitude m  an nd orientatio on at each re egion of the  4x4 grid. g   Figure 5 shows a 2x x2 descripto or array com puted from an 8x8 set o of samples  [42].  2 Speeded Up p Robust Fea atures (SUR RF)  2.2.2 ay et al. [7] w In developing Spe eeded Up Ro obust Featur res, SURF, Ba were able to o reduce the e  ber of dimen nsions in the e descriptor vector v  from 128 to 64, w without sacr rificing much h  numb in ter rms of accur racy.  The res sulting algor rithm is an a ttractive alternative to S SIFT due to  its sig gnificantly lo ower computational cost t and compa arable accur racy [7].  The e SURF  algor rithm can be broken dow wn into two operations, detection and description.  The SURF S  detecto or is based on o  the Hessia an matrix, u sing its dete erminant to select both  location and scale of interest t points.  Giv ven a point, x , in an imag ge with coor rdinates [x,y y],  H   the Hessian,       , , is defin ned as      , 14              (10 0) 
+
+wher re  is the scale and  ,
+
+ is the convo olution of the e Gaussian s second orde er derivative   a and   [7].    SURF 
+
+ with the t  image I in i  the point x and simila arly for 
+
+appro oximates the e Gaussian second s  order derivatives s using box f filters, illustr rated in  Figure 6. 
+
+re 6  Left: Approximatio A on of the Ga aussian seco ond order pa artial deriva ative in the y  Figur dire ection; Righ ht: Correspon nding boxfi ilter approximation [7]  The second s  order derivatives s are evaluat ted using int tegral image es.  Taking th he  deter rminant of th he Hessian matrix m  yields s:          0.9           (11 1) 
+
+wher re Dxx, Dyy an nd Dxy denote e the approx ximations of f the second d order deriv vatives.   Filter rs of increasi ing size are applied a  to th he images in n order to ge enerate an im mage  pyram mid.  Finally, , a nonmaxi imum suppression in a 3 3x3x3 neighb bourhood is applied in  order r to localize interest poin nts [7].  Non nmaximum s suppression n means that t interest  point ts occur whe ere the gradi ient magnitu ude assumes s a local max ximum.  Once e the location n and scale of o  features have h  been de etermined, f feature desc cription is  applied to genera ate a descrip ptor for each h interest po oint.  The pro ocess begins s by assignin ng  rientation to o each intere est point by calculating c  t the Haar wav velet respon nses in the x  an or and y directions.  This is with hin a circle of f radius equ al to six time es the scale of the  intere est point.  The next n  step is to t  construct a square reg gion surroun nding the int terest point, , oriented  using g the previou usly assigned d orientation n.  The regio on is subdivid ded into a 4x x4 area, with h  each subregion being b  assign ned a feature e vector.  Th is vector is g given by:  15   
+
+ 
+
+ 
+
+ 
+
+ 
+
+
+
+,
+
+, |
+
+|,
+
+ 
+
+ 
+
+ 
+
+      (12) 
+
+where dx and dy denote the Haar wavelet responses in the horizontal and vertical  directions respectively.  By assigning each of the 16 subregions a vector of four  dimensions, a descriptor containing 64 dimensions is created for the interest point [7].  This approach allows for a significantly reduced computation time.  More detailed  information can be found in [7].  2.2.3 GPUSURF  GPUSURF is an implementation of the SURF algorithm using the NVIDIA CUDA API [26].   CUDA, compute unified device architecture, is NVIDIA's parallel computing architecture  was enables increases in computing performance by utilizing the GPU for processing  [62].  While the theory and equations used in developing GPUSURF are as described for  SURF in Section 2.3.2, the performance deviates from the SURF algorithm of Bay et al.  [7].  This is a result of the closed source nature of the original SURF distribution.  Despite  this inability to access SURF source code, the GPUSURF implementation achieves  comparable performance while doing so at a much lower computational cost [26].  There are some limitations identified by Furgale and Tong [26] that result from using the  GPU instead of the CPU for processing.  The first such issue is that the GPU hardware  has single precision floats which results in slightly different computational results.  The  reported keypoint scale is larger than what SURF produces for a blob of comparable  size.  Also, the Gaussian weighting used by the GPUSURF descriptor appears to use a  different value from those generated by the original SURF distribution [7].  Because of the unique nature of GPUSURF, it is treated as a separate from the original  SURF algorithm when assessing its value for the visual odometer. 
+
+16   
+
+2.3 Data Correspondence 
+2.3.1 Descriptor Matching Schemes  Feature correspondences are formed using both the NearestNeighbour matching  approach, proposed by Lowe [42], and the PreferredMate matching scheme [61].  The  PreferredMate matching approach is a variant of the NearestNeighbour matching  scheme which determines matches based on the Euclidean distance between  descriptors.  For descriptors of m dimensions,                           (13) 
+
+where  is the Euclidean distance between descriptors, d is the descriptor for the  feature in the left image, d' is the descriptor in the second image and the subscript i in  , and  , is the dimension.  Unlike matching using the NearestNeighbour approach,  which searches for matches in one direction, that is, from one image to the second, the  Preferred Mate approach searches in both directions.  Only those feature pairs, in which  the two descriptors have found each other to be the most likely match, are accepted as  a valid [61].  2.3.2 Outlier Rejection/Inlier Acceptance  All point correspondences are subjected to the Random Sample Consensus (RANSAC)  algorithm, the basis of which is the computation of the fundamental matrix from a set of  nine randomly selected point correspondences.  As previously mentioned, the  fundamental matrix is defined by the correspondence condition, equation (6).    Given nine valid point correspondences, this condition can be used to compute the  entries of F.  The coefficients of this equation are functions of the known coordinates for  two points, specifically the equation for the points  , , 1  and  , , 1  is           where    are the coefficients of the matrix F.  Generally, from a set of n point  0     (14) 
+
+correspondences we obtain a homogeneous set of linear equations  17   
+
+ 
+
+ 
+
+        
+
+1                  1
+
+0 
+
+      (15) 
+
+Using nine point correspondences a leastsquares solution is obtained for this system to  determine the entries of F.  If only eight point correspondences are available then the  solution will be unique up to scale [31].  Using the fundamental matrix, F, the correspondence condition, equation (6) can be  applied to the data set to determine which point correspondences are inliers.  Inliers are  those points that satisfy the correspondence conditions, while outlier are those that do  not.  The RANSAC algorithm repeats the process of estimating the fundamental matrix  until it has determined, within the specified confidence interval, that no larger set of  inliers exists.    The algorithm bases the decision to stop selecting new random sets of data to compute  F based on the expected number of trials that are required to select a data set that is  error free.  This is determined by the following equation:                           (16) 
+
+where k is the required number of trials, z is the probability that at least one of the  randomly selected data sets consists entirely of valid matches, w is the probability that  given point is an inlier and n is the number of points in the data set [24].  Because it is  not possible to determine all of the parameters used by RANSAC beforehand, it is  important to properly tune the algorithm. 
+
+2.4 Pose Estimation 
+2.4.1 Triangulation  After the outliers have been removed from the data set using RANSAC, triangulation is  performed to determine a Cartesian coordinate for each feature pair.  This is performed  using the Point Grey API which is a part of the software package accompanying the 
+
+18   
+
+Bumblebee ® camera system.  The software triangulates each pixel coordinate pair  according to the equations below.                                                                    (17)        (18)        (19) 
+
+where f is the focal length of the left camera, b is the baseline of the stereo camera  system,  ,  are the pixel coordinates of the focal point in the left image,  , , ,  are   
+
+the pixel coordinates of the feature in the image taken by the left camera and 
+
+are the Cartesian coordinates associated with the feature.   Values for the camera  parameters can be found in Appendix B.  2.4.2 Horn Method  Presented by Horn [34], this method is a closed form solution to the least squares  problem of absolute orientation of two Cartesian coordinate frames, referred to as the  current and previous frames.  This algorithm is advantageous for visual odometry as a  pose estimate can be determined in a single step without any iteration.  In order to  describe the process of determining the rotation and translation, let there be n points  which are defined in each coordinate frame as  translation is determined such that                          (20) 
+,
+
+ and 
+
+,
+
+ respectively. The 
+
+where s is a scale factor, T is the 3x1 translation matrix, R is the 3x3 rotation matrix and   and   are the coordinates of the point expressed in three dimensions using the  coordinate frames whose origins coincide with the current and previous camera frames  respectively.  This equation is solved using a leastsquares approach to minimize the  residual error given by                   
+, ,
+
+ 
+
+ 
+
+ 
+
+      (21) 
+
+19 
+
+The Horn method requires that the rotation matrix is determined first. The  determination of the rotation matrix is performed using quaternions. Minimization of  (20) is equivalent to maximization of the function below            
+,
+
+
+
+,
+
+ 
+
+ 
+
+ 
+
+ 
+
+      (22) 
+
+where the primes denote the position vectors expressed in a new coordinate frame  relative to the centroid of the data set.  The new coordinates are determined by      Where  data set     
+,
+
+     and 
+, ,
+
+   
+
+   
+
+, ,
+
+, ,
+
+, ,
+
+   
+
+   
+
+   
+
+   
+
+   (23a)     (23b) 
+
+ denote the coordinates of the data relative to the centroid of the 
+,
+
+ and 
+
+ denote the coordinates of the data set centroid in the current and 
+
+previous frames respectively.  For each coordinate pair nine possible products are  determined as              ,      , ...,       and the sum is taken to obtain Sxx, Sxy, ..., Szz where   
+, , , ,
+
+   
+
+   
+
+     
+
+   
+
+   (24a)     (24b) 
+
+ Using this information the symmetric matrix N is determined according to the following. 
+
+ 
+
+ 
+
+   (25) 
+
+The eigenvalues of N are then determined and the corresponding eigenvector for the  most positive root is obtained.  Finally, as stated by Horn, the quaternion representing  the rotation is a unit vector in the same direction.  2.4.3 Iterative Closest Point Algorithm  The Horn method provides a noniterative closedform solution to the problem of  determining the orientation between two coordinate frames.  The Iterative Closest  Point (ICP) algorithm proposed by Besl and McKay [9] iteratively refines the Horn  method's closedform solution.   
+
+20   
+
+The goal of the ICP algorithm is the iterative minimization of the cost function,  presented in (26), by determining rotation and translation matrices that minimizes the  least squared distance between the points of the "Reference Data" and "Collected Data"  sets.  The Reference Data the set of data to the newly acquired data, called Collected  Data, is aligned.  The cost function is given by          min
+,
+
+ 
+
+  
+
+ 
+
+ 
+
+      (26) 
+
+For the visual odometer presented herein both data sets are point clouds, the Reference  Data consists of data points triangulated previous image frames and the Collected Data  consists of the coordinates triangulated from the current stereo frame correspondence.   The ICP algorithm operates using five steps and may be stopped by meeting any one of  four stopping criteria.  The process used by the algorithm is:  1. The cumulative transformation parameters for rotation, R, and translation, T, are  initialized to the initial pose estimate.  2. For each point in the Collected Data set, select the closest point in the Reference  Data based on the Euclidean distance.  3. Updated values for R and T are determined by minimizing the cost function.  4. The transformation determined in the previous step is then applied to all points  in the Collected Data set.  5. If a stopping criterion has been satisfied the algorithm terminate, otherwise the  process is repeated from step two.  The first two stopping criteria are based on the incremental change in the  transformation matrices.  The first stopping criterion is described by                     
+| | | | | | | |
+
+       
+
+   
+
+   
+
+   
+
+   (27a)     (27b) 
+
+21   
+
+where h is the iteration number, 
+
+ and 
+
+ are the rotation matrices determined for   is the threshold specified for the   and   are the translation   is the 
+
+the current and previous iterations respectively, 
+
+relative magnitudes for the rotation matrices.  Similarly, 
+
+matrices determined for the current and previous iterations respectively, 
+
+threshold specified for the relative magnitudes for the translation matrices.  The  algorithm stops if the conditions given by equations (27a) and (27b) are satisfied.  The second stopping criterion is given by      where  and                  | | | |                        (28a)     (28b) 
+
+ is the threshold specified for the absolute magnitude of the rotation matrix   is the corresponding term for the translation matrix.  Again both the conditions 
+
+of both (28a) and (28b) must be satisfied for this stopping criterion to be met.  The third  stopping criterion is based on equation (26):          min
+,
+
+ 
+
+
+
+  
+
+ 
+
+      (29) 
+
+where   is the error threshold.  Finally, the algorithm can be stopped if a specified  number of iterations are reached.  The process of aligning the Collected Data set with  the Reference Data is illustrated by Figure 7. 
+
+22   
+
+  Figure 7  Pose estima ation using t the ICP algo orithm 
+
+2.5 Coordinate C  Systems 
+The coordinate c  sy ystems used d by the visual odomete r and for exp perimental  chara acterization are presente ed in this section togeth her with the equation us sed to  conve ert between n them.  Two o coordinate systems are e used.  The first, a body ycentered  coord dinate frame e is used by the t  visual od dometer to r represent th he position o of each point t  of int terest in thre ee dimensional space.  The T  origin of f the bodyce entered fram me coincides s  with the left cam mera on the Bumblebee® B ® camera sys stem and is o oriented suc ch that the y axis is normal to and positive e towards the ground.  T The x and zaxes are oriented along g  n  to the front face of the rover r respectivelly as shown in Figure 8.  and normal
+
+23   
+
+  Figu ure 8  Bodycentered fr rame relativ ve to the ste ereo camera  The world w  frame is that used d by the GPS system to tr rack the rov ver's movements during  data collection.  The T  origin of f this frame is coinciden nt with the northwest co orner of the  CSA's s Mars Emulation Terrain and is orie ented such th hat the x an nd yaxes are e positive in  the so outh and east directions s respectivel ly with the p positive zaxis coinciding g with the  zenith direction.  The world coordinate c  frame f  is show wn in Figure e 9. 
+
+  Figure 9  CSA Mar rs Emulation n Terrain wit th world coo ordinate frame  g  truth h data descri ibing the rov ver's position n and orient tation are de efined in the e  The ground world d frame, as they t  are dete ermined by the GPS.  W While the GPS S only provid des position 
+
+24   
+
+estimates, orientation is obtained by comparing the relative position of three individual  antennas mounted on the vehicle.  The GPS readings are transformed from the world frame to the bodycentered frame for  the purposes of comparing the visual odometry estimates to ground truth data.  The  equation to rotate from the bodycentered frame to the world frame is:                             (26)   
+
+where Q is the rotation matrix, 
+
+ is the coordinate in the bodycentered frame and 
+
+is the coordinate in the world frame.  The rotation matrix, Q, is an Euler angle yawpitch roll sequence: 
+
+cos cos cos sin sin
+
+sin sin
+
+2
+
+sin cos
+
+cos
+
+sin cos
+
+cos cos
+
+2 2
+
+sin cos sin sin cos cos
+
+sin sin
+
+2 2
+
+sin cos  
+
+sin sin cos 2 sin cos
+
+      (27)  where   is the yaw angle,  is the pitch angle and   is the roll angle. 
+
+ 
+                25   
+
+ 
+
+26   
+
+3 Preliminary Studies for VisualOdometer Development 
+3.1 Preliminary Studies 
+Preliminary work was conducted to determine the capabilities of the camera as well as  the most advantageous conditions under which to operate.  These studies focused  primarily on determining the optimal range at which the camera was able operate in an  effort to determine how to best mount the camera on the rover.  3.1.1 Maximum Tracking Range  The first preliminary experiment was conducted in the lab and consisted of a simple  tripod setup, as shown in Figure 10A.  The purpose of the experiment was to determine  the limitations of the hardware using the software provided with the camera API to  track a known pattern, such as the one shown in Figure 10B.  A pattern was suspended  in the field of view of the camera and was slowly translated and rotated away from the  camera until tracking failed.  The camera's estimation of the pattern's pose was  observed and stored in real time using the camera software.  Once the software  stopped updating the pose estimates, the individual experiment was halted and data  recorded. 
+
+  Figure 10  Maximum Tracking Range Experiment Setup: A ­ Bumblebee® camera  system; B ­ Default tracking pattern 
+
+27   
+
+Multiple trials were conducted in a controlled environment for a variety of patterns in  order to obtain a measure of the average capability of the camera beyond the  specifications provided by the manufacturer, see Figure 47 and Figure 48.  The trials  varied based on the patterns used for tracking.  The default pattern used, shown in  Figure 10B, was then used as a template for new patterns that were created by varying  the distance between and the size of pattern features.  The results of this experiment are given below.  Figure 11 illustrates the test results for  those patterns which used identically sized circles set at varying distances.  Figure 12  shows the results for tests using patterns in which the circle size was varied, but their  positions were constant.  Finally, Figure 13 shows the results for patterns which were  scaled versions of the default pattern found in Figure 10B. 
+
+Range for Constant Radius Patterns 
+2.5000
+
+2.0000
+
+Range (m) 
+
+1.5000 Min. Range 1.0000 Max. Range
+
+0.5000
+
+0.0000 0.0000
+
+0.0200
+
+0.0400
+
+0.0600
+
+0.0800
+
+0.1000
+
+0.1200
+
+Distance Between Circles (m) 
+
+  Figure 11  Constant Radius Patterns Results, Radius of Circles is 0.01 m 
+
+28   
+
+Range for Constant Distance Patterns 
+2.5000
+
+2.0000
+
+Range (m) 
+
+1.5000 Min Range 1.0000 Max Range
+
+0.5000
+
+0.0000 0.0000
+
+0.0050
+
+0.0100
+
+0.0150
+
+0.0200
+
+0.0250
+
+Circle Radius (m) 
+
+  Figure 12  Constant Distance Pattern Results, Distance Between Circles is 0.06 m 
+
+Range for Scaled Patterns 
+2.5000
+
+2.0000
+
+Range (m) 
+
+1.5000 Min Range 1.0000 Max Range
+
+0.5000
+
+0.0000 0 1 2 3 4 5 6 Scale Factor Applied to Default Pattern of r = 0.01m & d = 0.06 m 
+
+  Figure 13  Scaled Pattern Results  29   
+
+The results of the tracking experiment indicated that the camera was able to  consistently track the patterns between 0.25 m and 1.00 m.  Some tracking data was  able to be collected beyond 1.00 m.  The default pattern, which is associated with the  center peak of each figure, was consistently tracked up to 2.50 m.  It is assumed that a  similar experiment was performed by the manufacturer in order to provide the best  pattern to the customer, which resulted in the default pattern performing significantly  better than the others.  Pose estimates from beyond 2.5 m were obtained more  sporadically, and therefore were considered to be outside the camera's optimal range.   Results from these tests are shown in Figure 11, Figure 12 and Figure 13.  3.1.2 Impact of Maximum Tracking Range in an Unstructured Environment  A second experiment was conducted offline in MATLAB using data from the MET to  determine the impact of the camera's maximum tracking range on the results of the  visual odometer.  The primary consideration of this test was to determine impact of  signal noise, which was expected to have a greater impact on descriptors corresponding  to distant features.  The frames were obtained using the stereo camera mounted on a  stationary tripod.  One such frame is shown in Figure 14.   
+
+  Figure 14 ­ Sample of terrain used for the visual odometry algorithm development  Performing feature detection on the sample image demonstrated that descriptors are  detected in all areas of the image.  This is illustrated in Figure 15 where a green marker  is located to the position of each detected feature.  30   
+
+  Figure 15  Sample S  left camera fram me with des scriptors  By pe erforming feature match hing on the sample s  fram me and plotting the results on top of  a com mposite imag ge, it was de etermined which w  areas o of the image e produced the most  succe essfully matc ched data po oints. 
+
+  Fi igure 16  Matched desc criptors overlaid on the associated left and righ ht camera  frames  Figure 16 is a com mposite imag ge created using u  a stere eo image pai ir showing a dot to mark k  w  was su uccessfully matched m  to t the correct f feature in th he  each descriptor which corre esponding im mage.  A line is also show wn for each d descriptor in n the left frame  connecting it with its counterpart in the right frame. .  It is eviden nt from Figur re 16 that  the vast majority y of successfully matched d descriptor rs were dete ected on the terrain as  oppo osed to the horizon h  or th he sky.    31   
+
+This test t  was per rformed in an offline ma anner, and r results were evaluated q qualitatively  with images similar to Figure e 16.  The res sults confirm med that dist tant points in the image es  were much more e susceptible e to noise an nd conseque ently fewer s successful matches are  obtained from th hese points.  As a result, the decision n was made to mount th he camera at t  an an ngle such tha at it was 30° below the horizontal h  on n the rover's s pitch axis.  This  orien ntation limite ed the field of o  view of th he camera su uch that the majority of the terrain  was 0.5 0  ­ 3.0 m from f  the cam mera.  
+
+3.2 Data D  Collect tion 
+A var riety of data was collecte ed for use in n developme ent of the vis sual odomet ter.  This was s  done to ensure the robustne ess of the res sulting syste em.  Three se eparate trav verses of the e  MET were perfor rmed to colle ect preliminary data, an d are shown n on an aeria al view of a  CAD model of the e MET in Figure 17. 
+
+  ure 17 ­ Aer rial view of the t  Mars Em mulation Ter rrain at the C Canadian Sp pace Agency y  Figu
+
+32   
+
+Collection of the data was pe erformed using the instr rumented ca art as shown n in Figure 18 8,  while e the experim ment itself was w  performed offline.  T The red arro ows indicate the paths  follow wed by the cart c  during data d  collectio on and are m marked with their corres sponding  numb ber.  Also, visible in Figure 18 are the Bumblebe ee® camera s system and t the GPS  setup p used. 
+
+  ed cart used d for data co ollection  Figure 18  Instrumente Of the three traverses, shown in Figure 17, 1  paths 1 a and 2 were t taken with th he camera  positioned horizo ontally relati ive to the ro over wheel b base.  This or rientation did not limit  the viewing range of the cam mera.  The re esult of this w was that the e sky and structures wer re  visible in the fram me, which allowed cloud ds to introdu uce interest points that d did now  often n match succ cessfully whi ile the buildi ings created d glare.  The imagery from m path 3, als so shown in Figure 17, w was collected d with the ca amera tilted  30° below b  the ho orizontal on the t  pitch axi is.  This orie ntation limit ted the visib ble range of  the camera preve enting the in nclusion of the sky and d distant objec cts in the fra ames. 
+
+33   
+
+ 
+
+ 
+
+34   
+
+4 Visual Odometer Design 
+The processes of a visual odometer can be broken down into seven individual steps.    1) The first step is preprocessing, feature detection and feature description.  This  step encompasses all operations performed on the raw image data, such as  rectification, as well as the application of a feature detector.    2) The second step is feature correspondence for concurrent frames.  In this case  matching is performed using the Nearest Neighbour matching scheme with line  scanning applied to reduce the computation time.  3) The third step is outlier rejection for the concurrent frame point  correspondences.  This is performed using RANSAC.  4) Triangulation based on the correspondences achieved from the current frames is  the fourth step of the algorithm.    5) The fifth step is to perform feature correspondence between the features of the  current and previous left frames.  6) Outlier rejection is performed using RANSAC as well as strength and orientation  information for the consecutive frames match set.  7) The seventh and final step of the algorithm is the pose estimation.  The Horn  method is used to determine an initial alignment of the data and the ICP  algorithm refines this alignment.  The flow of data through the components of the visual odometer is illustrated in  Figure 19. 
+
+35   
+
+  Figu ure 19 ­ Visu ual odomete er structure  actice, it was s not possible to select methods m  to perform the e individual s steps in the  In pra order r they are us sed.  It was also a  not to se elect them i ndividually.  This was du ue to the  goal of o  developin ng a realtime implemen ntation and e evaluating th he potential for the ICP  algor rithm to improve pose es stimates.  Fo or example, the size of t the feature d descriptor  used significantly y impacted the computa ational cost o of not only t the feature d detection an nd  ription phase e, but also th he feature corresponde nce phase.  To reflect th his, the visua al  descr 36   
+
+odometer components are presented in the order that they were selected as opposed  to the order they are used in the algorithm. 
+
+4.1 Triangulation & Alignment 
+Triangulation is the process of recovering the 3D coordinate of a point from its  projection onto 2D images.  More specifically the triangulation component of the  algorithm uses the point correspondences obtained from the feature association  The Horn method was selected as the method of determining the initial pose estimate  because of its accuracy as well as its use of a closed form solution as opposed to an  iterative method.  This allowed an estimate to be obtained while minimizing the time  required for processing.  ICP was selected to refine the pose estimates produced by the Horn method due to the  success of previous work implementing it into pose estimation in other fields.  To  evaluate the effectiveness of ICP's inclusion in visual odometer, two modes were  created within the visual odometer:  Mode 1: the algorithm uses only the Horn method to estimate the transformation, pose,  between two consecutive frames associated with the rover motion.    Mode 2: at each frame, the algorithm refines the pose using ICP with the Horn method's  pose estimate as the initial guess.  It is commonly known that the computational cost of ICP increases significantly as the  matched data sets increase in size.  For a system using large data sets seeking to run in  realtime, the computational cost of ICP would have been prohibitively large.  Due to  the comparatively small data sets generated from the stereo camera, when compared  to a laser scanner, the computational cost of ICP for pose estimation was found to be  acceptable in this application.  This is discussed further in Section 5.2. 
+
+37   
+
+ 4.2 Feature Association & Outlier Rejection 
+Different approaches to determine feature correspondence were selected for use in  matching concurrent and consecutive frame descriptors.  A technique called line  scanning is used for concurrent frame matching to find candidate matches while the  matching itself is performed using the NearestNeighbour approach.  Line scanning is  when the search for a matching descriptor in the corresponding image is restricted to  the corresponding epipolar line and the area immediately adjacent to it.  This technique  was implemented to reduce the number of candidate matches and by extension the  computation time.  This was possible due to the geometry of the stereo camera system.   Because the individual cameras are contained in one unit they are always mounted  parallel to each other and at the same height.  This means that corresponding  descriptors occur in the same ycoordinate range of the captured images.  To take  advantage of this, the search for matching descriptors is limited to a ±2 pixel range in  the ydirection when matching descriptors from concurrent frames.  Matching for consecutive frames was performed using a modified version of the  PreferredMate matching method instead of the simpler NearestNeighbour method.   The reason for this was that this method performs better in rotation than the Nearest Neighbour approach.  In order to compensate for the additional computational cost  associated with the PreferredMate matching technique, the search area for candidate  matches was restricted.  By restricting the area searched for candidate matches, a significant savings in  computational cost was achieved.  It can be seen from Figure 20 that by reducing the  search area around the descriptor from 64x64 pixels to 32x32 pixels, the time for  computation dropped significantly.  Reducing the area size to 16x16 pixels or 8x8 pixels  resulted in further reductions in computation time, though the savings decrease  exponentially.  Overall it was found that a search area of 32x32 provided the best  balance between computation time and the number of descriptors successfully  matched.   
+
+38   
+
+Number of Descriptors vs. Time to Match 
+1000 900 800 Matching Time (ms)  700 600 500 400 300 200 100 0 0 500 1000 1500 2000 Number of Descriptors to Match  64 pixels 32 pixels 16 pixels   8 pixels
+
+  Figure 20  Time required to match for a set of descriptors using varying search areas  The number of successful matches obtained for varying scan area sizes, across a series  of 2000 images, is illustrated in Figure 21.  It is important to note that from frames 500  to 1000, significantly fewer inliers were detected for all scan area sizes.  This is a  reflection of the algorithm obtaining fewer descriptors from these images than the  others.  Therefore it is important to only consider the number of inliers of each trial  relative to the others.  It is evident that even reducing the search area from 64x64 pixels  to 32x32 pixels has a measurable impact on the number of inliers detected.   
+
+39   
+
+Number of Inliers vs. Frame Number 
+1600 1400 1200 Number of Inliers  1000 800 600 400 200 0 0 500 1000 Frame Number  1500 2000 64 pixels 32 pixels 16 pixels   8 pixels
+
+  Figure 21  Number of inliers detected for varying search area sizes  For the final implementation of the visual odometer, a scan area of 32x32 pixels is used  for consecutive frame matching.  This decision came as a result of the need to balance  accuracy with computation time.  The reduction in time required for this type of  matching eliminated a significant obstacle to creating a visual odometer that operates in  realtime.  As well, it should be noted that the decline in the number of inliers for all  search area sizes around frame 550 is a result of the terrain yielding fewer descriptors.   This reduction in the number of inliers can be addressed by having the vehicle traverse  more slowly across the terrain in order to reduce the disparity between consecutive  images and consequently reduce the likelihood of poor pose estimates.  The dominant method used for outlier rejection in visual odometry research is RANSAC  as it is a robust approach that has been shown to remove outliers from data sets in  which the number of outliers, or erroneous matches, is as high as 60%.  Based on the  past performance of the RANSAC algorithm and the lack of proven alternatives it was  selected for use in the visual odometer as the primary outlier rejection method.    40   
+
+For consecutive frame descriptor correspondence, candidate matches are evaluated  based a comparison of descriptor orientations and strengths, as defined by Lowe [43].   Any pairs where the difference in orientation or strength exceeds a threshold were  removed prior to evaluating the set of descriptor pairs using RANSAC.  This combination  of methods was found to require somewhat less computation time than running  RANSAC alone.  This was not the case when matching descriptors from concurrent  frames.  RANSAC was the only outlier rejection algorithm used for these matches. 
+
+4.3 Selection of a Feature Detector 
+Three candidate feature detectors were identified from the literature review performed  at the onset of the project to be the most robust.  These feature detectors are SIFT,  SURF and GPUSURF.  SIFT has been used very successfully by the research community  since its development, and SURF, though only recently developed, has also proven to be  both accurate and reliable in the short time it has been available.  Finally, GPUSURF is a  new approach that has not yet been widely implemented, but was selected as a  candidate for its potential to provide comparable results to the other algorithms at a  reduced computational cost.  Given that the accuracy of the three candidate algorithms has been reported by related  research to be comparable, the performance indicator used in the selection process was  the processing time.  Each candidate was applied to the same series of frames to  evaluate their performance, the average results are given by Table 1.  The computer  used for the evaluation is equipped with a Pentium 4HT processor.  Table 1  Average algorithm processing time for different feature detectors 
+Descriptor  Type  SIFT  SURF  GPUSURF  Processing  Time [ms]  7517.74  2447.66  559.73  Operating  Frequency [Hz]  0.1330187  0.408553476  1.78657567 
+
+  41   
+
+It can be seen from Table 1 that the computational cost of GPUSURF is an average of  4.37 times lower than SURF and 13.43 times lower than SIFT.  Consequently, in order to  obtain a comparable level of accuracy, a vehicle utilizing the SIFT or SURF algorithms  would be required to travel much slower than a vehicle utilizing GPUSURF respectively.   While irrelevant to an algorithm intended for use as a postprocessing error correction  tool, the significantly lower operating frequency makes the computational costs of SIFT  and SURF prohibitively large for use in realtime.  Consequently, GPUSURF was selected  as the feature detector and descriptor for the visual odometer. 
+
+42   
+
+5 Experimenta al Characte erization 
+5.1 Experiment E al Setup 
+Chara acterization of the algor rithm was pe erformed off fline using a additional da ata collected d  from the Canadia an Space Age ency's Mars Emulation T Terrain.  Inst tead of reusing the  instru umented car rt shown in Figure F  18, th he stereo cam mera system m was mounted on the  CSA's s MRT.  The reason for this was the intention i  to validate the e algorithm under the  motio on of an actu ual rover as opposed to a cart contr rolled by a person.  The MRT M  is show wn in Figure 22 2  with the stereo s  came era mounted d at the top a at a  down nward angle of 30° and a GPS frame consisting o of three real l time kinem matic, RTK,  GPS receivers. r   Th he RTK GPS receivers provided the g ground truth h data that w was the basis  of the e algorithm characteriza ation, but we ere unused b by the visual odometer itself.  The  groun nd truth data is accurate e to within 0.04 0  m. 
+
+  RT equipped d with a ster reo camera and GPS fra ame  Figure 22 ­ The MR 43   
+
+The rover itself is a modified Pioneer 2AT from Mobile Robots Inc.  The computing  processing unit (CPU) of the rover consists of a CF30 ToughbookTM and the operating  system of the rover is a Linux distribution, namely Ubuntu 8.0.4.  The rover features a  series of custom electromechanical interfaces to allow for additional hardware to be  added easily. 
+
+5.2 Experimental Results 
+A number of traverses were performed in and around the MRT, at a speed of 0.10 m/s  to generate data with which to characterize the visual odometer and to evaluate the ICP  algorithm as a part of the visual odometer.  The results of offline processing of the data  using the visual odometry algorithm in both Modes of operation are discussed below.   The data for each trial was collected and processed offline by the visual odometer.  The  error metrics used for evaluation during the test cases are the average percent error in  the overall rover displacement and the average error in yaw angle estimation.  Data on  rotation for roll and pitch are not compared because the terrain did not cause the  vehicle to pitch or roll noticeably.  This would result in inflated error estimates.  5.2.1 Characterization of the Visual Odometer  In order to characterize the visual odometer under varying conditions, traverses were  performed in different types of terrain and under various lighting conditions.  A  composite image of the test cases is shown in Figure 23. 
+
+44   
+
+  ous environm mental cond ditions expe erienced dur ring the char racterization n  Figure 23  Vario of the visual v  odome eter  rom Figure 23, 2  the terrain over whic ch localizatio on was perfo ormed  As can be seen fr includ ded wet and d dry sand, gravel g  and pa avement.  D ata was not collected from  extre emely rocky terrain t  due to t  the groun nd clearance e limitations of the rover r used.   Lighting conditions varied as well, as data was collec cted during b both clear an nd overcast  weather conditio ons.  The results of the tr raverses are e given by Ta able 2.  It sho ould be note ed that groun nd truth data was only a available for displaceme ent during  trave erses 5, 6 and d 7.  The rea ason for this is the fact th a for these ca ases was  hat the data collec cted using th he instrumented cart ins stead of the rover, which was only e equipped  with a one RTK GPS G  antenna. .  The other five traverse es were perf formed using the rover  equip pped with th hree RTK GPS S antennas.      
+
+45   
+
+Table 2  Average error experienced during multiple traverses  Traverse  1  2  3  4  5  6  7  8    Displacement [%]  5.085%  20.480%  20.249%  43.212%  14.588%  89.600%  67.031%  6.670%  Yaw Angle [°] 4.572 6.504 13.008 47.147 N/A N/A N/A 31.395 Terrain Displacement [m] gravel, clear 14.075 wet sand, overcast 26.503 wet sand, overcast 32.993 wet sand, clear 90.830 wet sand, clear 42.717 wet sand, clear 145.534 pavement, overcast 109.048 dry sand, clear 25.264
+
+It can be seen that both the displacement error and the yaw error varied significantly  between the different traverses.  Comparing traverses 4, 5, 6 and 8, we can see that the  texture change between wet and dry sand had a significant impact on localization error,  with lower error being seen during dry conditions.  This is likely due to the decreased  texture of the environment seen when the terrain becomes saturated.  Taking note of  the weather conditions, it is evident that the best results were predominantly obtained  from data collected on days having clear weather.    The impact of the weather conditions is most evident when comparing traverses 2 and  8.  The paths followed for these data sets are nearly identical, having been started from  the same initial position and following the same trajectory.  The change in  environmental conditions is the only significant difference between the two traverses  yet the localization error is significantly higher during traverse 2.  Figure 24 illustrates  this, showing only one of the ground truth estimates to avoid cluttering the figure.       
+
+46   
+
+Rover Displacement vs. Frame Number 
+30
+
+Displacement [m] 
+
+25 20 15 10 5 0 2 32 62 92 122 152 182 212 242 272 302 332 362 392 422 452 482 512 542
+
+Wet Sand, Overcast Dry Sand, Clear RTK GPS
+
+Frame Number  Figure 24  Comparison of rover traverses 2 and 8  Another factor that should be addressed for its potential to have an impact on the  localization accuracy, is the duration of the traverses.  Table 3 gives the data shown  before, in Table 2, in order of increasing traverse duration based on the number of  frames collected.  Table 3  Average errors shown in order of the length of the associated traverse  Displacement [m]  14.075  25.264  26.503  32.993  42.717  90.830  109.048  145.534    Looking at Table 3, there appears to be an overall trend to increase the average  translation error as the traverses become longer.  Similarly the average yaw error also  appears to increase for the longer traverses.  Figure 25 and Figure 26 illustrate this.  47    Displacement [%]  5.085%  6.670%  20.480%  20.249%  14.588%  43.212%  67.031%  89.600%  Yaw Angle [°]  4.572  31.395  6.504  13.008  N/A  47.147  N/A  N/A   
+
+Displacement Error 
+80% 70% 60% 50% 40% 30% 20% 10% 0% 0 20 40 60 80 100 120
+
+Error 
+
+error
+
+Displacement [m]    Figure 25  Displacement error vs. the length of the traverse 
+
+Yaw Angle Error 
+50 40
+
+Error [°] 
+
+30 20 10 0 0 20 40 60 80 100
+
+error
+
+Displacement [m]    Figure 26  Yaw error vs. the length of the traverse  Individual figures illustrating the visual odometer performance compared to the ground  truth data can be found in Appendix A.  The yaw error has an important impact on the error in the final position.  Even in those  cases where the visual odometer displacement error was relatively low, the final 
+
+48   
+
+position can still significantly y deviate from the groun nd truth estimate.  This i is illustrated d  below w in Figure 27. 2  
+
+  Figure 27 7  Graphical l output of o offline proce essing  Figure 27 shows the t  graphica al output of the offline v visual odom meter testing g where the  green n sphere rep presents the rover and th he red line is s the path estimated by the visual  odom meter.  The white w  line is the actual path followed d, constructed from the ground  truth data, and th he point clou ud is the tria angulated da ata used by t the visual od dometer for r  the IC CP algorithm m.  The impact of erroneous yaw ang gle estimatio ons is appare ent where  the estimated e  rov ver path dev viates from the t  ground t truth data.  T This is evide ent after  appro oximately 40 0 % of the tr raverse is completed wh hen the algor rithm estima ates a sharp  turn.  After this point p  no sign nificantly high errors are  found in the yaw estim mates,  howe ever the path h continues to deviate due d  to the ne ew heading. .  It can n be seen fro om the results presented d here that t the presente ed visual odo ometer was  not able to achieve the results published d in other res search.  The e traverses on which the  rithm performed best ac chieved appr roximately 5 5.0 % and 6.5 5 % error in terms of  algor displa acement and d 4.5° and 6.5° error in terms t  of yaw w.  Data published by other  resea archers put their t  displacement and yaw y  rotation n errors at approximatel ly 2.0% and  5° res spectively.  A mo ore definitive e statement can be made about the impact of IC CP on the ac ccuracy of th he  algor rithm.  The fi irst two trav verses were also a  process sed without the use of th he ICP  algor rithm in orde er to form a basis on which to assess s the impact t of ICP on lo ocalization  accur racy.  The results of this are discusse ed below. 
+
+49   
+
+5.2.2 2 Impact of IC CP  Chara acterization Case 1.  As seen s  in Figure 28 and Fig gure 29, the e first charac cterization  case was a traver rse over a fla at terrain characterized by gravel.  In addition, t the terrain  d  and the weather w  was s clear on th he day of the e experiment.  was dry This scenario s  was s evaluated for the chall lenge it prov vided to the camera, and d would  provide to a laser scanner ba ased system, , which wou ld have been unable to localize  prope erly under su uch uniform m environmental conditio ons. 
+
+  Figure 28  Characterization case 1 rover trajectory 
+
+  e 1 terrain te exture  Figure 29  Characterization case Table e 4 gives a su ummary of the average errors e  for th he algorithm applied to t the data in  both modes of op peration.  Th he visual odo ometer algorithm runnin ng ICP (Mod de 2) had an  age displacement estima ate error of 5.085%, 5  whiile the assoc ciated error f for the  avera algor rithm omittin ng ICP is 19.5 535%.  The average a  yaw w error using g ICP is also m measurably 
+
+50   
+
+less than the average error obtained without using ICP, at 4.572° and 8.355°  respectively.    The results of the first case appear to indicate that the ICP algorithm significantly  improves both the displacement and yaw errors.  A more complex traverse is analyzed  for case 2 to determine if the same trend is visible under different conditions.  Table 4  Characterization case 1 average error 
+Mode  ICP on  ICP off  Pose Estimate 5.085% 19.535% Yaw Error 4.572° 8.355°
+
+  The experimental results obtained for the rover displacement and yaw angle during the  first case are given by Figure 30 and Figure 31 respectively. 
+
+Rover Displacement vs. Frame Number 
+16 14
+
+Displacement [m] 
+
+12 10 8 6 4 2 0 2 2 19 36 53 70 87 104 121 138 155 172 189 206 223 240 257 274 291 308 325 342 359 376 393 410 427
+
+ICP on ICP off RTK GPS
+
+Frame Number 
+  Figure 30  Characterization case 1 rover displacement 
+
+51   
+
+Yaw Angle vs. Frame Number 
+20 15 10 5 0 2 19 36 53 70 87 104 121 138 155 172 189 206 223 240 257 274 291 308 325 342 359 376 393 410 427 5 10 15
+
+Yaw Angle [deg] 
+
+ICP on ICP off RTK GPS
+
+Frame Number    Figure 31  Characterization case 1 rover yaw angle 
+
+A deviation of up to 15° from the ground truth GPS reading is seen in Figure 31 for the  algorithm when used without ICP.  Though it is known that the yaw angle is particularly  difficult for a visual odometry algorithm to estimate, this deviation is higher than  anticipated.  This likely indicates that a larger number of incorrect matches were  characterized as inliers during the middle portion of the traverse, which adversely  affected the estimate obtained from the Horn method.    This is significant because the  Horn method will only be able to obtain the optimal solution to the alignment problem  if the data is composed entirely of correct matches.  The results, specifically the reduced  error in terms of displacement and the deviation in the yaw angle midway through the  traverse, demonstrate the benefit obtained from introducing the ICP algorithm.  Characterization Case 2.  As seen in Figure 32 and Figure 33, the second case is a curved  traverse through terrain characterized by sand and a variety of small to large rocks.  This  scenario was selected as it is a very similar environment to that found during planetary  exploration missions to Mars.  Additionally, the shape of the path was chosen to provide  52   
+
+a high her level of difficulty d  tha an the previo ous case.  Ro otational mo otion causes s features to o  pass out of the ca amera's field d of view mo ore quickly t than during t translational motion,  result ting in fewer inliers, making rotation nal motion m more difficult to correctly estimate.   Finall ly, the exper riment was performed p  while w  the san nd was wet a and the sky was  overc cast, the opp posite of the e conditions in the previo ous case. 
+
+  odel of the MET  Figure 32 3   Characte erization cas se 2 shown o on a CAD mo
+
+  Figure 33  Characterization case e 2 terrain te exture  Table e 5 summarizes the aver rage errors in n the results s of the visua al odometer r pose  estim mates.  The average displacement er rrors for the ICP on and ICP off cases s are  21.61 11% and 29.158% respec ctively while e the associa ated average e yaw errors are 6.419°  and 13.725° 1  resp pectively.  It is i  again evid dent that the e algorithm p performed s significantly  bette er when utilizing ICP.  Th his result matches that se een in the first case despite the  signif ficantly diffe erent environ nmental con nditions.  53   
+
+Table 5  Characterization case 2 average error 
+Mode  ICP on  ICP off  Pose Estimate 21.611% 29.158% Yaw Error 6.419° 13.725°
+
+  The results confirm what was seen in the first case.  The presence of the ICP algorithm  improved the pose estimate obtained by the Horn method, which was influenced by the  presence of erroneous matches in the inlier data set.  Figure 34 and Figure 35 show the estimated rover displacements and yaw angles for  both visual odometer modes compared to the ground truth data.  The experimental  results obtained from the second experiment showed a decrease in localization error  when using ICP.  While no significant deviations, such as those seen in Figure 31 are  evident, the deviation of the algorithm's estimates from the ground truth data is less  severe when using ICP. 
+
+Rover Displacement vs. Frame Number 
+30 25
+
+Displacement [m] 
+
+20 15 10 5 0 2 23 44 65 86 107 128 149 170 191 212 233 254 275 296 317 338 359 380 401 422 443 464 485 506 527 548
+
+ICP on ICP off RTK GPS
+
+Frame Number    Figure 34  Characterization case 2 rover displacement 
+
+54   
+
+Yaw Angle vs. Frame Number 
+80 60
+
+Yaw Angle [deg] 
+
+40 20 0 2 24 46 68 90 112 134 156 178 200 222 244 266 288 310 332 354 376 398 420 442 464 486 508 530 552 20 40 60
+
+ICP on ICP off RTK GPS
+
+Frame Number 
+ 
+
+Figure 35  Characterization case 2 rover yaw angle  By comparing the results of the second case to the first, it can be seen that the ICP  algorithm had a positive impact on algorithm accuracy when estimating both the  displacement and the yaw angle of the rover.  This trend was seen despite varying  environmental conditions and terrain types.  5.2.3 Computational Cost  Computational cost was measured in term of the time required to perform the  individual operations of the visual odometer.  The average cost is summarized in       Table 6.  Table 6  Average computational cost  Process  GPUSURF  Feature Matching & RANSAC  Horn Method & ICP  Total    55    Time (ms)  433.31  96.7  29.71  559.73 
+
+It is evident that feature detection remains the largest contributor to computational  cost, though there is room for further improvement in the feature matching and outlier  rejection time as well.  As well, it is important to note that while the ICP algorithm is  typically computationally intensive, its impact in this context is sufficiently small in  comparison to the other algorithm operations that it can be used in this application.   This is attributed to the smaller data set obtained by a stereo camera then from a laser  scanner, the sensor most often used in conjunction with ICP.  
+
+5.3 Functionality Verification 
+Some additional tests were performed to verify that the outlier rejection and pose  estimation components of the algorithm are functioning correctly in light of the high  error seen in the localization results from those days which had poor weather  conditions.    Functionality Test 1.  The first test was to determine if the outlier rejection algorithm,  RANSAC, was performing properly, the results of which are illustrated by Figure 36. 
+
+56   
+
+RANSAC Outlier/Inlier Ratio 
+1 0.9 Ratio of Outliers to Inliers  0.8 0.7 0.6 0.5 0.4 0 100 200 300 400 500 Frame Number 
+
+Dry Sand, Clear Wet Sand, Overcast
+
+  Figure 36  Outlier rejection results during varying weather conditions  It can be seen from Figure 36 that the ratio of outliers to inliers is consistently higher  during the traverse of fair weather conditions.  By detecting a lower percentage of  outliers during the traverse under poor weather conditions, more outliers are  erroneously categorized as inliers and are used to perform motion estimation.  This is a  source of error which contributes to the higher error seen under poor weather  conditions.  It is possible that by adjusting the parameters used by RANSAC, the  performance during poor weather could be improved somewhat.  Functionality Test 2.  A comparison of the localization components of the different  modes of the visual odometer was also performed on synthetic data to evaluate the  algorithm's response to a 100% inlier data set.  A point cloud in the shape of a cube with  rough face was generated using MATLAB to form the reference data, and a known  transformation, given in Table 8, was applied to generate the collected data.  The  synthetic data can be seen in Figure 37.  57   
+
+  Figure 37  Synthetic S  da ata used to compare c  the e modes of t the visual od dometry  algorithm a     Table 7  Tra ansformatio on applied to o the synthe etic data  Transformatio on  X [m]  Y [m]  Z [m]  Yaw [°]    The results r  show wed that Mod de 1, using the Horn me thod withou ut ICP refinement  perfo ormed, bette er than Mode 2, which used u  the ICP algorithm.  The results are given  below w.  Ma agnitude  0.06  0.01  0.36  5 
+
+58   
+
+Table 8  Average error in localization estimates for synthetic data 
+Error  Displacement  Yaw  Mode 1  0.0002%  0.0003°  Mode 2  0.7069%  0.3230° 
+
+  The results indicate that both modes of the algorithm are capable of accurately  performing localization of the data set shown in Figure 37.  The mode 2 results are  slightly different from Mode 1 results because of noise injected into the simulated data  when performing ICP.  
+
+59   
+
+                         
+
+60   
+
+6 Conclusions 
+Accurate localization estimation is a critical task for autonomous vehicles including  those used for exploration of other planets.  The majority of systems currently in  practical use perform localization using either IMU's or wheel odometry.  Such  approaches become increasingly inaccurate over time due the drift experienced by  IMU's and the slippage that is unaccounted for in wheel odometry estimates.    An alternative means of performing localization is visual odometry.  It also experiences  error accumulation but this can be mitigated by the visual odometry algorithm itself  through the use of bundle adjustment and loop closing techniques.  The primary contribution of this thesis is the development of a visual odometry  algorithm capable of operating in real time and in the unstructured environments of  other planets.  This work also provides a framework for use in future research.  Imagery  is collected using a stereocamera system which is used to obtain localization estimates.   The visual odometry algorithm can function in two modes.  Mode 1: the algorithm uses only the Horn method to estimate the transformation, pose,  between two consecutive frames associated with the rover motion.    Mode 2: at each frame, the algorithm refines the pose using ICP with the Horn method's  pose estimate as the initial guess.  Evaluation of ICP in the context of the visual odometry algorithm found that it had a  minimal impact on the overall computational cost of the visual odometer.  The  incorporation of ICP resulted in a significant reduction in the error of the yaw angle  estimates, a parameter typically difficult to estimate accurately using visual odometry.   The impact of ICP on the translation error estimates was less conclusive and should be  studied further using larger traverses.    In conclusion, running the algorithm in Mode 2 is found to be beneficial for rotation  accuracy, with minimal additional computational cost.   61   
+
+ It is recommended that sensor fusion be explored in future work as a means of further  reducing pose estimation error.   Data used for the development of the visual odometer was collected in from the  Canadian Space Agency's Mars Emulation Terrain (MET).  Performance evaluation of the  completed algorithm was also founded on data collected from the MET, ensuring that  the algorithm could operate in a relevant field environment. 
+
+6.1 Summary of Specific Results 
+Given the problem of localizing a vehicle in an unknown and unstructured environment,  this thesis works to develop a visual odometry algorithm that is capable of accurately  localizing in real time.  It was found that:  1. The SIFT and SURF algorithms significantly limited to allowable speed at which a  vehicle could travel if localizing in real time.  2. The GPUSURF algorithm was able to partially alleviate the limitations in vehicle  speed by allowing the algorithm to operate at a higher frequency.  3. Even a single inaccurate estimation of the vehicle yaw angle resulted in  significant deviation of the estimated final position from the true final position.  4. The integration of the ICP algorithm into the visual odometer substantially  reduced the error in vehicle yaw angle estimates, a parameter that is typically  difficult to estimate using visual odometry.  5. While ICP is computationally intensive on large data sets, the computation time  was sufficiently small in this application to be viable for use in a real time  algorithm.  6. The algorithm demonstrated a sensitivity to the lighting conditions, a known  problem in visual odometry research  7. The algorithm which was developed is capable of operating in realtime,  however the accuracy achieved is not comparable to other implementations. 
+
+62   
+
+6.2 Future Work 
+Additional work is recommended to reduce the pose estimation error and improve  robustness, as the present version is not yet suitable for practical application.  It is  recommended that sensor fusion, loop closing and bundle adjustment be explored as  potential means of achieving this goal.  As well, obstacle avoidance, the kidnapped  robot scenario and selfcalibration are areas of research with the potential to further  the visual odometer presented here.  Sensor fusion offers another means by which the estimation error could be reduced and  should be considered for future work.  It is possible that error could be reduced through  the integration of a second, independently determined, initial pose estimate.  While  IMU's or laser scanners could be applied, these options incur an additional cost in terms  of volume, mass or power consumption.  An alternative sensor, which should be  considered, is the right camera of the stereo camera system.  The consecutive frames  from the left camera are the basis for the visual odometer's initial pose estimate.  The  consecutive frames from the right camera, currently unused, could produce a second,  independently determined, initial pose estimate.  By comparing the two initial pose  estimates, this approach has the potential to improve the localization estimation error  at a very low cost.  A focus of current research is the loop closing problem.  Loop closing occurs when a  vehicle conducting localization and mapping operations returns to a previously visited  location.  In this event, the ideal scenario would be that the newest data corresponds  exactly with previously collected data.  In reality this is unlikely due to error in the  previous estimates or differing perspectives on the environment.  If the algorithm is able  to close the loop and achieve correspondence between new and old data, then the  error in the previous localization estimates can be reduced via bundle adjustment.   Future integration of bundle adjustment in highly recommended.  Bundle adjustment is the refinement of the 3D coordinates and relative motion  estimates obtained from imagery of a scene taken from multiple viewpoints.   63   
+
+Performing bundle adjustment has been shown to increase pose estimation accuracy  and should be considered for future implementations of the algorithm.  The visual odometry algorithm would also benefit from work on the kidnapped robot  scenario.  The kidnapped robot scenario is when an event occurs that prevents the  vehicle from successfully localizing.  The problem is that when the vehicle is able to  resume normal operation, it must attempt to localize relative to previously collected  data even though it may have continued to traverse the terrain during the period where  localization had failed.  A major component of this problem, as with loop closing, is that  the vehicle must be capable of recognizing previously viewed terrain from different  perspectives if it becomes turned around.  As well, the visual odometer could be advanced by integrating it with an obstacle  avoidance algorithm.  The algorithm in this thesis required that the rover be driven by  an operator.  A major step in removing the need for human assistance in the rover's  operations is too incorporate obstacle avoidance capabilities.  Work could also be done to incorporate selfcalibration into the visual odometer.  This  would result in a more robust algorithm that would be readily transferable to vehicles  utilizing different stereo vision systems.  As well, the algorithm described here could be  used for doing studies on slip detection.  By comparing visual odometry to wheel  odometry, the algorithm could be used to better characterize conditions under which  slippage is most sever and to test methods of preventing it.
+
+64   
+
+Appendices 
+Appendix A: Algorithm Characterization Figures 
+ 
+
+Rover Displacement vs. Frame Number 
+35 30
+
+Displacement [m] 
+
+25 20 15 10 5 0 2 34 66 98 130 162 194 226 258 290 322 354 386 418 450 482 514 546 578 610 642 674
+
+Visual Odometer RTK GPS
+
+Frame Number 
+  Figure 38  Traverse 3 displacement error 
+
+65   
+
+Yaw Angle vs. Frame Number 
+60 50 40
+
+Yaw Angle [deg] 
+
+30 20 10 0 10 20 30 2 32 62 92 122 152 182 212 242 272 302 332 362 392 422 452 482 512 542 572 602 632 662
+
+Visual Odometer RTK GPS Visual Odometer RTK GPS
+
+Frame Number    Figure 39  Traverse 3 yaw angle error 
+
+Rover Displacement vs. Frame Number 
+100 90 80 70 60 50 40 30 20 10 0 2 60 118 176 234 292 350 408 466 524 582 640 698 756 814 872 930 988 1046 1104 1162
+
+Displacement [m] 
+
+Visual Odometer RTK GPS
+
+Frame Number 
+  Figure 40  Traverse 4 displacement error 
+
+66   
+
+Yaw Angle vs. Frame Number 
+200 150 100
+
+Yaw Angle [deg] 
+
+50 0 2 55 108 161 214 267 320 373 426 479 532 585 638 691 744 797 850 903 956 1009 1062 1115 1168 50 100 150 200
+
+Visual Odometer RTK GPS
+
+Frame Number    Figure 41  Traverse 4 yaw angle error 
+
+Rover Displacement vs. Frame Number 
+45 40
+
+Displacement [m] 
+
+35 30 25 20 15 10 5 0 2 41 80 119 158 197 236 275 314 353 392 431 470 509 548 587 626 665 704 743 782 821
+
+Visual Odometer RTK GPS
+
+Frame Number 
+  Figure 42  Traverse 5 displacement error 
+
+67   
+
+Rover Displacement vs. Frame Number 
+160 140
+
+Displacement [m] 
+
+120 100 80 60 40 20 0 2 50 98 146 194 242 290 338 386 434 482 530 578 626 674 722 770 818 866 914 962
+
+Visual Odometer RTK GPS
+
+Frame Number 
+  Figure 43 ­ Traverse 6 displacement error 
+
+Rover Displacement vs. Frame Number 
+120 100 80 60
+
+Displacement [m] 
+
+Visual Odometer
+40 20 0 2 71 140 209 278 347 416 485 554 623 692 761 830 899 968 1037 1106 1175 1244 1313 1382
+
+RTK GPS
+
+Frame Number 
+  Figure 44  Traverse 7 displacement error 
+
+68   
+
+Rover Displacement vs. Frame Number 
+30 25 20 15 10 5 0 2 28 54 80 106 132 158 184 210 236 262 288 314 340 366 392 418 444 470 496 522 548
+
+Displacement [m] 
+
+Visual Odometer RTK GPS
+
+Frame Number 
+  Figure 45  Traverse 8 displacement error 
+
+Yaw Angle vs. Frame Number 
+100
+
+50
+
+Yaw Angle [deg] 
+
+0 2 27 52 77 102 127 152 177 202 227 252 277 302 327 352 377 402 427 452 477 502 527 552
+
+Visual Odometer RTK GPS
+
+50
+
+100
+
+150
+
+Frame Number    Figure 46  Traverse 8 yaw angle error 
+
+  69   
+
+                       
+
+70   
+
+Appe endix B: Camera Speci ifications 
+  blebee® Spec cifications  Bumb
+
+  Figure 47  Bumblebee® camera s pecification ns [65] 
+
+71   
+
+  Fig gure 48  Bum mblebee® ca amera dime ensional drawings [65] 
+ 
+
+72   
+
+References 
+[1]              Active  Media  Robotics  LLC,  Pioneer  2/PeopleBot  Operations  Manual,  Version 9, Peterborough, USA, 2001.  [2]              T.  Bailey,  "Mobile  Robot  Localisation  and  Mapping  in  Extensive  Outdoor  Environments"  Thesis, University of Sydney, Sydney, Australia, Aug. 2002.  [3]              T.  Barfoot,  "Online  Visual  Motion  Estimation  using  FastSLAM  with  SIFT  Features"    In  IEEE/RSJ  International  Conference  on  Intelligent  Robots  and  Systems, 2005.  [4]              T.  Barfoot,  S.  Se,  and  P.  Jasiobedzki,  "Visionbased  Localization  and  Terrain  Modelling  for  Planetary  Rovers"    In  Chapter  in  Intelligence  for  Space  Robotics, A. Howard and E. Tunstel, eds., TSI Press, Albuquerque, USA, 2006.  [5]              B.  Barshan  and  H.F.  DurrantWhyte,  "Inertial  Navigation  Systems  for  Mobile  Robots"   In  IEEE  Trans.  On  Robotics  and  Automation,  vol.  11,  no.  3,  pp.  328342, June 1995.  [6]              H.  Bay,  B.  Fasel  and  L.V.  Gool,  "Interactive  Museum  Guide:  Fast  and  Robust  Recognition  of  Museum  Objects"    In  Proc.  Of  the  First  International  Workshop on Mobile Vision, May 2006.  [7]              H.  Bay,  A.  Ess,  T.  Tuytelaars,  and  L.  Van  Gool,  "SURF:  Speeded  Up  Robust  Features"   In  Computer  Vision  and  Image  Understanding  (CVIU),  vol.  110,  no.  3,  pp. 346­359, 2008.  [8]              J.  L.  Bentley,  "Multidimensional  binary  search  trees  used  for  associative  searching"    In  Communications  of  the  ACM,  vol.  18,  number  9,  pp.  509217,  1975. 
+
+73   
+
+[9]              P.  J.  Besl  and  N.  D.  McKay,  "A  method  for  registration  of  3D  shapes"   In  IEEE  Transactions  on  Pattern  Analysis  and  Machine  Intelligence,  vol.  14,  no.  2,  pp. 239­256, 1992.  [10] V.  Bevilacqua,  G.  Mastronardi,  F.  Menolascina  and  D.  Nitti,  "Stereo
+
+Matching  Techniques  Optimisation  Using  Evolutionary  Algorithms"   In  Intelligent  Computing, pp. 612621, 2006.  [11] J.F.  Canny,  "Finding  Edges  and  Lines  in  Images"  MIT  Artificial  Intelligence 
+
+Laboratory, report: 720, pp. 1149, May, 1983.  [12] Y.  Cheng,  M.  Maimone  and  L.  Matthies,  "Visual  Odometry  on  the  Mars 
+
+Exploration  Rovers"   In  IEEE  Robotics  &  Automation  Magazine,  vol.  13,  issue  2,  pp. 5462, 2006.   [13] P. Corke, D. Strelow, and S. Singh, "Omnidirectional visual odometry for a 
+
+planetary  rover"  In  Proc.  IROS  2004:  IEEE/RSJ  Inter.  Conf.  Intelligent  Robots  and  Systems, Japan, 2004.  [14]  J. Courbon, Y. Mezouar, L. Eck, and P. Martinet, "A generic framework for 
+
+topological  navigation  of  urban  vehicle"    In  Proc.  ICRA09  Workshop  on  Safe  Navigation  in  Open  and  Dynamic  Environments  Application  to  Autonomous  Vehicles, Kobe, Japan, May, 2009.  [15] A. Cumani and A. Guiducci, "Fast Stereobased Visual Odometry for Rover 
+
+Navigation"   In  WSEAS  Transactions  on  Circuits  and  Systems,  vol.  7,  issue  7,  July,  2008.   [16] A.  Diosi  and  L.  Kleeman,  "Laser  Scan  Matching  in  Polar  Coordinates  with 
+
+Application  to  SLAM"    In  Proc.  of  IEEE  International  Conference  on  Intelligent  Robots and Systems, pp. 33173322, Aug. 2005. 
+
+74   
+
+[17]
+
+A.  Diosi  and  L.  Kleeman,  "Scan  Matching  in  Polar  Coordinates  with 
+
+Application to SLAM"  Monash University, report: MECSE292005, pp. 153, July,  2005.  [18] M.  G.  Dissanayake,  P.  Newman,  S.  Clark,  and  H.  F.  DurrantWhyte,  "A 
+
+Solution  to  the  Simultaneous  Localization  and  Map  Building  (SLAM)  Problem"   In  IEEE  Transactions  on  Robotics  and  Automation,  vol  17,  issue  3,  pp.  229­241,  2001.  [19] C.  Dornhege  and  A  Kleiner,  "Visual  Odometry  for  Tracked  Vehicles"    In 
+
+Proc.  of  IEEE  International  Workshop  on  Safety,  Security  and  Rescue  Robotics  (SSRR 2006), Gaithersburg, USA, 2006.  [20] E. Dupuis, J.C. Piedboeuf, and E. Martin, "Canadian Activities in Intelligent 
+
+Robotic Systems: An Overview", 2007.  [21] A.  Elfes,  "A  SonarBased  Mapping  and  Navigation  System"    In  Proc.  of 
+
+IEEE International Conference on Robotics and Automation, Feb. 1986.  [22] C.  Engels,  H.  Stewénius  and  D.  Nistér  "Bundle  Adjustment  Rules"    In 
+
+Photogrammetric Computer Vision (PCV'06), 2006.  [23] A.  Farjadpour,  D.  Roundy,  A.  Rodriguez,  M.  Ibanescu,  P.  Bermel,  J.D. 
+
+Joannopoulos  and  S.G.  Johnson  "Improving  accuracy  by  subpixel  smoothing  in  the  finitedifference  time  domain"    In  Optics  Letters,  vol.  31,  no.  20,  pp.  2972 2974, Oct. 2006.  [24] M.A.  Fischler  and  R.C.  Bolles,  "Random  Sample  Consensus:  A  Paradigm 
+
+for  Model  Fitting  with  Applications  to  Image  Analysis  and  Automated  Cartography"  In Proc. Image Understanding Workshop, pp. 7188, Apr. 1980.  [25] P.  Furgale,  T.  D.  Barfoot,  and  N.  Ghafoor  "RoverBased  Surface  and 
+
+Subsurface  Modeling  for  Planetary  Exploration"  In  Proc.  Field  and  Service  Robotics (FSR), Cambridge, USA, 14­16 July, 2009.  75   
+
+[26]
+
+P.  Furgale  and  C.H.  Tong,  "Speeded  Up  Speeded  Up  Robust  Features"  
+
+ONLINE [http://asrl.utias.utoronto.ca/code/gpusurf/],  Updated: Apr. 30, 2010.  [27] A.  Fusiello,  E.  Trucco  and  A.  Verri  "A  Compact  Algorithm  for  Rectification 
+
+of Stereo Pairs"  In Machine Vision and Applications, vol. 12, pp. 1622, 2000.  [28] P.  Goel,  S.I.  Roumeliotis  and  G.S.  Sukhatme,  "Robot  Localization  Using 
+
+Relative  and  Absolute  Position  Estimates"    In  Proc.  of  IEEE  International  Conference  on  Intelligent  Robots  and  Systems,  Kyongju,  South  Korea,  pp.  1134 1140, Oct. 1999.  [29] J.  Guivant  and  E.  Nebot,  "Optimization  of  the  Simultaneous  Localization 
+
+and  Map  Building  Algorithm  for  Real  Time  Implementation"    In  IEEE  Trans.  Of  Robotics and Automation, May, 2001.  [30] C.  Harris  and  M.  Stephens  "A  Combined  Corner  and  Edge  Detector"    In 
+
+Fourth Alvey Vision Conference, Manchester, UK, pp.147151, 1988.  [31] R.  Hartley  and  A.  Zisserman,  "Multiple  View  Geometry  in  Computer 
+
+Vision"  Cambridge: Cambridge University Press, 2003.  [32] D.  Helmick,  Y.  Cheng,  S.I.  Roumeliotis,  D.  Clouse,  and  L.  Matthies,  "Path 
+
+Following  using  Visual  Odometry  for  a  Mars  Rover  in  HighSlip  Environments"   In  IEEE Aerospace Conference, Big Sky, USA, 2004.  [33] D.  Helmick,  S.I.  Roumeliotis,  Y.  Cheng,  D.  Clouse,  M.  Bajracharya,  and  L. 
+
+Matthies,  "Slip  compensation  for  a  Mars  Rover"    In  Proc.  IEEE  Inter.  Conf.  Intelligent Robots and Systems, Edmonton, Canada, pp. 1419­1426, Aug. 2005.  [34] B.K.P.  Horn,  "Closedform  solution  of  absolute  orientation  using  unit 
+
+quaternions"    In  Jour.  Of  the  Optical  Society  of  America  A,  vol.  4,  pp.  629642,  1987. 
+
+76   
+
+[35]
+
+A.  Howard,  "RealTime  Stereo  Visual  Odometry  for  Autonomous  Ground 
+
+Vehicles"  In  Proc.  IROS  2008:  Inter.  Conf.  Intelligent  Robots  and  Systems,  Nice,  France, Sept. 2008.  [36] S.J.  Julier  and  J.K.  Uhlmann,  "A  New  Extension  of  the  Kalman  Filter  to 
+
+Nonlinear Systems"  In Proc. SPIE, vol. 3068, pp. 182193, 1997.  [37] Y. Ke and R. Sukthankar, "PCASIFT: A More Distinctive Representation for 
+
+Local  Image  Descriptors"    In  Proc.  Conf.  Computer  Vision  and  Pattern  Recognition, pp. 511517, Washington, USA, 2004.  [38] B.  Kuipers  and  Y.  Byun,  "A  robot  exploration  and  mapping  strategy  based 
+
+on a semantic hierarchy of spatial representations"  In Robotics and Autonomous  Systems, vol. 8, pp. 4763, 1981.  [39] J.J.  Leonard  and  H.J.S.  Feder,  "A  Computationally  Efficient  Method  for 
+
+LargeScale  Concurrent  Mapping  and  Localization"  In  Robotics  Research:  the  Ninth International Symposium, London, UK, 2000.  [40] D.  G.  Lowe,  "Object  recognition  from  local  scaleinvariant  features"  In 
+
+Proc.Inter. Conf. Computer Vision, pp. 1150­1157, Corfu, Greece, Sept. 1999.  [41] D.  Lowe,  "Local  Feature  View  Clustering  for  3D  Object  Recognition"    In 
+
+Proc.  of  IEEE  Computer  Society  Conference  on  Computer  Vision  and  Pattern  Recognition, vol. 1, pp. I682I688, 2001.  [42] D.  Lowe,  "Distinctive  Image  Features  from  ScaleInvariant  Keypoints"   In 
+
+International Journal of Computer Vision, vol. 60, no. 2, pp. 91­110, 2004.  [43] D.  Lowe,  "Method  and  apparatus  for  identifying  scale  invariant  features 
+
+in  an  image  and  use  of  same  for  locating  an  object  in  an  image"  United  States  Patent 6,711,293, 2004. 
+
+77   
+
+[44]
+
+D.G.  Lowe,  "ThreeDimensional  Object  Recognition  from  Single  Two
+
+Dimensional  Images"   In  Artificial  Intelligence,  vol.  31,  no.  3,  pp.  355395,  Mar.  1987.  [45] F.  Lu  and  E.  Milios,  "Robot  pose  estimation  in  unknown  environments  by 
+
+matching 2d range scans"  In Journal of Intelligent and Robotic Systems, 1998.  [46] B.D.  Lucas  and  T.  Kanade,  "An  Iterative  Image  Registration  Technique 
+
+with  an  Application  to  Stereo  Vision"    In  Proc.  Of  Imaging  Understanding  Workshop, pp. 121130, 1981.  [47] M.  Maimone,  Y.  Cheng,  and  L.  Matthies,  "Two  years  of  Visual  Odometry 
+
+on  the  Mars  Exploration  Rovers"   In  Journal  of  Field  Robotics,  vol.  24,  no.  3,  pp.  169­186, 2007.  [48] E.  MarderEppstein,  E.  Berger,  T.  Foote,  B.  Gerkey  and  K.  Konolige,  "The 
+
+Office Marathon: Robust Navigation in an Indoor Office Environment"  In Proc. of  the IEEE International Conference on Robotics and Automation (ICRA), 2010.  [49] J. Matas, O. Chum, M. Urban and T. Pajdla, "Robust Wide Baseline Stereo 
+
+from  Maximally  Stable  Extremal  Regions"   In  British  Machine  Vision  Conference,  Cardiff, Wales, pp. 384393, 2002.  [50] K.  Mikolajczyk  and  C.  Schmid,  "A  performance  evaluation  of  local 
+
+descriptors"  PAMI, 2004.  [51] A.  Milella,  B.  Nardelli,  D.  Di  Paola,  and  G.  Cicirelli,  "Robust  Feature 
+
+Detection  and  Matching  for  Vehicle  Localization  in  Uncharted  Environments"  At  IROS  2009  3rd  Workshop:  Planning,  Perception  and  Navigation  for  Intelligent  Vehicles ­ Inter. Conf. Intelligent Robots and Systems, St. Louis, USA, Oct. 2009.  [52] M.  Montemerlo,  S.  Thrun,  D.  Koller  and  B.  Wegbreit,    "FastSLAM:  A 
+
+Factored  Solution  to  the  Simultaneous  Localization  and  Mapping  Problem"    In 
+
+78   
+
+Proc.  Of  the  National  Conference  on  Artifical  Intelligence,  no.  18,  pp.  593598,  2002.  [53] M.  Montemerlo  and  S.  Thrun,  "Simultaneous  Localization  and  Mapping 
+
+with  Unknown  Data  Association  Using  FastSLAM"    In  IEEE  International  Conference on Robotics and Automation, vol. 2, pp. 19851991, 2003.  [54] M.  Montemerlo,  S.  Thrun,  D.  Koller  and  B.  Wegbreit,  "FastSLAM  2.0:  An 
+
+Improved Particle Filtering Algorithm for Simultaneous Localization and Mapping  that  Provably  Converges"   In  Proc.  of  International  Joint  Conference  on  Artificial  Intelligence, vol. 18, pp. 11511156, 2003.  [55] H.  Moravec,  "Obstacle  Avoidance  and  Navigation  in  the  Real  World  by  a 
+
+Seeing  Robot  Rover"    CarnegieMellon  University:  Robotics  Institute,  report:  CMURITR3, Sept. 1980.  [56] Stereo  L.P.  Morency,  A.  Rahimi,  and  T.  Darrell,  "Fast  3D  Model  Acquisition  from  Images"    In  1st  International  Symposium  on  3D  Data 
+
+ProcessingVisualization and Transmission (3DPVT 2002), pp. 1921, 2002.  [57] A.C.  Murillo,  J.J.  Guerrero,  and  C.  Sagüés,  "SURF  features  for  efficient 
+
+robot localization with omnidirectional images" In Proc. IEEE Inter. Conf. Robotics  and Automation, pp. 3901­3909, Rome, Italy, Apr. 2007.  [58] D.  Murray  and  C.  Jennings,  "Stereo  vision  based  mapping  and  navigation 
+
+for  mobile  robots"    In  Proc.  of  IEEE  International  Conference  on  Robotics  and  Automation, no. 2, pp. 16941699, 1997.  [59] D.  Murray  and  J.  Little,  "Using  realtime  stereo  vision  for  mobile  robot 
+
+navigation"    In  Proc.  of  the  IEEE  Workshop  on  Perception  for  Mobile  Agents,  Santa Barbara, USA, June 1998. 
+
+79   
+
+[60]
+
+P.M.  Newman,  "On  the  Structure  and  Solution  of  the  Simultaneous 
+
+Localisation  and  Map  Building  Problem"    Doctoral  thesis,  University  of  Sydney,  Sydney, Australia, Mar. 1999.  [61] D.  Nistér,  O.  Naroditsky,  and  J.  Bergen,  "Visual  Odometry  for  Ground 
+
+Vehicle Applications"  In Journal of Field Robotics, vol. 23, no. 1, pp. 3­ 20, 2006.  [62] NVIDIA,  "What  is  CUDA?",    ONLINE  http://www.nvidia.com/object/ 
+
+what_is_cuda_new.html.  Updated: 2011.  [63] C.F.  Olson,  L.H.  Matthies,  M.  Schoppers  and  M.W.  Maimone,  "Rover 
+
+navigation  using  stereo  egomotion"   In  Robotics  and  Autonomous  Systems,  vol.  43, no. 4, pp. 215229, 2003.  [64] Panasonic,  Toughbook  CF30FTSAFxx  Service  Manual,  Order  No. 
+
+CPD0711217AE, Matsushita Electric Industrial Co., Ltd., 2007.  [65] Point  Grey,  "Bumblebee  Stereo  Vision  Camera  Systems",    ONLINE 
+
+http://www.ptgrey.com/products/bumblebee2/bumblebee2_xb3_datasheet.pdf  Updated: Feb. 2009.  [66] D.  Scaramuzza  and  R.  Siegwart,  "AppearanceGuided  Monocular 
+
+Omnidirectional  Visual  Odometry  for  Outdoor  Ground  Vehicles"    In  IEEE  Transactions on Robotics, pp. 1­12, Oct. 2008.   [67] S.  Se,  D.  Lowe,  and  J.  Little,  "Local  and  Global  Localization  for  Mobile 
+
+Robots using Visual Landmarks"  In Proc. of IEEE/RSJ International Conference on  Intelligent Robots and Systems (IROS '01), Hawaii, USA, 2001.  [68] S.  Se,  D.  Lowe,  and  J.  Little,  "Visionbased  Mobile  Robot  Localization  and 
+
+Mapping  using  ScaleInvariant  Features"    In  Proc.  of  IEEE  International  Conference on Robotics and Automation,  vol. 2, pp. 20512058, 2001. 
+
+80   
+
+[69]
+
+S.  Se,  D.  Lowe,  and  J.  Little,  "Global  Localization  using  Distinctive  Visual 
+
+Features"  In Proc. of International Conference on Intelligent Robots and Systems,  IROS 2002, Lausanne, Switzerland, pp. 226231, 2002.  [70] S. Se, D. Lowe, and J. Little, "Mobile Robot Localization and Mapping with 
+
+Uncertainty  using  ScaleInvariant  Visual  Landmarks"   In  International  Journal  of  Robotics Research, vol. 21, no. 8, pp. 735738, 2002.  [71] S.  Se,  D.  Lowe,  and  J.  Little,  "Visionbased  Global  Localization  and 
+
+Mapping  for  Mobile  Robots"   In  IEEE  Transactions  on  Robotics,  vol.  21,  issue  3,  pp. 364­375, June 2005.  [72] S. Se, T. Barfoot and P. Jasiobedzki, "Visual Motion Estimation and Terrain 
+
+Modeling  for  Planetary  Rovers"    In  Proc.  of  ISAIRAS  2005  Conference,  Munich,  Germany, Sept. 2005.  [73] R.C.  Smith  and  P.  Cheeseman,  "On  the  Representation  and  Estimation  of 
+
+Spatial Uncertainty"  In The International Journal of Robotics Research, vol. 5, no.  4, 1986.  [74] N.  Sünderhauf,  K.  Konolige,  S.  Lacroix,  and  P.  Protzel,  "Visual  Odometry 
+
+Using  Sparse  Bundle  Adjustment  on  an  Autonomous  Outdoor  Vehicle"    P.  Levi,  M.  Schanz,  R.  Lafrenz,  and  V.  Avrutin,  eds.,    In  Tagungsband  Autonome  Mobile  Systeme 2005, pp. 157­163, 2005.  [75] J.P.  Tardif,  Y.  Pavilidis,  and  K.  Danniilidis,  "Monocular  Visual  Odometry  in 
+
+Urban Environments Using an Omnidirectional Camera"  In Proc. IROS 2008: IEEE  Inter. Conf. Intelligent Robots and Systems, Nice, France, Sept. 2008.  [76] J.D.  Tardós  and  J.  Neira,  "Robust  Mapping  and  Localization  in  Indoor 
+
+Environments  using  Sonar  Data"    In  The  International  Journal  of  Robotics  Research, June 2002. 
+
+81   
+
+[77]
+
+S. Thrun, "Bayesian Landmark Learning for Mobile Robot Localization"   In 
+
+Machine Learning, vol. 33, pp. 4176, 1998.  [78] C. Valgren and A. J. Lilienthala, "SIFT, SURF & seasons: Appearancebased 
+
+longterm  localization  in  outdoor  environments"    In  Robotics  and  Autonomous  Systems, vol. 58, issue 2, pp. 149­156, Feb. 2010.  [79] L.  Vincent  and  P.  Soille,  "Watersheds  in  Digital  Spaces:  An  Efficient 
+
+Algorithm  Based  on  Immeraion  Simulations"   In  IEEE  Trans.  On  Pattern  Analysis  and Machine Intelligence, vol. 13 no. 6, pp. 583598, June 1991.  [80] S.B.  Williams,  G.  Dissanayake  and  H.  DurrantWhyte,  "An  Efficient 
+
+Approach to the Simultaneous Localisation and Mapping Problem", 2006.  [81] G.  Xu  and  Z.  Zhang,  "Epipolar  Geometry  in  Stereo,  Motion  and  Object 
+
+Recognition"  Norwell, USA: Kluwer Academic Publishers, 1996.  [82] Z. Zhang, R. Deriche, O. Faugera and Q.T. Luong, "A Robust Technique for 
+
+Matching  Two  Uncalibrated  Images  Through  the  Recovery  of  the  Unknown  Epipolar Geometry"  In Artificial Intelligence, vol. 78, pp. 87119, 1995.  [83] S. Zhang, L. Xie and M. Adams, "An Efficient Data Association Approach to 
+
+Simultaneous  Localization  and  Map  Building"    In  The  International  Journal  of  Robotics Research, vol. 24, no. 1, pp. 4960, Jan. 2005.   
+
+82   
+
+

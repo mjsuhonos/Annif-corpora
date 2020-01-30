@@ -1,13 +1,13 @@
-all: nt gz
+all: nt ttl
 
 nt: $(patsubst %.skos,%.nt,$(wildcard */*.skos))
-gz: $(patsubst %.nt,%.gz,$(wildcard */*.nt))
+ttl: $(patsubst %.nt,%.ttl,$(wildcard */*.nt))
 
 # extract prefLabel statements for id.loc.gov URIs
 %.nt: %.skos
-	cat $< | grep -F "http://www.w3.org/2004/02/skos/core#prefLabel" | grep -F "http://id.loc.gov/" > $@
+	cat $< | grep -Fv  "_:N"  | grep -F "http://id.loc.gov/" > $@
 
-%.gz: %.nt
-	cat $< | parallel -l4000000 --pipe --block 600M pigz ">"{#}.gz
+%.ttl: %.nt
+	rapper -i ntriples -o turtle -f 'xmlns:lcsh="http://id.loc.gov/authorities/subjects/"' -f 'xmlns:lcgf="http://id.loc.gov/authorities/genreForms/"' -f 'xmlns:lcna="http://id.loc.gov/authorities/names/"'  -f 'xmlns:skos="http://www.w3.org/2004/02/skos/core#"' $< > $@
 
-.PHONY: all nt gz
+.PHONY: all nt ttl

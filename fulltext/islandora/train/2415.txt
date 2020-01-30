@@ -1,0 +1,1823 @@
+Ryerson University
+
+Digital Commons @ Ryerson
+Theses and dissertations
+
+1-1-2013
+
+Empirical Mode Decomposition and Analysis of Non-Stationary Cardiac Signals
+Nastaran Rahnama
+Ryerson University
+
+Follow this and additional works at: http://digitalcommons.ryerson.ca/dissertations Part of the Biomedical Commons Recommended Citation
+Rahnama, Nastaran, "Empirical Mode Decomposition and Analysis of Non-Stationary Cardiac Signals" (2013). Theses and dissertations. Paper 2009.
+
+This Thesis is brought to you for free and open access by Digital Commons @ Ryerson. It has been accepted for inclusion in Theses and dissertations by an authorized administrator of Digital Commons @ Ryerson. For more information, please contact bcameron@ryerson.ca.
+
+Empirical Mode Decomposition and Analysis of Non-Stationary Cardiac Signals
+Nastaran Rahnama B.A.Sc, University of Windsor Windsor, ON, 2009.
+
+A thesis presented to Ryerson University in partial fulfillment of the requirements for the degree of Master of Applied Science in the Program of Electrical and Computer Engineering Department of Electrical and Computer Engineering Ryerson University Toronto, Ontario, Canada August, 2013 c Nastaran Rahnama, 2013
+
+Author's Declaration
+I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners. I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research. I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research. I understand that my thesis may be made electronically available to the public.
+
+ii
+
+Abstract Empirical Mode Decomposition and Analysis of Non-Stationary Cardiac Signals
+c Nastaran Rahnama, 2013 Master of Applied Science in the Program of Electrical and Computer Engineering, Ryerson University Each year 400,000 North Americans die from sudden cardiac death (SCD). T- wave alternans (TWA) refers to an alternating pattern in the T-wave portion of the surface electrocardiogram (ECG) and has been shown as a risk stratifier for SCD. These subtle changes in the T-waves are in the micro-volt scale and ambulatory ECG recordings usually contain biological noise. Also, data non-stationarity owing to heart rate variability and the amplitude variability in TWA magnitude can limit the accuracy of the detection techniques. This necessitates the need for robust detection algorithms for processing such non-stationary data. In this thesis, we have proposed an Empirical Mode Decomposition (EMD) based scheme combined with the Instantaneous Frequency (IF). EMD decomposes the signal into several monocomponent signals called Intrinsic Mode Functions (IMFs). IF extracted from these IMFs provides an accurate estimate of time varying frequency components and hence can aid during characterization of TWAs. In order to validate the performance of the proposed detection technique, the feature vectors extracted from the IMFs were fed to a linear discriminant analysis (LDA) classifier. The performance assessment was carried out using two datasets: (a) Synthetic TWAs: 72 signals obtained from publicly accessible Physionet database and (b) TWAs from patients: 55 ambulatory ECG signals obtained from the Toronto General Hospital. Using an unbiased leave-one-out cross validation strategy, maximum overall classification accuracies of 86.1% and 81.8% were achieved for TWA detection from synthetic and ambulatory ECG recordings respectively. In addition, the usability of the proposed technique has been investigated to assess its suitability for addressing another cardiovascular problem stroke. Atrial Fibrillation (AF) has been identified as a risk factor to increase the chances of stroke. The most common method in studying the complex AF electrograms is to employ dominant frequency (DF) analysis; however, due to signal non-stationarity DF does not always provide the best estimate of the atrial activation rate. As a result, analyzing the electrograms via EMD and IF has been investigated as the second contribution of this work.
+
+iii
+
+Acknowledgments
+I would like to express my gratitude to my supervisor, Professor Sri Krishnan for his wonderful guidance, useful comments and engegement through the learning process of this master thesis. Without his continued encouragement and support, this research would not have been possible. I wish to express my sincere gratitude to Dr. Vijay Chauhan for providing this opportunity to collaborate with his team at Toronto General Hospital. I would like to aknowledge Adrian Suszko for his wonderful assistance in providing the T- Wave Alternans database. I also would like to thank my fellow colleagues from the Signal Analysis Research (SAR) group and Ryerson University who supported me in every aspect during the completion of my studies. Last but not least, I would like to acknowledge my parents, brother Nima, and my sister Roxana for their continual support and encouragement which has given me the ability to pursue my goals with confidence.
+
+iv
+
+Contents
+1 Introduction, Problem Definition and Literature Review 1.1 Overview of Cardiovascular System . . . . . . . . . 1.1.1 Electrophysiology of the Heart Beat . . . . . 1.1.2 Atrial Fibrillation Arrhythmia . . . . . . . . 1.1.3 T- Wave Alternans . . . . . . . . . . . . . . 1.2 Motivation . . . . . . . . . . . . . . . . . . . . . . . 1.2.1 Risk of Stroke and Embolic . . . . . . . . . 1.2.2 Risk of Sudden Cardiac Death (SCD) . . . . 1.2.3 Need for Non-stationary Signal Analysis . . 1.3 Background and Literature Survey . . . . . . . . . . 1.3.1 Signal Analysis in Atrial Fibrillation . . . . . 1.3.2 Signal Analysis in TWA . . . . . . . . . . . 1.4 Contribution and Thesis Organization . . . . . . . . 1 1 2 4 6 7 7 8 8 9 9 11 14 16 16 18 21 22 22 23 26 26 28 29 30 31 32 33 34 35
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+. . . . . . . . . . . .
+
+2
+
+Empirical Mode Decomposition (EMD) and Instantaneous Frequency 2.1 Signal Categories . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.2 Instantaneous Frequency . . . . . . . . . . . . . . . . . . . . . . 2.2.1 Instantaneous Frequency via Hilbert Transform . . . . . . . 2.3 Hilbert- Huang Transformation . . . . . . . . . . . . . . . . . . . 2.3.1 Intrinsic Mode Functions (IMFs) . . . . . . . . . . . . . . 2.3.2 EMD Algorithm . . . . . . . . . . . . . . . . . . . . . . . 2.4 Instantaneous Frequency from IMF . . . . . . . . . . . . . . . . . 2.5 Feature Extraction . . . . . . . . . . . . . . . . . . . . . . . . . . 2.5.1 Extracted Features( Hjorth Descriptors) . . . . . . . . . . . 2.6 Pattern Classification . . . . . . . . . . . . . . . . . . . . . . . . . 2.6.1 Linear Discriminant Function . . . . . . . . . . . . . . . . 2.6.2 Fisher Linear Discriminant Analysis . . . . . . . . . . . . . 2.6.3 Leave- One- Out Method Cross Validation . . . . . . . . . . 2.6.4 Classification Accuracy . . . . . . . . . . . . . . . . . . . 2.6.5 ROC . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2.7 Chapter Summary . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . .
+
+v
+
+3
+
+T-wave Alternans Detection via Instantaneous Frequency 3.1 Data Pre-processing . . . . . . . . . . . . . . . . . . . 3.1.1 QRS Detection . . . . . . . . . . . . . . . . . . 3.1.2 Baseline Correction . . . . . . . . . . . . . . . . 3.2 Synthetic TWA Analysis . . . . . . . . . . . . . . . . . 3.2.1 MIT-BIH Normal Rhythm Database . . . . . . . 3.2.2 T- wave Alternans Generator . . . . . . . . . . . 3.2.3 Intrinsic Mode Functions (IMFs) . . . . . . . . 3.2.4 Instantaneous Frequency . . . . . . . . . . . . . 3.2.5 Feature Extraction . . . . . . . . . . . . . . . . 3.2.6 Classification Results . . . . . . . . . . . . . . . 3.2.7 Comparative Analysis . . . . . . . . . . . . . . 3.3 Robustness of EMD in Data Non-Stationarity . . . . . . 3.3.1 TWA Amplitude variations . . . . . . . . . . . . 3.3.2 Physiological Data Non-Stationarity . . . . . . . 3.3.3 Additive White Gaussian Noise . . . . . . . . . 3.3.4 Artifacts . . . . . . . . . . . . . . . . . . . . . 3.4 Real TWA Analysis . . . . . . . . . . . . . . . . . . . 3.4.1 UHN Database . . . . . . . . . . . . . . . . . . 3.4.2 Evaluate TWA Detection using EMD Approach 3.4.3 Classification Result . . . . . . . . . . . . . . . 3.5 Chapter Summary . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+. . . . . . . . . . . . . . . . . . . . .
+
+36 36 36 39 40 41 42 42 45 45 45 49 52 53 55 56 57 61 61 67 67 68 69 69 71 72 73 75 79 80 81 81 82 93
+
+4
+
+Analysis of Intracardiac AF signals via Instantaneous Frequency 4.1 What is Dominant Frequency (DF) . . . . . . . . . . . . . . . . . . 4.2 Analysis of AF intracardiac electrogram using Dominant Frequency 4.2.1 Influence of Phase Change on DF . . . . . . . . . . . . . . 4.2.2 Influence of Amplitude Change on DF . . . . . . . . . . . . 4.3 Analysis of AF using EMD and IF . . . . . . . . . . . . . . . . . . 4.4 Chapter Summary . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+. . . . . .
+
+5
+
+Discussion and Future Works 5.1 Summary of Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.2 Summary of Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.3 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+A List of Publications
+
+vi
+
+List of Figures
+1.1 Relation of the cardiac action potential to the body surface electrocardiogram. Atrial depolarization is responsible for the P wave. The QRS complex begins with endocardial depolarization and ends with epicardial depolarization. The T wave is created by the repolarization of all ventricular myocytes but specifically ends with the final repolarization of the endocardial cells. - Figure adapted with permission from The American Physiological Society: Physiological reviews( Nerbonne and Kass [1]), c copyright 2005. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4- sec ECG recordings of heart under (a) Normal Condition (b) Atrial Fibrillation. Note the absence of P wave and irregular RR intervals in AF recording. Recordings are from PhysioNet [2] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . (a) An example of ECG signal containing a T wave alternans pattern where the variations in the T wave happen every other beat. (b) The difference between successive T waves are called TWA magnitude. Recording is from PhysioNet [3] . Existing techniques used for TWA detection: Time Domain techniques includes: Correlation Method (CM) and Modified Movign average (MMA); Transform Domain techniques include: Spectral Method (SM), Complex Demodulation (CD), Periodicity, and Poincare mapping;Time Frequency technique includes: Non-negative Matrix Factorization (NMF) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Organization of the Thesis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . (a) 5- sec sinusoidal signal ; (b) Instantaneous frequency of the sinusoid in (a); (c) 0.5- sec linear chirp signal (d) Instantaneous frequency of the linear chirp signal in (c) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Schematic of signal decomposition into set of IMFs and residue using EMD . . . . A 5- sec normal rhythm ECG signal x(t) in black ; IMF distribution from scale 1 to scale 8 in blue ; and the residue signal in red. ECG recording is from PhysioNet [3] The schematic of LDA for 2 group classifier (H0 and H1 ) and 2-D feature space (f1 and f2 ) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3
+
+1.2
+
+4
+
+1.3
+
+7
+
+1.4
+
+1.5 2.1
+
+11 15
+
+2.2 2.3 2.4 3.1
+
+19 23 25 32
+
+Signal Processing steps for QRS detection: (I) Raw ECG Signal; (II) Bandpass Filter Output; (III) Differentiation of the filtered ECG; (IV) Absolute value of the filtered derivative; (V) Result of moving window integration. Recordings are from PhysioNet [2] . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+
+vii
+
+3.2
+
+3.3 3.4
+
+3.5 3.6 3.7 3.8
+
+3.9 3.10 3.11 3.12 3.13
+
+3.14 4.1 4.2 4.3
+
+Baseline correction of an ECG segment: (a) Uncorrected ECG (blue) and the cubic spline interpolation( red) and R-peak detection (pink)- (b) Corrected ECG after subtraction of the spline. Annotations are done as follows: QRS end ( red) , T end( black), QRS onset(green) Recordings are from PhysioNet [2] . . . . . . . . . . . . Schematic of the TWA detection algorithm using EMD . . . . . . . . . . . . . . . (a) A representative portion of a 64 beat ECG segment. The red, black, and green dot represent QRSend,Tend, and QRSonset respectively. (b) The first 25 T- waves in the beat- domain. The up down oscillations in amplitude are indicative of alternans. IMFs comparison for ECG signal with Positive TWA, and ECG signal with Negative TWA . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . ROC for Synthetic TWA classification using 3 features - AUC: 0.69 . . . . . . . . ROC for Synthetic TWA classification using 27 features - AUC: 0.72 . . . . . . . Receiver operating curves for four methods are plotted . In this analysis, ECGs without added TWA are considered negative, while the ECGs with added TWA of 5 µV are considered positive. The area under the ROC for NMF- Adaptive SM, Adaptive SM, SM, and EMD are 0.98, 0.91, 0.73, and 0.72 respectively. [3] . . . . TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing TWA Amplitude . . . . . . . . . . . . . . . . . . . . . . . Block diagram of noise addition to T- wave alternans . . . . . . . . . . . . . . . . TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SNR. Noise is additive white Gaussian. . . . . . . . . . . . TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SAR. Noise was simulated by adding muscle artifact. . . . . TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SAR. Noise was simulated by adding electrode motion artifact. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . A sample annotated 12 lead ECG signal categorized as positive TWA from UHN database . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . (a) Arbitrary signal y (t) = 2cos (200t) +sin (100t) and (b) Power Spectral Density of signal in (a) . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10- sec bipolar signal recorded from the proximal tip of the catheter placed at the annulus of the inferior vena cava- Signal is from Physionet [2] . . . . . . . . . . (a) 2- sec bipolar signal recorded from the proximal tip of the catheter placed at the annulus of the inferior vena cava (b) zero-padded signal in (a) ; (c)Power spectral density of the zero-padded signal with dominant frequency of 6.55 Hz. . . . . . . (a) Sinusoidal signal x(t) = sin(5t) and (b) corresponding DF of 5 Hz . . . . . . . (a) Sinusoidal signal x(t)=sin(5t) with phase change occurs at t= 1.5 sec and (b) Change in power spectral density causes DF to deviated to 4.6 Hz . . . . . . . . (a) ,(c), (d) 2-seconds of intracardiac AF signal with varied amplitudes and their corresponding power spectral densities with the peak showing the dominant frequencies of 6.6 Hz, 6.55 Hz, 6.5 Hz at (b), (d) , (f) respectively. . . . . . . . . . .
+
+40 40
+
+43 44 47 49
+
+51 55 56 57 59
+
+60 64
+
+. 70 . 72
+
+4.4 4.5 4.6
+
+. 73 . 74 . 75
+
+. 76
+
+viii
+
+4.7 4.8
+
+4.9
+
+EMD decomposition of the Intacardiac AF signal showing the original signal in black; IMFs 1 to 10 in blue; and the residue in red. . . . . . . . . . . . . . . . . . 77 Column (a) IMFs 6 to 8 from top to bottom; column (b) the Instantaneous Frequencies corresponding to IMFs 6 to 8 ; column (c) power spectral densities corresponding to IMFs 6 to 8 ( Note that frequency axis in column c has been normalized) . . 78 Original Intra cardiac AF signal in Blue; Partial reconstructed signal from IMF6 and higher in Red . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 79
+
+ix
+
+List of Tables
+1.1 3.1 3.2 3.3 AF Classification . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . List of ECG records in MIT-BIH NSRDB and the mean Heart Rate in first 64-beats Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 3 features only) . . . . . . . . . . . . . Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features only) - TWA Amplitude of 5 µV . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . Comparison of TWA detection rates between existing methods with the proposed method (EMD)- In this analysis, ECGs without added TWA are considered negative, while the ECGs with added TWA of 5 µV are considered positive [3] . . . . . Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 1 µV Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 2 µV Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 3 µV Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 4 µV medical condition of the heart based on LVEF percentage. . . . . . . . . . . . . . Clinical characteristics of the study population. . . . . . . . . . . . . . . . . . . . Detailed Clinical characteristics of the study population. . . . . . . . . . . . . . . Detailed clinical characteristics of the study population.( Cont'd) . . . . . . . . . . Confusion matrix for Real- Data containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 39 features) . . . . . . . 5 41 47
+
+48
+
+3.4
+
+50 53 53 54 54 62 63 65 66 68
+
+3.5 3.6 3.7 3.8 3.9 3.10 3.11 3.12 3.13
+
+x
+
+List of Abbreviations
+Abbr. AF AV BIC CD CM DCM DF ECG EM EMD EEMD HHT HS ICD ICM IF IMF ITD LDA LOO LVEF MA MMA NMF RID SA SAR SCD SM SNR SPSS SPWVD STFT SWVD TF TFD TWA WVD Full Name Atrial Fibrilation Atrioventricular Bayesian Information Criterion Complex Demodulation Correlation Method Dilated Dominant Frequency Electrocardiogram Electrode Motion Empirical Mode Decomposition Ensemble Empirical Mode Decomposition Hilbert Huang Transform Hilbert Spectral Implantable Cardioverter Defibrillator Ischemic Instantaneous Frequency Intrinsic Mode Function Intrinsic Time-scale Decomposition Linear Discriminant Analysis Leave One Out Left Ventricular Ejection Fraction Muscle Artifact Modified Moving Average Non-negative Matrix Factorization Reduced Interface Distribution Sinoatrial Signal to Artifact Interface Sudden Cardiac Death Spectral Method Signal to Noise Ratio Statistical Package for the Social Science Smoothed Pseudo Wigner-Ville Distribution Short Time Fourier Transform Pseudo Wigner-Ville Distribution Time Frequency Time Frequency Distribution T Wave Alternans Wigner-Ville Distribution
+
+xi
+
+List of Symbols
+Symbol exp (x) +TWA -TWA Meaning Exponential of x T- wave alternans positive T- wave alternans negative
+
+xii
+
+Chapter 1 Introduction, Problem Definition and Literature Review
+
+C
+
+ARDIOVASCULAR disease is defined as any diseases or injuries of the cardiovascular system. Stroke which is the result of a blood flow problem in the brain is also considered a
+
+form of cardiovascular disease. Since 1952, cardiovascular death rate in Canada has decreased by 75% and nearly 40% in the past decade. This is largely due to the advances in surgical procedures, medicine therapies and prevention efforts (Statistics Canada, 2011c). However, heart disease and stroke remain two of the three leading cause of death in Canada. In 2008, cardiovascular disease account for 29% of all death in Canada.
+
+1.1
+
+Overview of Cardiovascular System
+
+Cardiovascular or the circulatory system is the system that allows blood to travel through the body. Cardiovascular system consists of the heart, blood vessels, and blood. · Heart: Heart is the organ that supplies blood and oxygen to all parts of the body. This organ produces electrical impulses that causes the heart to contract and then relax, producing what is known as a heart beat. · Blood vessels: Blood vessels are networks of hollow tubes that transport blood throughout the entire body. Blood travels from the heart via arteries to smaller arterioles, then to capillaries or sinusoids, to venules, to veins and back to the heart. 1
+
+· Blood: Blood delivers nutrients to cells and removes wastes that are produced during cellular processes.
+
+1.1.1
+
+Electrophysiology of the Heart Beat
+
+The rhythmic beating of the heart is controlled by a group of cells in the right atrium wall called sinoatrial (SA) node [4]. Since the SA node controls the heart rate, it is called the pacemaker of the heart. Action potentials originate in the SA node and travel across the atrium wall to the atrioventricular (AV) node. Action potentials pass slowly through the AV node to give the atria time to contract. They then pass rapidly along the AV bundle, which extends from the AV node through the fibrous skeleton into the interventricular septum. The AV bundle divides into right and left bundle branches, and action potentials descend rapidly to the apex of each ventricle along the bundle. Action potentials are carried by the Purkinje fibres from the bundle branches to the ventricular walls. This rapid conduction allows the ventricular muscle cells to contract in unison, and thus providing a strong contraction.This process repeats upon the generation of the next action potential within the SA node. Electrocardiogram (ECG) is a diagnostic tool that measures and records the electrical activities of the heart in details. Interpreting of these details allows diagnosis of a wide range of heart conditions. A typical ECG recoding of a cardiac cycle (heart beat) as shown in Figure 1.1 consists of a P wave, QRS complex and a T wave. Figure 1.1 also shows the relation of the cardiac action potential to the body surface ECG.The relatively small P wave represents the atrial depolarization, and the large QRS complex is associated with the ventricular depolarization. The PR interval is the delay from SA node activation to ventricular depolarization. Although atrial repolarization is not clearly demarcated in ECG tracing, ventricular repolarization is clearly distinguishable by the broad T wave following the QRS complex.
+
+2
+
+Figure 1.1: Relation of the cardiac action potential to the body surface electrocardiogram. Atrial depolarization is responsible for the P wave. The QRS complex begins with endocardial depolarization and ends with epicardial depolarization. The T wave is created by the repolarization of all ventricular myocytes but specifically ends with the final repolarization of the endocardial cells. - Figure adapted with permission from The American Physiological Society: Physiological reviews( Nerbonne and Kass [1]), c copyright 2005.
+
+3
+
+(a)
+Amplitude (mV)
+
+1.5 1 0.5 0 -0.5 0 0.5 1 1.5 2 2.5 Time (sec) (b) 3 3.5 4
+
+Amplitude (mV)
+
+1.5 1 0.5 0 -0.5 0 0.5 1 1.5 2 2.5 Time (sec) 3 3.5 4
+
+Figure 1.2: 4- sec ECG recordings of heart under (a) Normal Condition (b) Atrial Fibrillation. Note the absence of P wave and irregular RR intervals in AF recording. Recordings are from PhysioNet [2]
+
+1.1.2
+
+Atrial Fibrillation Arrhythmia
+
+Atrial Fibrillation (AF) is the most common cardiac arrhythmia, which is a result of disorganized electrical impulses generated from the natural pacemaker, SA node, which is located in the right atrium of the heart. AF basically involves a chaotic movement of electrical impulses across the atria which leads to a loss of synchrony between the atria and the ventricles. AF is usually accompanied by symptoms related to a rapid or irregular heart rate. The RR intervals follow no repetitive pattern and while electrical activity of P wave is seen in some leads, there are no distinct P waves. Figure 1.2 shows ECG recordings of the heart under both normal condition and also AF. 4
+
+Symptoms of AF includes palpitations, fatigue, shortness of breath, chest discomfort, and in severe circumstances dizziness and even fainting. Beside the symptoms associated with AF there are two other major complicating issues. First one is due to the fact that top part of the chamber is not squeezing, thus blood clots can form and this can cause stroke. It is estimated that up to 15% of the strokes are caused by AF (Statistics Canada, 2011c). Secondly, since during AF the Purkinje fibers send out too many electrical signals to the ventricle and causes ventricle to beat too quickly, heart failure can occur where heart can not pump enough blood to meet the body's needs. Although the cause of AF is unknown, few factors that might lead to AF are high blood pressure, abnormal structure of the heart, and diseases that damage the valves of the heart [5]. The American College of Cardiology (ACC), American Heart Association (AHA) , and the European Society of Cardiology (ESC) recommend in their guidelines the following AF classification system based on simplicity and clinical relevance: [6]
+
+Table 1.1: AF Classification AF Category First detected Paroxysmal Persistant Permanent Defining Characteristics Only one diagnosed episode Recurrent episodes that self-terminate in less than 7 days Recurrent episodes that last more than 7 days Ongoing long-term episode
+
+Based on the nature of the AF there are several approaches to manage this arrhythmia [7]: · If AF is infrequent and asymptomatic, medications could be used to thinner the blood and to slow down the rapid heart beat and let one live with AF. · If AF is symptomatic with the arrhythmia, more effective medications are used however this treatment only works 50-60% of the time. Besides, some of the stronger drugs could be associated with toxicity and cause side effects. · Radio frequency cardiac ablation may be effective in patients when medications do not work. This procedure entails accessing veins in the legs (sometimes in neck) and pushing catheters 5
+
+up into the heart. Under x-ray or ultrasound guidance catheter goes from the top right chamber to the top left chamber. Then a burst of radio frequency energy is delivered to ablate tissue that triggers abnormal electrical signals or to block abnormal electrical pathways. Catheter has electrodes such that physicians can map the electrodes in and out of the pulmonary vein targeting the areas that generate the abnormal electrical signals. Catheter ablation procedure works best in patients who have paroxysmal AF; however it is not as effective in patients who have persistent AF. Ablation is a lengthy procedure which can take up to 4 hours. As a result , study of the intra- cardiac electrograms are very essential in order to identify the critical " drivers" of AF that might be the targets for catheter ablation. In this study, AF intra- cardiac electrograms have been analyzed in order to determine the pattern of the electrical activation in the atrium and pulminary vein.
+
+1.1.3
+
+T- Wave Alternans
+
+Shortly after the invention of ECG, in 1908 Hering noted a visible and regular alternation in the amplitude of the T wave in dogs. This abnormal repolarization phenomenon was named T wave alternans (TWA) and has since been defined as the beat to beat alternation in the amplitude, timing or morphology of the T wave. Figure 1.3 (a) shows a synthetic ECG signal experiencing TWA. The difference in amplitude between short and tall T waves is referred to as TWA magnitude as shown in Figure 1.3(b). As previously mentioned the ventricular repolarization corresponds to the relaxing phase of the myocardium contraction and it is reflected as the T wave in the ECG. Recent studies have shown repolarization alternans, also known as T wave alternans, as a risk stratifier for sudden cardiac death [8, 9]. In addition, TWA has been proposed as an indicator to detect anomalies in ventricular repolarization and ventricular arrhythmias [10]. TWA is a heart rate dependent phenomenon that appears on the surface ECG. In healthy subjects, experimental and clinical studies demonstrate that TWA is not present at baseline but can be elicited at higher heart rate [11, 12]. In these cases, TWA could be a normal physiological phenomenon. However, TWA at reduced heart rate is an uncommon occurrence that is associated with ventricular tachyarrhythmia and Sudden Cardiac 6
+
+0.9 0.8 0.7 0.6
+
+A
+
+B
+
+A
+
+B
+
+A
+
+B
+
+A
+
+B
+
+Amplitude(mV)
+
+0.5 0.4 0.3 0.2 0.1 0 0.5 1 1.5 2 Time(sec) 2.5 3 3.5 4
+
+(a)
+
+(b)
+
+Figure 1.3: (a) An example of ECG signal containing a T wave alternans pattern where the variations in the T wave happen every other beat. (b) The difference between successive T waves are called TWA magnitude. Recording is from PhysioNet [3] Death (SCD) in humans [13]. In clinical settings, once the patient- specific heart rate threshold for TWA is reached, subsequent elevations in heart rate increase both the stability and magnitude of TWA in clinical studies. the use of atrial or ventricular pacing to elevate the heart rate in these patients suggests that the influence of rate on TWA is independent of autonomic stimulus [14]. Since TWA analysis is performed on the surface ECG, it is an inexpensive and non-invasive test. In clinical applications, TWA analysis can be done as part of an exercise stress test, but there is interest in the research community in using conventional long-term (Holter) ECG recordings to observe TWA in the context of activities of daily living.
+
+1.2
+1.2.1
+
+Motivation
+Risk of Stroke and Embolic
+
+AF is a commonly encountered arrhythmia which occurs in up to 10% of individuals older than 70 years of age [15] and is associated with an increase risk for stroke and embolic events [16]. Heart rate irregularities due to AF can be monitored through Electrocardiogram (ECG). Extracellular electrograms, recorded directly from the heart provide information about the electric status of the myocardium. Intracardiac electrogram readings are normally simple; however, they could
+
+7
+
+become very complex under pathological conditions. These complexities include amplitude variations, changes in the morphology and fractionations and irregular activation times. Thus, different signal processing algorithms and approaches are required for studying the fractioned and complex electrograms.
+
+1.2.2
+
+Risk of Sudden Cardiac Death (SCD)
+
+Each year 400,000 North Americans die from SCD. Identifying the patients at risk of SCD remains a challenge. T wave alternans (TWA) has been identified as one of the risk stratifiers for SCD. The presence of large amplitude TWA often presages lethal ventricular arrhythmia. TWA signal is typically in the microvolt range. As a result accurate detection algorithm are needed to control for confounding noise and changing physiological conditions ( i.e signal non- stationarity). Traditionally in clinical practises, TWA used to be measured during exercise test; however recently it is measured during cardiac pacing and even from ambulatory Holter ECGs during activities of daily living. Although signals recorded from Holter ECG may offer a more practical and accurate means of risk classification, these recordings are contaminated with biological noise( i.e. movement, and respiration). Thus, detection of these microvolt TWA signals has became a challenge. Moreover, data non-stationarity from changing heart rate or changing TWA magnitude can limit accurate TWA measurement. The first cases of visible TWA were reported in the beginning of 20th century, however; it was not until the 1980s, when non- visible (micro-volt) TWA was measured with computer assistedspectral analysis.
+
+1.2.3
+
+Need for Non-stationary Signal Analysis
+
+Detection and classification of cardiac arrhythmias is important for diagnosis of cardiac abnormalities. High quality ECGs are utilized by physicians for interpretation and identification of physiological and pathological phenomena. However, in real conditions, ECG recordings are often corrupted by noise and artifacts and these result in signal non-stationary. Examples of artifacts are baseline wander (due to respiration or motion of patient or the instruments); and high-frequency
+
+8
+
+noise (caused by power line interferences). In addition, ECG recordings can become very complex due to changes in the heart physiology. Most of these changes are the result of many nonlinearly interacting processes; therefore any linear analysis has the potential risk of underestimating or even missing a great amount of information content. In other words, regular clean ECG signal can become non-stationary due to various biological and physiological changes in the heart. Thus, efficient technique for analyzing such non-stationary signal is required in order to support clinical decision making. Many algorithms have been developed for the recognition and classification of ECG signal. In this study EMD coupled with Instantaneous Frequency (IF) has been used to study the surface ECG and intracardiac electrograms.
+
+1.3
+1.3.1
+
+Background and Literature Survey
+Signal Analysis in Atrial Fibrillation
+
+In spite of extensive research, debates about the pathophysiology of AF continue today. An ideal method for studying the atrial activation during AF is monitoring the signal in the time-domain; since some signal irregularities such as amplitude variations and waveform fragmentation are more traceable in the time domain [17]. However, due to signal complexities, marking the atrial activation cycles on the ECG readings either manually or automatically would be a difficult task. As a result, frequency- domain analysis is an alternative method in studying the pathophysiology of AF without having to measure the intervals in the time-domain. The most common application of frequency analysis is to employ dominant frequency analysis for the estimation of atrial activation rate. If the signal is periodic the dominant frequency will be related to the rate of the signal. However, due to nonstationary nature of the complex signals, frequency-domain analysis does not always provide the best estimate of the atrial activation rate [18]. In addition, studies have shown that dominant frequency of AF correlates poorly with AF cycle length [19].
+
+Intracardiac electrogram readings are normally simple; however, they could become very complex under pathological conditions. These complexities include amplitude variations, changes in 9
+
+the morphology and fractionation and irregular activation times. Thus, there are different approaches for studying the fractionated and complex electrograms. One of the most common methods for atrial activation rate estimation is electrogram spectral analysis and extracting the dominant frequency. This technique provides a consistent measure of atrial rate for regular signal morphology; however it may fail when applied to the non-stationary complex electrograms. Consequently, the frequency of the signal can be monitored instantaneously for the nonstationary signals. This leads to a new approach to analyze time-varying signals called instantaneous mean frequency [20].
+
+10
+
+1.3.2
+
+Signal Analysis in TWA
+
+As already explained, T wave alternans variations are in the scale of micro volts. Thus, very accurate signal processing techniques and algorithms are needed in order to precisely detect these variations. A number of analytical techniques have been proposed to detect the micro volt TWA from the ECG. [21] Theses methods can be generally categorized into: time-domain, transformeddomain, and time-frequency domain techniques. Figure 1.4 shows existing techniques in literature survey used for TWA detection:
+
+TWA Analytical Techniques
+
+Time Domain
+
+Transform Domain
+
+Time Frequency Domain
+
+CM
+
+MMA
+
+SM
+
+CD
+
+Periodicity
+
+Poincare mapping
+
+NMF
+
+Figure 1.4: Existing techniques used for TWA detection: Time Domain techniques includes: Correlation Method (CM) and Modified Movign average (MMA); Transform Domain techniques include: Spectral Method (SM), Complex Demodulation (CD), Periodicity, and Poincare mapping;Time Frequency technique includes: Non-negative Matrix Factorization (NMF)
+
+· Time-domain techniques: Time-domain TWA detection techniques include the correlation method (CM) and the modified moving average (MMA). As the name implies TWA detection in CM algorithm is performed by computing an alternans correlation index based on a cross correlation technique [22, 23]. The MMA method computes a beat weighted moving average of even and odd beats, and defines the TWA as the difference between these 11
+
+weighted averages. [24] · Transform-domain techniques: Transform-domain TWA detection techniques include the spectral method (SM), complex demodulation (CD) , periodicity transform method, and poincare mapping. SM proposed by Smith et al. [9] uses a periodogram to measure the 0.5 cycle per beat (cpb) TWA frequency component over the aligned T waves. CD fits a sinusoidal signal to the 0.5 cpb frequency of the aligned T waves [25]. Periodicity transform method decomposes time series TWA signals into sum of periodic sequences by projecting onto a set of "periodic subspace" [26]. Poincare mapping uses the concept of the quasi periodic behaviour of the TWA signals to quantify and detect the alternations [27]. · Time- frequency techniques: Time-frequency techniques includes the non-negative matrix factorization (NMF) which quantifies the TWA by adaptively decomposing the nonstationary structure in the TF matrix into r components with similar spectral behaviour [28]. In signal-processing-based TWA detection, the spectral method(SM) [29­31] is the most widely used technique implemented in commercial equipment such as the CH2000, Cambridge Heart, Inc. Also, SM is the most commonly used method in the clinical practices to quantify the TWA signal which has been considered as a reference for benchmarking purposes in this study (Chapter 3). SM employs Fourier transom to obtain the spectral distribution of the T wave in the beat domain. Fourier transform is stationary signal representation technique, and thus SM assumes stationarity of the signal over M samples. As a result, TWA data non-stationarity will not be accurately tracked over M sample frames. In such situations, one possible solution is short-time Fourier transform (STFT) which performs the Fourier transform on short, overlapping windows. However, according to Heisenberg's uncertainty principle, which states that an infinitely small time-width function cannot be represented with an infinitely small bandwidth, the TF resolution of STFT is limited. The time-width and the bandwidth product of STFT must always be greater than 0.5 [28]. Thus, the major drawback of STFT is the short duration ECG window to capture the signal non-stationarity, which causes the reduction of the frequency resolution of the time-frequency distribution (TFD) . 12
+
+To overcome this limitation, there is a need for a technique that is suitable for analyzing the non-stationary and non-linear data. In this thesis, Empirical Mode Decomposition(EMD) is introduced as a technique for processing non-stationary and non-linear data. Unlike Fourier transform or wavelet-based methods that require some pre-defined basis functions to represent a signal, EMD relies on a fully data-driven mechanism that does not need any a priori known basis. When Fourier decomposition is applied to a signal, the basis functions are linear combinations of sine and cosine waves, which would be the case if the signal is linear. However, as mentioned previously ECG signals are non-stationary and non-linear. With EMD the basic functions (IMFs) are themselves non-linear functions that can be extracted directly from the signal. These IMFs are in fact the oscillatory modes embedded in a signal without any requirements of stationarity or linearity of the data and thus partial reconstruction of the IMFs is a filtering technique in many denoising applications. In addition, unique properties of IMFs (discussed in section 2.3.1) allow for instantaneous frequency (IF) and amplitude to be defined unambiguously. Because of these unique features of EMD, EMD-based algorithms have been used in many applications of ECG enhancement. Some of these applications include "denoising and baseline wander correction" [32, 33], "heart rate variability analysis" [34], and"R peak detection [35] .
+
+13
+
+1.4
+
+Contribution and Thesis Organization
+
+This work presents application of Empirical Mode Decomposition (EMD) as a method for analyzing non-stationary and non-linear cardiovascular signals applicable to both intracardiac Atrial Fibrillation electrograms, as well as T-wave alternans signals from surface ECG.
+
+The thesis content which has been summarized in Figure 1.5 is organized as follows: · Chapter 2- Empirical Mode Decomposition This Chapter focuses on the Empirical Mode Decomposition along with the Hilbert Transform as a tool to extract the instantaneous frequency (IF) to analyse and process the nonstationary biomedical signals. This is followed by introducing the pattern classification applicable to the scope of this thesis. · Chapter 3 - TWA Detection via EMD In this Chapter we provide the details about the TWA databases (synthetic and real) that are used in this study along with the steps involved in applying the methodology introduced in chapter 2 for TWA detection. In addition, the classification results and the comparative analysis has been performed. · Chapter 4 - Analysis of Intracardiac AF Signals via Instantaneous Frequency This Chapter mainly discuses the analysis of intracardiac Atrial Fibrillation (AF) electrgorams via instantaneous frequency; and introduces the advantages of instantaneous frequency over dominant frequency. · Chapter 5 - Discussion, Conclusion and Future Work This Chapter summarizes the contribution and also limitations of this study followed by discussing the future directions.
+
+14
+
+Chapter 1
+
+Introduction, Problem Definition and Literature Review Background Theory and Proposed Methodology ( EMD) Chapter 4 Application of Instantaneous Frequency in Analyzing AF Electrograms
+
+Chapter 2
+
+Chapter 3 Application of Instantaneous Frequency & Feature Extractions in T wave Alternans Detection
+
+Chapter 5 Discussion, Conclusion, and Future Work
+
+Figure 1.5: Organization of the Thesis
+
+15
+
+Chapter 2 Empirical Mode Decomposition (EMD) and Instantaneous Frequency
+
+T
+2.1
+
+HIS chapter presents an overview of signal categories followed by the proposed method to analyze the non-stationary ECG signals. The proposed method is primarily utilizing
+
+Empirical Mode Decomposition (EMD) combined with the Hilbert Transform (HT) to extract Instantaneous Frequency from the non-stationary signal.
+
+Signal Categories
+
+Signal is defined as any physical quantity that varies with time, space or other independent variable(s) [36]. It is a very well known fact that in real world there exists abundant kinds of signal all of which carry a lot of information that are of people's interest. Thus, diverse techniques have been developed to analyze, interpret, manipulate and process those signals. There are various types of signals ranging from simple structures to complex ones. As a result, the first step in selecting the adequate technique to analyze the signal is to classify the signal into different categories. There are several major categories of signals. The most important signal categories applicable to the scope of this study are as follows [36]: · Deterministic or non-deterministic: Deterministic signals can be uniquely described by an explicit mathematical expression, a table of data or a well defined rule. however; the signals that evolve over time in an unpredictable manner are non- deterministic or random signals. 16
+
+· Stationary or non-stationary: Signals that are constant in their statistical parameters such as mean and variance over time are stationary. On the other hand, if signals statistics are varied with time, the signal is defined as non-stationary. A majority of the real- world signals such as biomedical signals are non- deterministic and nonstationary. For the rest of this thesis, real-world signals are termed non-stationary, rather than non-deterministic and non-stationary. Classification of signals is extremely important in the field of biomedical signal processing. Capturing the intrinsic behaviour of the signal through feature extraction helps improving the accuracy of classification very well. Various features can be extracted from a signal in both time domain as well as frequency domain. For stationary signals, simple statistical measures are often sufficient; however for non- stationary multicomponent signals relying on statistical measures alone collapses the " time- variation" of the signal. As a result for non- stationary signals, features extracted from instantaneous characteristics of the signal could potentially show a better performance. The instantaneous frequency (IF) of a signal provides a significantly unique representation of a signal , and thus the reasoning follows that features extracted from IF could characterize the signal better. Certain points needs to be considered in feature extraction. Using only few parameters to convey the information contained in a signal is a problem of dimension reduction. In pattern recognition, feature extraction techniques are widely employed to reduce the dimensionality of data and to enhance the discriminatory information. Clearly, extracting features from IF causes time localization to be compromised. As a result, it is imperative that the features extracted provide sufficient information as required by the specific application. There exists many criteria like BIC (Bayesian Information Criterion) and AIC (Akaike Information Criterion) to estimate the information lost in dimension reduction [37]. However, this thesis focuses on the classification and not reconstruction of the signal. The aim of this thesis is using feature extractions from IF to analyze and classify the ECG signals based on existence of the T- wave alternations.
+
+17
+
+2.2
+
+Instantaneous Frequency
+
+The frequency of the periodic functions is a well defined quantity. It is the number of occurrences of a repeating event per unit time. For a complete sinusoid signal, this frequency is constant as shown in Figure 2.1(b) . However, most signals in real world are not completely sinusoidal (periodic). Non-stationary signals are one of the most common types of the real world signals. A linear chirp signal shown in Figure 2.1 (c) is an example of a non- stationary signal where the frequency of the signal increases linearly with time as shown in Figure 2.1 (d). For these types of signals, the concept of frequency is not really applicable. This has given rise to the idea of the instantaneous frequency (IF), where the changes in the frequency can be monitored instantly over time. The instantaneous frequency is an important characteristic of the signal which defines the location of the signal 's spectral peak as it varies with time. In other words, it may be interpreted as the frequency of the sine wave which locally fits the signal under analysis. This concept is meaningful only for mono component signals, where there is only one frequency or a narrow edge of frequencies varying as a function of time. Theoretically, it is difficult to describe the IF of a multicomponent signal, thus a breakdown into signals component is needed. Mono component signal in this study refers to any signal that satisfies the characteristics of Intrinsic Mode Function (IMF) [38]. These characteristics are described in section 2.3.1. There exists few theoretical investigation of IF. Mathematically, the definition of IF for a mono component signal must be through its quadrature defined as a 90  shift of the carrier phase function only. Thus from any mono component data represented by x(t), we have to find its envelope a(t) and carrier cos((t))
+
+x(t) = a(t)cos((t)) Its quadrature is then given by xq (t) = a(t)sin((t))
+
+(2.1)
+
+(2.2)
+
+18
+
+(a)
+1 0.2
+
+(b)
+
+0
+
+Frequency( Hz)
+
+0.5
+Amplitude
+
+0.1
+
+0
+
+-0.5
+
+-0.1
+
+-1 0
+
+1
+
+2 Time(sec)
+
+3
+
+4
+
+5
+
+-0.2 0
+
+1
+
+2 Time(sec)
+
+3
+
+4
+
+5
+
+(c)
+1 100 80
+Frequency( Hz)
+
+(d)
+
+0.5
+Amplitude
+
+60 40 20 0 0
+
+0
+
+-0.5
+
+-1 0
+
+0.1
+
+0.2 0.3 Time(sec)
+
+0.4
+
+0.5
+
+0.1
+
+0.2 0.3 Time(sec)
+
+0.4
+
+0.5
+
+Figure 2.1: (a) 5- sec sinusoidal signal ; (b) Instantaneous frequency of the sinusoid in (a); (c) 0.5sec linear chirp signal (d) Instantaneous frequency of the linear chirp signal in (c) From above equations, IF is defined as the derivative of the phase of the signal with respect to time [39]. Index i indicates instantaneous. i (t) = d(t) dt (2.3)
+
+IF also can be determined by taking the first central moment (average frequency) of the bilinear time-frequency distributions (TFDs) [39]: W (t,  )d W (t,  )d
+
+i (t) =
+
+(2.4)
+
+Extraction of IF has been investigated for many years from different perspectives. Fourier analysis plays an important role in frequency analysis of a signal since it decomposes the signal into 19
+
+individual frequency components and also it establishes the relative intensity of each component. However Fourier transform fails to indicate when those frequency occurred. As a result, the concept of time-frequency analysis is proposed. Most of the popular time-frequency distributions belong to a general class called the Cohen's class [40]. Cohen's class characterizes the set of all bilinear representations covariant under time and frequency translation. Out of Cohen's class, the Wigner-Ville distribution (WVD) is the only distribution that produces the ideal concentration along IF for the linear frequency modulated signals [41]. Since WVD is not a linear transform, the cross-term effect occurs when there is more than one component in the signal and thus cannot satisfy some of the requirements for time-frequency resolutions. The effect of cross-term can be suppressed significantly in the smoothed versions of the WVD such as Choi-Williams distribution (CWD), pseudo WVD (SWVD), smoothed pseudo WVD (SPWVD), and reduced interference distributions (RID) [20]. Beside other efficient time-frequency representation based techniques for the IF estimation, the short-time Fourier transform (STFT) represents a very efficient and commonly applied approach. One disadvantage of this method is that both time and frequency resolutions are tied to one parameter (i.e. window length). On the other hand, the smoothed versions of WVD operate independently of time and frequency unlike STFT. Also, TF resolution of SPWV is less than that of WVD, but it outperforms STFT in TF resolution [42]. A relatively recent method in extracting IF is Empirical Mode Decomposition (EMD) [43]. Many methods to extract IF face challenges in the presence of multicomponent signals. The extracted IF must have good TF resolution but must retain some physical meaning. In this regard, EMD offers a few advantage. For instance it views a signal as fast oscillations superimposed on slow oscillations [44]. In general there are a few important requirements on the signal which are necessary to ensure a physically meaningful IF. The signal has to be monocomponent, zero mean locally, and the wave will have to be symmetric with respect to the zero mean. All these conditions are satisfied by EMD. EMD, coupled with instantaneous frequency have been a vital technique for analysis of nonstationary data in various biomedical applications. Some of the examples include analysis of neural
+
+20
+
+data [45], artifact reduction in electrogastrogram [46], power line interference filtering in electrocardiogram [47], and analysis of heart sound signal [48].
+
+2.2.1
+
+Instantaneous Frequency via Hilbert Transform
+
+An important step in the study of IF was made by Gobor [39] who proposed a method for generating a complex signal referred to as " analytic signal " from a real one:
+
+z (t) = s(t) + jH [s(t)] = a(t)ej(t)
+
+(2.5a) (2.5b)
+
+where z (t) is the analytic signal, s(t) is the real signal and H [s(t)] is the Hilbert transform (HT) of s(t) which is defined as follows: 1 t
+
+H [s(t)] = x(t) 
+
+(2.6)
+
+where H is the Hilbert Transform operator, and * denotes linear convolution in the time domain. Signals s(t) and H [s(t)] are said to be quadrature, because in theory they are out of phase by /2 . Now the spectrum of z (t) is given by:
++
+
+Z (f ) =
+- +
+
+z (t)e-j [2f t] a(t)ej [(t)-2f t]
+
+(2.7a) (2.7b)
+
+=
+-
+
+According to the stationary phase principle [39], the integrals in Equations 2.7 have the largest value at frequency fs , for which the phase is stationary: d [(t) - 2fs t] = 0 dt This yields to: fs = 1 d(t) 2 dt 21 (2.9) (2.8)
+
+Equation 2.9 indicates that fs is a function of time and it provides a measure of the frequency domain signal energy concentration as a function of time. As earlier stated, IF obtained using Gobors Analytical Signal and Hilbert transform is ideal provided that the function is monocomponent.Thus any multi component signal needs to be decomposed into a set of mono component signals. This is the essence of the Hilbert- Huang Transform (HHT) which is explained in details.
+
+2.3
+
+Hilbert- Huang Transformation
+
+Hilbert- Huang transformation (HHT) is a combination of EMD and Hilbert Spectral (HS) analysis [43], and is designed to work well for time series data that are non- stationary and nonlinear. HHT uses EMD to decompose a multi component signal into several mono component signals called Intrinsic Mode Function (IMF), and then IF can be extracted from each IMF.
+
+2.3.1
+
+Intrinsic Mode Functions (IMFs)
+
+IMF is a mono- component signal that contains only one oscillatory mode at any time instance. As stated earlier, the concept of IF is applicable only to mono- component signals. Thus, to obtain IF of a signal any complex (multicomponent) signal needs to be decomposed to some IMFs. Any IMF should satisfy the following two criteria: 1. The numbers of local extrema and the numbers of zero crossings must be equal or differ by at most 1. 2. At any time point, the mean value of the " upper envelope" ( defined by local Maxima) and the " lower envelope" ( defined by the local minima) must be zero. Empirical Mode Decomposition (EMD) is an algorithm that decomposes any complex signal into several IMFs.
+
+22
+
+2.3.2
+
+EMD Algorithm
+
+EMD is the first step of Hilbert-Huang Transform. EMD empirically reduces a time series to several sub signals (IMFs), each of which is input to the same time-frequency environment via the Hilbert transform. EMD uses the characteristics of the signal itself to adaptively decompose it into several Intrinsic Mode Functions( IMFs).
+
+Figure 2.2: Schematic of signal decomposition into set of IMFs and residue using EMD EMD algorithm for a signal x(t) can be summarized as follows [49]: 1. Identifying all the extrema (maxima and minima) of the signal x(t) . 2. Generating the upper and lower envelope by a cubic spline interpolation of the extrema points found in step1. 3. Calculating the mean function of the upper and lower envelope, m(t) . 4. Calculating the difference signal d(t) = x(t) - m(t) . 5. If d(t) is a zero mean process (i.e an IMF), then the criteria stops and d(t) is the first IMF, named c1 (t) . 6. Calculating the residue signal r(t) = x(t) - c1 (t) . 7. Repeating the procedure from steps (1) to (6) to obtain IMF 2. Continuing the iterations for n times leads to obtaining cn (t) . This procedure stops when the final residue signal r(t) is a monotonic function.
+
+23
+
+At the end of this procedure we have a collection of n IMFs from c1 (t) to cn (t) and the residue r(t) . Thus, the signal x(t) can be written as: x(t) = n i=1 ci (t) + r (t) (2.10)
+
+The number of decomposition levels ( IMFs and residue) is also determined by the length of the input signal x(t) , according to the formula [49]: N = log2 (length(x)) ; (2.11)
+
+An illustration of EMD decomposition of a normal rhythm ECG signal x(t) is shown in Figure 2.2. This decomposition resulted in 8 IMFs and a residue. It is clear that lower order IMFs carry high frequency components of the original signal x(t) and as the order of the IMFs increases, the corresponding frequency decreases.
+
+24
+
+2 1 0 0.5 1 0 -1 0.5 1 0 -1 0.5 0.5 0 -0.5 0.5
+Amplitude ( mv)
+
+X(t)
+1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 1
+1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 2
+1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 3
+1 1.5 2 2.5 3 3.5 4 4.5 5
+
+0.2 0 -0.2 0.5
+0.2 0 -0.2 0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 4
+1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 5
+
+0.1 0 -0.1 0.5 0.05 0 -0.05 0.05 0 -0.05 0 -0.1 -0.2 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 6
+
+IMF 7
+0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+IMF 8
+0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+Residue
+0.5 1 1.5 2 2.5 3 3.5 4 4.5 5
+
+Time ( sec)
+
+Figure 2.3: A 5- sec normal rhythm ECG signal x(t) in black ; IMF distribution from scale 1 to scale 8 in blue ; and the residue signal in red. ECG recording is from PhysioNet [3]
+
+25
+
+2.4
+
+Instantaneous Frequency from IMF
+
+Equation 2.8 indicates that fs is a function of time and it provides a measure of the frequency domain signal energy concentration as a function of time. HHT is designed to work well for data that are nonstationary and nonlinear. Instantaneous Frequency obtained using Gobors Analytical Signal and Hilbert transform is ideal provided that the function is monocomponent. As a result, any multicomponent signal needs to be decomposed into several monocomponent signal called Intrinsic Mode Function (IMF). Thus, once IMFs for any signal obtained using EMD, the Instantaneous Frequency could be extracted from each IMF.
+
+2.5
+
+Feature Extraction
+
+Feature extraction involves simplifying the amount of resources required to accurately describe a large set of data. Features play an important role in any pattern recognition system. If extracted features are distinct enough, even a simple classifier can accurately and efficiently classify the data. Therefore, developing more powerful features and understanding the feature space is of vital consideration in designing automatic decision making algorithms. In general, the powerful features should have the following properties: · Representative: Features should represent the common characteristics that exist among the signals in the same class. · Discriminative: Features should be discriminative of each class from the other classes. · Localized: Features are preferred to locate the discriminant pattern in both time and frequency to increase the decision making accuracy and also to locate the pattern of interest. · Meaningful: Features could be either meaningful or abstract. Meaningful features relate to a physical meaning or the generation process of the signal. Meaningful features are more desirable as they can better relate to the physical changes in the signal due to the non- stationarity. In biomedical signal analysis, meaningful features may develop new quantities that can be used for better understanding of the physical behaviour in the human body. On the 26
+
+other hand, abstract features do not represent any definable signal characteristics. Examples of abstract features includes statistical features such as variance or mean. Some important characteristics of the biomedical signals are non- stationarity, periodicity, randomness, modulation, transient, epoch and episode. As a result the ideal features are those that could potentially help to quantify the degree of the mentioned characteristics in the signal. The extracted features should also help in event detection in addition to classification. Moreover for use on practical real signals, the parameters must be robust to noise. Also, they must retain some physical reasoning to explain the obtained values. The aforementioned comments are for extracting features from any signal in general. Many well developed techniques exist in theory and practice to satisfy this characteristic. Some examples include: ARMA (autoregressive moving average) [50], ARIMA (autoregressive integrated moving average) [51], spectral analysis, and time-series modelling. As discussed earlier, IF can help to characterize a signal uniquely. Many non- stationary signals are associated with non-linear processes. An important objective in processing the non- stationary signals is to capture the important variations in the signal using IF. If certain "properties" of the IF translate to certain "events" in the signal, then such information could provide more knowledge and a better intuitive understanding of the process that produced the signal. This could be of great significance in biomedical signal processing, as it could mean better and earlier detection of abnormality or health issues. There are a few considerations for feature extractions from IF. The Y axis is " frequency". Though it is not the actual spectrum, yet spectral analysis of IF no longer has meaning. In case of techniques like ARMA or ARIMA the physical interpretation of the extracted parameters with respect to the IF is not clear. Hence, it is suggestive that a combination of statistics, energy and information based features would be appropriate for the requirements.
+
+27
+
+2.5.1
+
+Extracted Features( Hjorth Descriptors)
+
+Hjorth parameter [52­55] is a set of three parameters based on time domain properties. These parameters are called normalized slope descriptors and are activity (x ), mobility(Mx ), and complexity (F Fx ). Here subscript x indicates the signal for which these features are extracted from. In this study these feature are extracted from IF. These features were initially conceived to describe time-domain characteristics of electroencephalographic signals [56­58]. The advantage of these three descriptors is their easy implementation in time domain through the successive derivation of signal x as shown in [57]. 1. Activity: Activity gives a measure of the squared standard deviation of the amplitude, it can also be referred to as the variance or mean power:
+
+2 Activity = IF
+
+(2.12)
+
+2. Mobility: Mobility is computed as the square root of the ratio of the activity of the first derivative of the IF to the activity of the IF: IF IF
+
+MIF =
+
+(2.13)
+
+For a signal, its Mobility is expressed as a ratio per time unit and may be considered as an estimate of the mean frequency. From a time- domain perspective, MIF gives a measure of the standard deviation of the slope of IF relative to the standard deviation of the amplitude. 3. Complexity: Complexity or Form Factor of a signal is defined as the ratio of the mobility of the first derivative of the signal to the mobility of the signal itself: MIF IF /IF = MIF IF /IF
+
+F FIF =
+
+(2.14)
+
+where IF is the second derivative of IF. Complexity gives an estimate of the bandwidth of the signal. Complexity of a pure sinusoid is one. Thus, it represents the difference between 28
+
+the frequency variance of the first derivative of the signal and the frequency variance of the signal itself. In the time domain, this parameter can be interpreted as the variance of the curvature values during one period with respect to the variance of the slope values during that period. Complexity offers an improved representation of the variability or "busyness" of the IF. Hjorth parameters can be efficiently computed in the time domain because the spectral moments can be computed from the first and second derivatives of the time series. For discrete signals, these derivatives are approximated by the first and second difference equations. For the IF we have: IF 1 [n] = IF [n] - IF [n - 1] IF 2 [n] = IF [n + 1] - 2IF [n] + IF [n - 1] where di IF i [n] IF ( t )  dti Tsi and Ts is the sampling period. In this thesis, Hjorth descriptors are applied to Instantaneous Frequencies extracted from each IMF. (2.16) (2.15a) (2.15b)
+
+2.6
+
+Pattern Classification
+
+Classification refers to a prediction rule that assigns the signals into different classes. It consists of a training and classification phase. Training is the procedure that trains the prediction rule based on a set of signals called training set. Classification classifies any new signal from a testing set. In general, classification techniques can be divided into two parts: [59] · Supervised Learning: In supervised learning, the classification scheme is based on the availability of set of classified ( i.e labelled) signals. · Unsupervised Learning: In unsupervised learning, there is no explicit teacher and the system forms cluster or "natural groupings" of the input patterns. 29
+
+Supervised learning usually is more beneficial compared to the unsupervised one in the sense that it uses more prior knowledge about the data. On the other hand, unsupervised learning enables us to obtain more adaptive and meaningful classes corresponding to the natural characteristics of the data. Both sets of databases ( Synthetic and Real) used in chapter 3 of this thesis have been labelled as either positive TWA or negative TWA and thus the supervised algorithm is used for classification. One of the supervised algorithms is Linear Discriminant Analysis (LDA) which will be briefly explained in the next subsection.
+
+2.6.1
+
+Linear Discriminant Function
+
+The objective of Linear Discriminant Function is to separate the classes as much as possible [59]. A discriminant function that is a linear combination of the components of x can be written as: g (x) = wt x + 0 (2.17)
+
+where w is the weight vector and 0 the bias or threshold weight. For the case of two- category classification, Eq. 2.12 implements the following decision rule: Decide 1 if g (x) > 0 and 2 if g (x) < 0. Thus, x is assigned to 1 if the inner product of wt x exceeds the threshold 0 and to 2 otherwise. If g (x) = 0, x can ordinarily be assigned to either classes. The equation g (x) = 0 defines the decision surface that separates points assigned to 1 from points assigned to 2 . When g (x) is linear, this decision surface is a hyper plane. If x1 and x2 are both on the decision surface, then wt (x1 - x2 ) = 0 and this shows that w is normal to any vector lying in the hyperplane. In general, linear discriminant function divides the feature space by a hyperplane decision surface. The orientation of the surface is determined by the normal vector, and the location of the surface is determined by the bias. The discriminant function g (x) is proportional to the signed distance from x to the hyperplane, with g (x) > 0 when x is on the positive side, and g (x) < 0 when x is on the negative side. In a two - category linearly separable problem, there is a set of n samples x1 , x2 , ... , xn 30 (2.18)
+
+some labelled 1 and some labelled 2 . This is being done to determine the weights w in a linear discriminant function g (x) = wt x. A sample xi is classified correctly if wxi > 0 and xi is labelled 1 , or if wxi < 0 and xi is labelled 2 . Therefore, from this it can be concluded that in two- category case all samples of 2 could be replaced by their negatives, and therefore the class label can be eliminated, in which wyi > 0 for all of the samples. yi is the normalized sample. In order to find the solution to the set of inequalities, a criterion function has to be minimized [59].
+
+2.6.2
+
+Fisher Linear Discriminant Analysis
+
+The following is a brief summary on LDA. LDA is a method that could be used for discriminating two classes. LDA produces a discriminant function that maps the input into the classification space. LDA searches for the vectors in the underlying space that best discriminate among classes, rather than those that best describe the data. [60]. Fisher discriminant analysis projects d dimension matrix x into a less dimensional matrix y using a weight vector called W [59]: y = WTx (2.19)
+
+Goal of the LDA is to seek a transformation matrix W that in some sense maximizes the following objective: |W T SB W | |W T SW W |
+
+J (W ) =
+
+(2.20)
+
+where SB is the "between- class scatter matrix", and SW is the "within-class scatter matrix". The definitions of the scatter matrices are as follows: SB =
+c
+
+(µc - x ¯)(µc - x ¯)T
+
+(2.21)
+
+SW =
+c i c
+
+(xi - µc )(xi - µc )T 31
+
+(2.22)
+
+where c is the number of classes, x ¯ is the overall mean of the data cases; and µc is the mean of the cth class. LDA creates a linear combination of those which yields the largest mean difference of the desired classes. In order to find the optimum W to maximize J (W ), the classifier is trained for a subset of data and the rest of the samples are used to test the classifier. It is important to note that the choice of training subset can influence the classification results. Thus to make the classification result independent of the training and testing sets cross validation is used.
+
+Figure 2.4: The schematic of LDA for 2 group classifier (H0 and H1 ) and 2-D feature space (f1 and f2 )
+
+2.6.3
+
+Leave- One- Out Method Cross Validation
+
+Cross validation is a technique for assessing how the results of a statistical analysis will generalize to an independent data set. In cross validation, many classifications are performed by choosing various sets of data for training and testing sets and the final classification result is performed by averaging the results. One round of cross validation involves the following steps: 1. Partitioning the samples in the database into training set and testing set. 2. Teaching the learning machine for analysis using the training set. 3. Predicting the validation set labels based on the training set analysis. 32
+
+There are different types of cross validation methods depends on the number of times that data is split into various training and testing sets. The extreme case of this cross validation is leave-oneout-method which is used in this thesis. Different choices of training and testing sets can highly influences the accuracy of the classification. This is particularly essential for small databases where only a few signals can change the decision boundary significantly. This is especially true for biomedical signals where there exists various reasons ( i.e. ethical limitations, practical difficulty in data acquisition, costly in terms of money and time) which restricts the database to be small in size. As a result, to ensure the estimate is least biased, leave - one- out cross validation technique is used. In this method, one sample in the database is taken as a test sample, and the rest of the samples are considered as training sets which are used for classification. Then classification accuracy (explained in the next section) is determined based on the test sample. This procedure is repeated for all samples in the database and the average of the classification accuracies is later determined as the final classification accuracy. The independence between the test and training set is maintained as each sample is excluded from the training set in turn.
+
+2.6.4
+
+Classification Accuracy
+
+Accuracy is used as a statistical measure of how well a binary classification test correctly identifies or excludes a condition. Accuracy value can be calculated according to Equation 2.23 as follows: TP + TN TP + FP + TN + FN
+
+Accuracy = where
+
+(2.23)
+
+· TP is the number of True Positive cases ( Positive TWA cases which are classified as Positive TWA) · FP is the number of False Positive cases ( Negative TWA cases which are classified as Positive TWA) · TN is the number of True Negative cases ( Negative TWA cases which are classified as Negative TWA) 33
+
+· FN is the number of False Negative ( Positive TWA cases which are classified as Negative TWA) From above definitions the sensitivity and specificity of the classification techniques are determined as follows: TP TP + FN
+
+Sensitivity =
+
+(2.24)
+
+Specif icity =
+
+TN TN + FP
+
+(2.25)
+
+Sensitivity and specificity are helpful in evaluating the performance of the technique in correctly identifying the normal and abnormal cases. In medical diagnostics, test sensitivity is the ability of a test to correctly identify those with the disease ( i.e. Positive TWA in this study ); whereas test specificity is the ability of the test to correctly identify those without the disease ( i.e. Negative TWA ). Thus, a highly specific test is unlikely to give a false positive result. In contrast, a sensitive test rarely misses a condition, so a negative result should be reassuring.
+
+2.6.5
+
+ROC
+
+In signal detection theory, a receiver operating characteristic (ROC), or simply ROC curve, is a graphical plot of the sensitivity vs. (1 - specificity) for a binary classifier system as its discrimination threshold is varied. The ROC can also be represented equivalently by plotting the fraction of true positives rate vs. the fraction of false positives rate, also known as a Relative Operating Characteristic curve, because it is a comparison of two operating characteristics (TP & FP) as the criterion changes. ROC analysis provides tools to select possibly optimal models and to discard suboptimal ones independently from (and prior to specifying) the cost context or the class distribution. ROC analysis is related in a direct and natural way to cost/benefit analysis of diagnostic decision making.
+
+34
+
+One point in ROC space is better than another if it is to the northwest (TP rate is higher, FP rate is lower, or both) of the first. The common method of comparison between different ROC curves is to calculate the area under the ROC curve, abbreviated AUC. Since the AUC is a portion of the area of the unit square, its value will always be between 0 and 1.0. However, because random guessing produces the diagonal line between (0, 0) and (1, 1), which has an area of 0.5, no realistic classifier should have an AUC less than 0.5 [61]. The main idea of ROC in this case is to evaluate the robustness of the classifier specially when each group in the database has a different loss function. Higher values of area under the ROC curve indicates a higher robustness for the classifier.
+
+2.7
+
+Chapter Summary
+
+In this chapter we introduced the Empirical Mode Decomposition along with Hilbert Transform as a method to extract instantaneous frequency from non- stationary signals. The concept of instantaneous frequency was explained and was identified as a suitable quantity to analyze the nonstationary data. Hjorth descriptors were identified as extracted features to perform the classification of ECG signals based on existence or absence of T- wave alternans. Fisher's Linear Discriminant Analysis was introduced as the classifier that is used in this study, and the significance of the LOOM was explained as a good method to perform the cross validation for biomedical signals. At the end, some tools that will be used in the machine learning to evaluate the classification performance were introduced. Chapter 3 covers the application of EMD algorithm and feature extraction in the detection of the T- wave alternans analysis. Chapter 4 includes the analysis of Atrial Fibrillation intacardiac electrograms using Instantaneous Frequency.
+
+35
+
+Chapter 3 T-wave Alternans Detection via Instantaneous Frequency
+
+I
+
+N this chapter we provide the details about the steps involved in the data pre- processing, the databases, as well as signal analysis and the feature extractions. This is followed by the classifi-
+
+cation results and comparative analysis of the proposed method with other existing TWA detection algorithms. In addition, the noise robustness of the proposed method has been investigated. To perform the evaluation of the proposed method, both real and synthetic TWA signals are used for testing. Thus, we have two sets of databases: first set of signals are publicly accessed taken from Physionet [2] and the second one is the database from UHN.
+
+3.1
+
+Data Pre-processing
+
+Before alternans could be quantified, a series of preprocessing steps were implemented on the signal. These includes: beat detection, and baseline correction.
+
+3.1.1
+
+QRS Detection
+
+QRS detection was automatically done on a single lead of the entire recording using Pan-Tompkins real- time QRS detection algorithm [62]. This process includes filtering of the signal followed by the application of a series of detection rules. For filtering of the raw ECG waveform, a fourth order butterworth bandpass filter with a bandwidth of 5 to 15 Hz was applied to the signal.This filter attenuates the noise while capturing the 36
+
+majority of the QRS complex energy. To obtain the QRS slope data, a five-point derivative was used. To produce an entirely positive signal, the absolute value of the derivative waveform was taken. Moving window integration was then applied to smoothen the positive signal by removing minor deflections. An averaging window of 80 ms, which is the width of a typical QRS, was chosen to avoid merging of QRS and T wave slope information [63]. These filtering steps produced a final waveform with isolated large amplitude peaks corresponding to the high frequency QRS complexes and smaller peaks corresponding to the T wave. The second stage of QRS detection includes classification of each peak in the filtered waveform as a QRS complex or noise. This is done by applying a series of detection rules that utilizes peak hight and peak location information from the integrated waveform, as well as slope information from the derivative waveform. For peak height, an adaptive peak detection threshold was created by using the mean of the maximum amplitudes of the eight most recently detected QRS peaks and the mean of the maximum amplitude of the eight most recently detected noise peaks:
+
+P eakT hreshold = mean(noiseP eaks) + 0.3125[mean(qrsP eaks) - mean(noiseP eaks)] (3.1) At the onset of analysis, the peak threshold was initiated by filling the QRS peak buffer with the largest peaks in the first eight consecutive one second intervals, and the noise peak buffer with eight zero values. The detection rule presented by Tompkins and associates [62, 64] are as follows: 1. All peaks within 200 ms of a larger peak were ignored since two QRS complexes cannot occur within such an interval under normal most circumstances. 2. If a peak occurred < 360 ms after a previous QRS detection, the derivate waveforms at the two peak location were compared. 3. If the maximum slope in the region of the detected peak was < 50 % of the maximum slope of the previous QRS, then the new peak was assumed to be a T wave and classified as noise.
+
+37
+
+4. If a peak did not satisfy the fisrt two rules and it was larger than the peak detection threshold then it was classified as a QRS, otherwise it was classified as noise. 5. If no QRS had been detected within 1.5 times the average CL ( cycle length)and there was a peak > 50 % of the detection threshold that occurred  360 ms after the last QRS detection, that peak was classified as a QRS. The average CL used in this step was determined by taking the mean of the eight prior CLs.
+
+I 1.5 1 0.5 0 -0.5 100 0.6 0.4 0.2 0 -0.2 100 0.2 0 -0.2 100 0.25 0.2 0.15 0.1 0.05 100 200 300 400 500 V 0.1 0 100 200 300 400 500 600 700 800 900 1000 600 700 800 900 1000 200 300 400 500 IV 600 700 800 900 1000 200 300 400 500 III 600 700 800 900 1000 1100 200 300 400 500 II 600 700 800 900 1000 1100
+
+Amplitude( mV)
+
+Samples
+
+Figure 3.1: Signal Processing steps for QRS detection: (I) Raw ECG Signal; (II) Bandpass Filter Output; (III) Differentiation of the filtered ECG; (IV) Absolute value of the filtered derivative; (V) Result of moving window integration. Recordings are from PhysioNet [2] Once QRS detection was completed, QRS onsets locations were automatically determined by searching for the isoelectric PR segment. To remove noise, the raw waveform was filtered using 38
+
+a fourth- order bidirectional Butterworoth bandpass filter with a pass band of 1 to 60 Hz. Starting at the location of the QRS detection, a 20 ms moving window was incremented backward one sample point at a time. When the moving window reached a region where the difference between the maximum and minimum voltages were <75 µV, the QRS onset was determined to have been found and the fiducial point was set at the middle of the window. If this criterion was not satisfied within 150 ms prior to the QRS detection, the onset point was left at the 150 ms for subsequent manual correction. Figure 3.1 shows the signal processing steps involved in the QRS detection.
+
+3.1.2
+
+Baseline Correction
+
+Baseline wander, created by patient movement or respiration was removed to prevent potential false positive or false negative TWA detections. There are different methods for removing baseline artifacts. In this study the cubic spline algorithm was chosen because it has little effect on the low frequency components of the signal and therefore should not alter the true TWA signal. [65, 66] Baseline wander for each signal segment was corrected using cubic spline interpolation of the isoelectric points [67]. Anchor points were automatically set 20 ms prior to each QRS onset. PR segment anchors were also placed before the five beats at the beginning and end of the evaluation segment. This is done to avoid distortion of the ECG ends. A baseline wander waveform was created for each lead via cubic spline interpolation of the isoelectric anchor points. These waveforms were then subtracted from the corresponding lead to produce the final baseline corrected ECG. Figure 3.2 shows the steps involved in removing the baseline wander.
+
+39
+
+a 1.5 1 0.5 0
+
+Amplitude(mV)
+
+-0.5 100 200 300 400 500 b 1.5 1 0.5 0 -0.5 100 200 300 400 500 Samples 600 700 800 900 1000 1100 600 700 800 900 1000 1100
+
+Figure 3.2: Baseline correction of an ECG segment: (a) Uncorrected ECG (blue) and the cubic spline interpolation( red) and R-peak detection (pink)- (b) Corrected ECG after subtraction of the spline. Annotations are done as follows: QRS end ( red) , T end( black), QRS onset(green) Recordings are from PhysioNet [2]
+
+3.2
+
+Synthetic TWA Analysis
+
+To perform the evaluation of the proposed method, synthetic T wave alternans has been added to real ambulatory ECG signals. Steps involved in the proposed methodology is shown in Figure 3.3.
+
+Figure 3.3: Schematic of the TWA detection algorithm using EMD
+
+40
+
+3.2.1
+
+MIT-BIH Normal Rhythm Database
+
+Ambulatory ECGs with physiological noise were obtained from MIT-BIH Normal Sinus Rhythm Database (NSRDB) from Physiobank [2]. This database includes 2-channel ambulatory long-term ECG recorded at sampling rate of 128 Hz from 18 subjects. Subjects included in the database were found to have no significant arrhythmias. They include 5 men, aged 26 to 45; and women, aged 20 to 50. In this database, the lead information was not preserved, so the signals are marked nonspecifically as ECG1 and ECG2. However, standard practice in the laboratory where these recordings were made is to use two roughly orthogonal frontal-plane leads, typically MLII ( modified lead II) and V2 [3]. Each ECG channel record is included as a separate signal. As explained in the previous section (3.1) QRS detection is performed automatically and verified manually. Baseline wander is corrected by subtracting a cubic spline interpolation of isoelectric points preceding the QRS onset. The first 64- beat segment of each NSRDB ECG record with a mean heart rate less than 100 beat/ minute is analyzed in order to ensure the absence of inherent TWA. Signal heart rate for each recording in the database has been tabulated in Table 3.1. The significance of signal heart rates is the fact that TWA is a heart rate dependent phenomenon; and this database provides a vast set of different ECGs. Table 3.1: List of ECG records in MIT-BIH NSRDB and the mean Heart Rate in first 64-beats Record 16265 16272 16273 16420 16483 15639 16773 16786 16795 HR (bpm) 95 63 98 97 98 78 70 71 65 Record 17052 18177 18184 19088 19090 19093 19140 19830 17453 HR (bpm) 71 99 91 90 84 69 89 98 83
+
+Signal annotation is done to mark the location of the QRSonset ( beginning of QRS), QRSend (end of QRS), and Tend ( end of T wave) as shown in Figure. 3.4(a) . These annotations were used 41
+
+to extract the ST segments from the signal. ST segment includes QRSend to Tend portion of the signal.These ST segments were concatenated together to form the signal to be analyzed for T wave alternans detection as shown in Figure. 3.4(b).
+
+3.2.2
+
+T- wave Alternans Generator
+
+Two groups of ECG signals are generated: 1. "0 µV TWA" where there is no alternation in the T-waves 2. "5 µV TWA". A Synthetic TWA waveform with amplitude of 5µV is then added to the physiological ECG. To achieve the alternations, amplitude of even beats was increased by 5µV and amplitude of the odd beats was decreased by 5 µV uniformly across the ST segment as shown in Equation 3.2. For the rest of this work, term "Positive TWA" refers to existence of the alternation and "Negative TWA" refers to the absence of the alternans in the ST segment. gk () = + - k even k odd (3.2)
+
+In order to evaluate TWA detection, the EMD based scheme was performed on the first 64beat segment of each signal. We pre-specified a TWA detection threshold of 5 µ V as this cut point approximates the TWA magnitude measured by Klingenheben et al [68] in patients with heart disease using a similar definition of TWA as this study.
+
+3.2.3
+
+Intrinsic Mode Functions (IMFs)
+
+Each of the two groups of ECG signals (positive TWA and negative TWA) is decomposed into IMF sets using EMD. This decomposition resulted in 9 IMFs. Figure 3.5 shows the IMF sets for a signal with positive TWA as well as negative TWA. As explained previously, higher order IMFs contain the lower frequency component of the signal. This is valid for both positive TWA signal decomposition and the negative TWA decomposition. Last IMF ( which is known as residue) reveals information regarding the signal trend. It can be clearly seen that IMF9 for negative TWA 42
+
+a 1
+Amplitude (mV)
+
+0.5
+
+0
+
+400
+
+500
+
+600
+
+700
+
+800
+
+900 Sample b
+
+1000
+
+1100
+
+1200
+
+1300
+
+1400
+
+Amplitude(mV)
+
+0.2 0.1 0 -0.1 5 10 Beat Number 15 20 25
+
+Figure 3.4: (a) A representative portion of a 64 beat ECG segment. The red, black, and green dot represent QRSend,Tend, and QRSonset respectively. (b) The first 25 T- waves in the beat- domain. The up down oscillations in amplitude are indicative of alternans. is less oscillatory comparing to that of positive TWA. Because of this essential difference in IMFs, instantaneous frequency extracted from this IMF could be significantly different too, and therefore features extracted from the IF of these IMFs are the target for classification purposes. IF from each IMF is calculated as the next step and TWA feature extraction is performed.
+
+43
+
+0.05 0 -0.05 200 0.1 0 -0.1 -0.2 200 0.2 0 -0.2 0.2 0 -0.2 0.05 0 -0.05 0.02 0 -0.02 -0.04 200 0.02 0 -0.02 200 0.02 0 -0.02 0 -5 -10 -15
+-6
+
+IMF 1 400 600 800 1000 1200 1400 1600 1800 IMF 2 400 600 800 1000 1200 1400 1600 1800 IMF 3 200 400 600 800 1000 1200 1400 1600 1800 IMF 4 200 400 600 800 1000 1200 1400 1600 1800 IMF 5 200 400 600 800 1000 1200 1400 1600 1800 IMF 6 400 600 800 1000 1200 1400 1600 1800 IMF 7 400 600 800 1000 1200 1400 1600 1800 IMF 8 x 10 200 400 600 800 1000 1200 1400 1600 1800 IMF 9 200 400 600 800 1000 1200 1400 1600 1800
+
+(a) IMFs Corresponding to signal with Negative TWA
+
+0.1 0.05 0 -0.05 200 0.1 0 -0.1 -0.2 200 0.2 0 -0.2 0.2 0 -0.2 0.04 0.02 0 -0.02 0.08 0.06 0.04 0.02 0 -0.02 -0.04 0.02 0 -0.02 -0.04 200 0.01 0 -0.01 -0.02 5 0 -5
+-3
+
+IMF 1 400 600 800 1000 1200 1400 1600 1800 IMF 2 400 600 800 1000 1200 1400 1600 1800 IMF 3 200 400 600 800 1000 1200 1400 1600 1800 IMF 4 200 400 600 800 1000 1200 1400 1600 1800 IMF 5 200 400 600 800 1000 1200 1400 1600 1800 IMF 6 200 400 600 800 1000 1200 1400 1600 1800 IMF 7 400 600 800 1000 1200 1400 1600 1800 IMF 8 x 10 200 400 600 800 1000 1200 1400 1600 1800 IMF 9 200 400 600 800 1000 1200 1400 1600 1800
+
+Amplitude ( mV)
+
+Sample
+
+(b) IMFs Corresponding to signal with Positive TWA
+
+Figure 3.5: IMFs comparison for ECG signal with Positive TWA, and ECG signal with Negative 44 TWA
+
+3.2.4
+
+Instantaneous Frequency
+
+As explained in previous chapter, each IMF represents a generally simple oscillatory mode as a counterpart to the simple harmonic function. Instead of constant amplitude and frequency in a simple harmonic component, an IMF can have variable amplitude and frequency along the time axis. As a result, using Hilbert Transform, each IMF can be represented by an instantaneous amplitude as well as instantaneous frequency.
+
+3.2.5
+
+Feature Extraction
+
+As discussed earlier in section 3.2.3, the signal decomposition of both positive TWA signal and negative TWA signal resulted in 9 IMFs. Each of these IMFs carries a different components of the signal from higher to lower frequencies. After calculating the IF from each IMF, the proposed Hjorth descriptors( complexity, mobility, and activity) are extracted from each IF. This results in total of 27 features. Each IMF has a unique contribution to the signal structure and consequently there exists different combinations of features that could potentially enhance the classification result. Different combinations of these features are fed to the LDA classifier to perform the classification. The classification results are presented in the next section.
+
+3.2.6
+
+Classification Results
+
+The resulting set of features were then fed to an LDA- based classifier using the statistical analysis package SP SS T M 20 ( Statistical Package for Social Science) [69]. The following subsection will present the classification results as a confusion matrix, which shows how many signals were correctly classified and how many signals were misclassified. Using various number of features as the input to the classifier can lead to different classification results. For the synthetic TWA analysis, two sets of classification is done: 1. Classification using Hjorth descriptors from IF of IMF9 :
+2 complexity F FIF9 , mobilityMIF9 , activityIF (i.e. total of 3 features) 9
+
+Extracting the underlying trend plays an important role in the analysis of biomedical signals [70]. Lowpass filtering is the oldest method [71] for extracting the underlying trends of 45
+
+signals. As already explained, higher order IMFs contain the lower frequency component of the signal and the thus the reasoning follows that IMF9 can reveal information about the signal trend. This trend can be easily observed in Figure 3.5. Thus, in first classification there is a link between the extracted features and the physical quantity ( T- wave alternations). The LDA classification using 3 features has been summarized in Table 3.2. The specificity and sensitivity of this classification are 77.8% and 63.9% respectively. Misclassification rates were computed to be 22.2% (Negative TWA as Positive TWA) and 36.1% ( Positve TWA as Negative TWA). An overall classification rate of 70.8% was achieved for this classification. In addition, measure of the effectiveness of the algorithm is then given by the area under the ROC. (AUC). As shown in Figure 3.6 the AUC of the proposed algorithm is calculated to be 0.69. For a perfect classification, an area under the curve should be 100% and hence the area under the curve for the proposed features does show certain overlap.
+
+46
+
+Table 3.2: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 3 features only) Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 28 8 36 Positive TWA 13 23 36 % Negative TWA 77.8 22.2 100 Positive TWA 36.1 63.9 100
+
+Cross-validated
+
+Figure 3.6: ROC for Synthetic TWA classification using 3 features - AUC: 0.69
+
+47
+
+2. Classification using Hjorth descriptors from IF of IMF1 to IMF9.
+2 complexity F FIF1-9 , mobilityMIF1-9 , activityIF (i.e. total of 27 features) 1-9
+
+The LDA classification using 27 features has been summarized in Table 3.3. The specificity and sensitivity of this classification are higher than those using 3 feature classification. The specificity and sensitivity of this classification are 91.7% and 80.6% respectively. In addition, the false positive and false negative detection rates has been decreased.Misclassification rates were computed to be 8.3% (Negative TWA as Positive TWA) and 19.4% ( Positive TWA as Negative TWA). An overall classification rate of 86.1% was achieved for this classification. In addition, measure of the effectiveness of the algorithm is then given by the area under the ROC (AUC). As shown in Figure 3.7 the AUC of this classification is calculated to be 0.72.
+
+Table 3.3: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features only) - TWA Amplitude of 5 µV Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 33 3 36 Positive TWA 7 29 36 % Negative TWA 91.7 8.3 100 Positive TWA 19.4 80.6 100
+
+Cross-validated
+
+Above results are obtained using 27 features to classify the TWA cases. The LOO validation strategy is utilized and the missing features in few cases have been replaced by the mean values of the remaining features.
+
+48
+
+Figure 3.7: ROC for Synthetic TWA classification using 27 features - AUC: 0.72
+
+3.2.7
+
+Comparative Analysis
+
+Table 3.4 shows the classification accuracies for the comparative analysis. Followings are the comparative analysis for the results obtained from EMD- based TWA detection technique and those from other methods: · EMD Vs. SM: Comparing sensitivity and specificity rates from EMD with those obtained from SM shows that EMD outperforms SM in Positive TWA detection ( sensitivity of 80.6% versus 47%). Furthermore, EMD provides a lower false negative detection rate compared to that obtained from SM( 19.4% versus 53%). · EMD Vs. Adaptive SM: Comparing sensitivity and specificity rates from EMD with those obtained from Adaptive SM shows that EMD outperforms Adaptive SM in Positive TWA detection ( sensitivity of 80.6% versus 67%). Furthermore, EMD provides a lower false negative detection rate compared to that obtained from Adaptive SM( 19.4% versus 33%). · EMD Vs. NMF -Adaptive SM: Although results show that NMF -Adaptive SM, outperforms in all cases compared to the results obtained from EMD; it is worth mentioning that 49
+
+EMD- based TWA scheme for TWA detection has much calculation complexity and thus there is higher chances that this method could be utilized in the clinical settings. In statistical analysis of clinical data false positive rate and false negative rate are referred to as" Type I " and " Type II " errors. In clinical data classification, it is essential to keep these two errors as low as possible. In medicine a false positive test causes unnecessary worry or treatment, while a false negative gives the patient the dangerous illusion of good health and the patient might not get an available treatment. For the case of this study, a false positive detection gives both patient and the physician this impression that the person is going to experience sudden cardiac death in the near future. On the other hand, a person who is actually in need of necessary and treatment might not receive an available treatment due to the false negative of the test result. Thus, for the medical data classification obtaining low false positive and low false negative rates are of great importance.
+
+Table 3.4: Comparison of TWA detection rates between existing methods with the proposed method (EMD)- In this analysis, ECGs without added TWA are considered negative, while the ECGs with added TWA of 5 µV are considered positive [3] Method SM Adaptive SM NMF- Adaptive SM EMD Class Negative TWA Positive TWA Negative TWA Positive TWA Negative TWA Positive TWA Negative TWA Positive TWA Negative TWA 97% 53% 95% 33% 95% 8% 91.7 % 19.4% Positive TWA 3% 47% 5% 67% 5% 92% 8.3 % 80.6%
+
+ROC analysis is an established method of measuring diagnostic performance in medical signals and medical imaging studies. In order to compare the accuracy of different methods for detecting TWA, receiver operating curves (ROC) are computed with the area under the curve indicating relative TWA signal discrimination. (Figure 3.8)
+
+50
+
+NMF adaptive SM Adaptive SM SM EMD EMD
+
+Figure 3.8: Receiver operating curves for four methods are plotted . In this analysis, ECGs without added TWA are considered negative, while the ECGs with added TWA of 5 µV are considered positive. The area under the ROC for NMF- Adaptive SM, Adaptive SM, SM, and EMD are 0.98, 0.91, 0.73, and 0.72 respectively. [3] As stated earlier, EMD relies on a fully data-driven mechanism and unlike traditional data analysis method (i.e. Fourier and wavelet-based) dose not require any a priori known basis. SM assumes the data are stationary and thus it often fails when applies on non-stationary signals. On the other hand, EMD is especially well suited for nonlinear and nonstationary signals such as biomedical signals. Results indicate that EMD is an effective tool in detection of T-wave alternans. This is especially highlighted in that EMD offers a higher sensitivity rate, and also lower false negative detection rate comparing to that obtained from SM. In Figure 3.8, although EMD results in a lower AUC of 0.72 comparing to those obtained from 51
+
+SM and Adaptive SM, it outperforms both method in positive detection of TWA and hence it offers higher detection capability. In addition, EMD offers lower false negative rate. False negatives are significant issues in medical testing. False negative may provide a falsely reassuring message to patients and physician that disease is absent, when it is actually present. In this case, false report of TWA absence can give the patient the dangerous illusion of good cardiac health and a patient who is at the risk of SCD might not get the available treatment. In addition, comparing to Adaptive SM and NMF- Adaptive SM, EMD offers a lower computational complexity and thus it is easy to be utilized for TWA detection in the clinical applications. Furthermore, EMD offers a built-in denoising feature [32] and could be utilized in the signal preprocessing steps. All these features and characteristics makes EMD to be a potentially stand-alone algorithm. In conclusion, EMD is ideally suited to extract informative components which are characteristic of underlying biological or physiological process. In the next section of this thesis, the robustness of EMD under various signal non-stationarity conditions has been investigated.
+
+3.3
+
+Robustness of EMD in Data Non-Stationarity
+
+In order to verify the robustness of the proposed method, physiological data non- stationarity is simulated in four ways, namely: · Changing TWA amplitude · Contamination of Additive White Gaussian Noise · Contamination of Muscle Artifact (MA) · Contamination of Electrode Motion (EM) Artifact These four physiological data non- stationarities have been investigated in details in the next sections:
+
+52
+
+3.3.1
+
+TWA Amplitude variations
+
+The proposed scheme was tested for various amplitudes of TWAs mainly from 1 µ V to 5 µ V. In each analysis, the features have been extracted and are fed into LDA for classification. The confusion tables for the classifications of TWA amplitudes from 1 µ V to 4 µ V have been shown in Tables 3.5, 3.6, 3.7 and 3.8 respectively and for easier comparison the accuracy, specificity and sensitifty in each case have been summarized in Figure 3.9
+
+Table 3.5: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 1 µV Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 29 7 36 Positive TWA 10 26 36 % Negative TWA 80.6 19.4 100 Positive TWA 27.8 72.2 100
+
+Cross-validated
+
+Table 3.6: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 2 µV Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 33 3 36 Positive TWA 5 31 36 % Negative TWA 91.7 8.3 100 Positive TWA 13.9 86.1 100
+
+Cross-validated
+
+53
+
+Table 3.7: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 3 µV Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 31 5 36 Positive TWA 7 29 36 % Negative TWA 81.6 13.9 100 Positive TWA 19.4 80.6 100
+
+Cross-validated
+
+Table 3.8: Confusion matrix containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 27 features ) - TWA Amplitude of 4 µV Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 33 6 36 Positive TWA 6 30 36 % Negative TWA 83.3 16.7 100 Positive TWA 16.7 83.3 100
+
+Cross-validated
+
+54
+
+100 90 80 70 60 50 40 30 20 10 0 1 2 3 TWA Amplitude (µV) 4 5
+
+Accuarcy
+Specificity Sensitivity
+
+Figure 3.9: TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing TWA Amplitude
+
+%
+
+3.3.2
+
+Physiological Data Non-Stationarity
+
+In this section robustness of the proposed algorithm has been evaluated under various noise conditions. Several noise sources of varying magnitude were simulated namely: · Additive White Gaussian Noise (AWGN) · Artifacts The realistic and non- stationary ECG signal xr (n) is obtained by adding additive white Gaussian noise  (n) to the clean ECG xc (n) as follows: xr (n) = xc (n) +  (n) (3.3)
+
+where  is a scaling parameter employed to obtain ECGs at different SNRs. The same set of signals from MIT- BIH Normal Sinus Rhythm Database (NSRDB) from Physiobank [2] each with a duration of 64 beats is used for noise analysis. Note that mentioned database ( NSRDB) contains ECGs with different rhythms; therefore this synthesizer provides a vast set of different ECGs. Figure 3.10 shows the block diagram of noise addition to T-wave alternans.
+
+55
+
+T- Wave Alternans Generator
+
+ECG
+
+QRS Detection & Baseline Removal
+
+T- Wave Extraction
+
++
+
+Noisy T- Waves
+
+Gaussian Noise
+
+Electrode Motion Noise
+
+Muscle Artifact Noise
+
+Figure 3.10: Block diagram of noise addition to T- wave alternans
+
+3.3.3
+
+Additive White Gaussian Noise
+
+Random white Gaussian noise with different SNR levels was added to simulated TWA of 5µV to simulate continuous random noise. In each case sensitivity, specificity and the accuracy of the detection were calculated. Figure 3.11 shows the measure of sensitivity, specificity and the overall accuracy as a function of increasing SNR.
+
+It is evident from the results that the proposed method is well robust under noise condition with SNR value ranges from 0-40 dB. The overall accuracy of 86.1% and sensitivity of 80.6% have been well maintained in that range. In addition, the specificity has maintained a reasonable amount. ( reference specificity: 91.7%)
+
+56
+
+100 90 80 70 60 Accuracy Specificity
+
+( %)
+
+50 40 30 20 10 0 0 1 3 5 10 15 20 30 40 SNR ( dB)
+
+Sensitivity
+
+Figure 3.11: TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SNR. Noise is additive white Gaussian.
+
+3.3.4
+
+Artifacts
+
+The measurement of bioelectric events is exposed to various sources of noise. To reproduce real conditions,synthetic noise, such as additive white Gaussian noise, is less recommended since it does not simulate the non- stationarity conditions of a clinical environment [72]. These physiological random noises are created by muscle or ECG recording electrode artifact during patient movement. In this study, two main physiological noise realizations are used to simulate the data non-stationarity: · Muscle Artifact (MA) noise: which contains fairly continuous low frequency noise · Electrode Motion (EM) noise: Electrode Motion Artifact is a normal ECG component during exercise stress test. Although current research foresees an alternative scenario based on long- term Holter recordings to asses TWA from non controlled patients outside of health care centres. But even in this case, the ECG data is still acquired under severe noisy conditions since the patient will be constantly moving. This artifact contains short lasting, high 57
+
+frequency components. These two noises were obtained from the MIT-BIH Noise Stress Test Database (NSTDB) [73]. Similar to additive white Gaussian noise, these artifacts with different SAR levels were added to simulated TWA of 5µV to simulate physiological data non- stationarity. The realistic and nonstationary ECG signal xr (n) is obtained by adding physiological artifact a(n) to the clean ECG xc (n) as follows: xr (n) = xc (n) + a(n) (3.4)
+
+where  is the scaling parameter employed to obtain ECGs at different SARs. In each case sensitivity, specificity and the accuracy of the detection were calculated. Figures 3.12 and 3.13 show the measure of sensitivity, specificity, and the overall accuracy as a function of increasing SAR for electrode motion artifact and muscle artifact respectively.
+
+58
+
+100 90 80 70 60 Accuracy Specificity Sensitivity
+
+( %)
+
+50 40 30 20 10 0 0 1 3 5 10 15 SAR ( dB) 20 30 40
+
+Figure 3.12: TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SAR. Noise was simulated by adding muscle artifact. It is evident from the results that the proposed method is well robust under noise condition with ANR value ranges from 0- 40 dB. The overall accuracy of 86.1% and sensitivity of 80.6% have been well maintained . In addition, the specificity has been decreased but the overall trend has been maintained with a reasonable amount. ( reference specificity: 91.7%)
+
+59
+
+100 90 80 70 60 50 Accuracy Specificity
+
+( %)
+
+40 30 20 10 0 0 1 3 5 10 15 20 40 SAR ( dB)
+
+Sensitivity
+
+Figure 3.13: TWA measurement accuracy in synthetic ECGs using proposed algorithm as a function of increasing SAR. Noise was simulated by adding electrode motion artifact. It is evident from the results that the proposed method is well robust under noise condition with ANR value ranges from 0- 40 dB. The overall accuracy of 86.1% and sensitivity of 80.6% have been well maintained . In addition, the specificity has been decreased but the overall trend has been maintained with a reasonable amount. ( reference specificity: 91.7%)
+
+In the above simulations, the effectiveness of the EMD in TWA detection was investigated through several synthetic experiments. Robustness of the algorithm was tested under various sources of data non-stationarity. Results indicate that EMD is an effective tool in TWA detection. The technique used here can be applied in practical ECG tests and long-term Holter monitoring which is discussed in the next section.
+
+60
+
+3.4
+3.4.1
+
+Real TWA Analysis
+UHN Database
+
+The performance assessment of the proposed detection method is carried out using ambulatory ECG TWA signals from 55 patients. This is a unique database that was obtained from Toronto General Hospital. Data collection of this database started in April 2009.
+
+The study population consisted of patients with the following 2 types of cardiomyopathy: 1. ICM (ischemic) with LVEF 40% : Ischemic cardiomyopathy is caused by coronary artery disease. Coronary artery disease is caused by blocked arteries which results in poor blood flow to the heart and eventually leads to dilation and reduction in function. These patients often have had a previous myocardial infarction. 2. DCM (dilated) with LVEF 40% : Dilated cardiomyopathy occurs in the absence of coronary artery disease and is thus often referred to as non-ischemic dilated cardiomyopathy or idiopathic dilated cardiomyopathy. It also involves dilation of the heart which results in a reduction in function. Dilated forms of cardiomyopathy are characterized by ventricular chamber enlargement and systolic dysfunction with normal left ventricular wall thickness; usually diagnosis is made with 2-dimensional echocardiography. DCM leads to progressive heart failure and a decline in left ventricular contractile function, ventricular and supraventricular arrhythmias, conduction system abnormalities, thromboembolism, and sudden or heart failure related death. [74] Another group of patients consists of those with HCM (Hypertrophic) with LVEF 40%: Hypertrophic cardiomyopathy is a primary disease of the myocardium (the muscle of the heart) in which a portion of the myocardium is thickened without any obvious cause. These are patients who were scheduled for ICD placement or electrophysiological study. It should be noted that in clinical investigation, the cardiomyopathic etiology should be either ICM or DCM.
+
+61
+
+Left ventricular ejection fraction (LVEF) is a measure of the contractile function of the left ventricle and is currently considered to be the most important prognostic indicator for sudden death. In other words LVEF is the measurement of how much blood is being pumped out of the left ventricle of the heart (the main pumping chamber) with each contraction. Ejection fraction is usually expressed as a percentage. A normal heart pumps a little more than half the hearts blood volume with each beat. Table 3.9 shows the medical condition of the heart based on LVEF percentage.
+
+Table 3.9: medical condition of the heart based on LVEF percentage. Left Ejection Fraction Measurement 55-70% 40-55%  40% What it Means Normal Below Normal considered to be at high risk of SCD
+
+The LVEF may be lower when the heart muscle has become damaged due to a heart attack, heart muscle disease (cardiomyopathy), or other causes. All the patients in this study have implantable cardioverter defibrillator (ICD) which is an electronic device that constantly monitors the heart rhythm. When it detects a very fast, abnormal heart rhythm, it delivers energy to the heart muscle. This causes the heart to beat in a normal rhythm again. The signals under study were recorded during one of the following ICD pacing conditions: · Atrial pacing ( for patients with single chamber ICD) · Ventricular, or Atriovenricular pacing ( for patients with dual chamber ICD)
+
+The mentioned clinical characteristics of the study population has been summarized in Table 3.10.
+
+62
+
+Table 3.10: Clinical characteristics of the study population. All patients (n= 55) 58 ± 12 46 ( 84 ) 29( 52 ) 19 ( 35) 7 ( 13) 15 ( 27 ) 40 ( 73 ) - TWA (n= 19) 57 ± 14 15 ( 79 ) 11 ( 58 ) 3 ( 16 ) 5 ( 26) 6 ( 32 ) 13 ( 68 ) + TWA (n= 36) 58 ± 11 32 ( 86 ) 18 ( 50 ) 16 ( 44 ) 2 ( 6) 9 ( 25 ) 27 ( 75 )
+
+Age, y Male, n(%) Cardiomyopathy: Ischemic Dialated Hypertrophic ICD: Single Chamber Dual Chamber
+
+Out of these 55 signals, 36 signals are identified as positive TWA; and 19 signals are labelled as negative TWA. Thus this is an unbalanced database; and the criteria of different prior probabilities of each group has been taken into account in classification as follows: · Prior probability of Positive TWA: 65% · Prior probability of Negative TWA: 35% Recordings include 12 channel ECG at sampling rate of 1024Hz. These signals consist of paced ECG segments where the heart rates are elevated above 100 beat per minute (bpm). The precordial leads (V1 - V6) are typically used for TWA in the clinical setting, however, limb leads (I, II, III, aVR, aVL, aVF) are also analyzed for TWA detection. The largest TWA magnitudes are often observed in precordial leads V1-V4. Figure 3.14 shows a schematic of a typical annotated real signal.
+
+Detailed clinical characteristics of the study population has been shown in Tables 3.11 and 3.12. First column shows the signal record. Classifications of the signal based on existence of the TWA ( +TWA) or absence of TWA ( -TWA) are listed using both SM and EMD; and those cases with different classification results are marked as red ( Total of 10 signals)
+
+63
+
+(a) I 0.4 0.3 0.2 0.1 0 -0.1 0 500 1000 1500 2000 (c) III 1 2500 3000 3500 4000 7 6.5 6 5.5 5 0 500 1000 1500
+
+(b) II
+
+2000
+
+2500
+
+3000
+
+3500
+
+4000
+
+(d) aVR -14.4 -14.6 -14.8 -15 -15.2 -15.4 0 500 1000 1500 2000 2500 3000 3500 4000
+
+Amplitude ( mV)
+
+0 -0.5 -1 -1.5 0 500 1000 1500 2000 2500 3000 3500 4000
+
+(e) aVL -5 -5.5 -6 -6.5 500 1000 1500 2000 Sample 2500 3000 3500 4000 4 3.5 3 2.5 2 1.5 0 500 1000 1500
+
+Amplitude (mV)
+
+0.5
+
+(f) aVF
+
+2000
+
+2500
+
+3000
+
+3500
+
+4000
+
+Sample
+
+(a) Limb Leads ( a to c) ; Augmented Limb Leads( d to f)
+(g) V1
+1 1 0 0 -1 -2 0 500 1000 1500 2000 2500 3000 3500 4000 0 500 1000 1500 2000 2500 3000 3500 4000
+
+(h) V2
+
+-1
+
+(i) V3
+Amplitude ( mV) Amplitude ( mV)
+
+(j) V4
+1 0.5 0 -0.5 -1 0 500 1000 1500 2000 2500 3000 3500 4000
+
+1 0 -1 -2 0
+
+500
+
+1000
+
+1500
+
+2000
+
+2500
+
+3000
+
+3500
+
+4000
+
+(k) V5
+0.5 0.2 0 0 -0.5 0 500 1000 1500 2000 2500 3000 3500 4000 -0.2 0 500 1000 1500
+
+(l) V6
+
+2000
+
+2500
+
+3000
+
+3500
+
+4000
+
+Sample
+
+Sample
+
+(b) Precordial Leads
+
+Figure 3.14: A sample annotated 12 lead ECG signal categorized as positive TWA from UHN database 64
+
+Table 3.11: Detailed Clinical characteristics of the study population. Record S1 S2 S3 S4 S5 S6 S7 S8 S9 S 10 S 11 S 12 S 13 S 14 S 15 S 16 S 17 S 18 S 19 S 20 S 21 S 22 S 23 S 24 S 25 S 26 S 27 S 28 S 29 S 30 - TWA ( SM ) 1 0 1 1 1 1 1 1 0 1 1 0 0 0 1 1 1 1 1 1 0 0 1 1 1 1 1 0 1 1 + TWA ( EMD ) 1 0 1 1 1 1 0 1 0 1 1 1 0 1 0 1 0 1 1 1 0 0 1 0 1 1 1 0 1 1 Age (Y) 73 51 45 58 52 61 63 54 71 46 71 45 65 27 60 63 57 62 65 65 61 70 47 73 50 60 43 65 46 31 Gender M M F M M M M M M M M M M M M M M M M M M M M M M M M M M M Cardiomyopathy ICM ICM DCM ICM DCM DCM ICM DCM ICM ICM ICM HCM HCM HCM ICM DCM DCM DCM ICM ICM ICM ICM DCM ICM HCM DCM ICM HCM DCM DCM LVEF (%) 32 24 36 38 23 22 26 29 22 35 25 60 66 70 26 20 34 19 30 26 20 34 31 20 65 20 40 60 40 23 ICD Type S S D D D S S D D D D D D D D D D S D D S D D D D D S D D S Pacing V V AV A/AV A/AV V V A/AV A/AV A/AV A/AV A/AV A/AV A/AV A/AV AV A/AV V A/AV A/AV V A/AV AV A/AV A/AV A/AV V A/AV A/AV V
+
+65
+
+Table 3.12: Detailed clinical characteristics of the study population.( Cont'd) Record S 31 S 32 S 33 S 34 S 35 S 36 S 37 S 38 S 39 S 40 S 41 S 42 S 43 S 44 S 45 S 46 S 47 S 48 S 49 S 50 S 51 S 52 S 53 S 54 S 55 - TWA ( SM ) 0 1 1 1 0 1 1 1 0 0 0 1 1 1 0 0 1 0 0 0 1 1 1 0 1 + TWA ( EMD ) 0 1 1 1 1 1 1 1 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 1 Age (Y) 29 75 61 72 48 61 67 70 61 73 43 68 41 56 70 63 63 74 63 45 57 54 44 67 71 Gender M M M M F M F M F F M M F M M M M M M M F M F F M Cardiomyopathy HCM ICM ICM DCM ICM HCM ICM ICM DCM DCM DCM ICM ICM ICM ICM ICM DCM ICM ICM ICM DCM DCM DCM ICM ICM LVEF (%) 75 20 29 33 25 61 25 37 28 24 24 25 23 26 20 27 21 25 18 25 28 33 37 28 20 ICD Type D D D S D D D S S D S D D D D D S D S D D D D S D Pacing A/AV A/AV A/AV V A/AV A A/AV V V A/AV V A/AV A/AV A/AV A/AV A/AV V A/AV V A/AV A/AV A/AV AV V A/AV
+
+66
+
+3.4.2
+
+Evaluate TWA Detection using EMD Approach
+
+In order to evaluate TWA detection, preprocessing was performed ( as explained in section 3.1) to remove the baseline wander. EMD algorithm ( as explained in chapter 2) was then performed on the paced segments of each ambulatory ECG channel. All the analysis are done on the precordial leads V1-V6. It should be noted that due to the higher sampling frequency of the real data, there are more samples in 64- beat segments to be processed and this leads to the decomposition of 13 IMFs for each signal. ( as oppose to 9 IMFs for synthetic signals) Using EMD, each signal was decomposed into 13 IMF and IF was extracted from each IMF. Next step involved extracting the Hjorth descriptors from each IF. These features include: com2 plexity F FIF1-13 , mobilityMIF1-13 , activityIF ) . As a result, total number of 39 features has 1-13
+
+been used for classification of the TWA signals. These features were then fed into LDA classifier for classification.
+
+3.4.3
+
+Classification Result
+
+The signals in the database were labelled as positive TWA or Negative TWA based on the SM method in our clinical collaborator institution, Toronto General Hospital. The confusion matrix for classification of the real database is shown in Table 3.9. The specificity and sensitivity of this classification have been calculated as 84.2% and 80.6% respectively. An overall classification rate of 81.8% is achieved for this classification.
+
+67
+
+Table 3.13: Confusion matrix for Real- Data containing the number of correct classified TWA signals either as Positive TWA or Negative TWA ( using 39 features) Predicted Group Membership Group Negative TWA Positive TWA Total Count Negative TWA 16 3 19 Positive TWA 7 29 36 % Negative TWA 84.2 15.8 100 Positive TWA 19.4 80.6 100
+
+Cross-validated
+
+3.5
+
+Chapter Summary
+
+In this chapter, a novel method for TWA detection from ECG signals based on EMD is presented. The technique developed is not based on simple partial summation of IMFs. Rather the IF from all IMFs are used to enhance the detection of the instantaneous changes in the signal. An advantage of EMD over other methods is that signals are processed in time- domain and thus it is easier to interpret the analysis under investigation. The effectiveness of the EMD in TWA detection was performed through several experiments on synthetic database as well as real ambulatory ECG signals. The technique showed to be robust to ECG data non stationarities ( TWA amplitude variations, noise and other artifacts) and in many cases, it outperformed SM TWA detection method which is the most common technique used in clinical settings. As discussed, EMD is easy to implement and has low calculation complexities and the results showed a good potential for clinical use implementation .
+
+68
+
+Chapter 4 Analysis of Intracardiac AF signals via Instantaneous Frequency
+
+T
+
+HIS chapter provides the details about studying the atrial activation during AF using frequency analysis technique. The aim of this chapter is to evaluate the most common ap-
+
+plication of frequency analysis to employ dominant frequency (DF) for the estimation of atrial activation rate. In addition, some investigations has been done to identify the cases where DF fails to characterize the instantaneous changes in the atrial activation cycle. A potential solution is analyzing the non- stationary intracardiac electrograms in AF using Instantaneous Frequency (IF) which has been discussed in details in this chapter.
+
+4.1
+
+What is Dominant Frequency (DF)
+
+Both ECG and Intracardiac recordings like many other real-world signals are non-deterministic and non-stationary. Intracardiac electrogram readings are normally simple; however, they could become very complex under pathological conditions. These complexities include amplitude variations, changes in the morphology and fractionations and irregular activation times. Thus, complex electrograms during AF has provided a difficulty in time domain analysis and as a result researches have shifted to frequency domain analysis. Frequency domain analysis offers an alternative way to visualize AF electrograms without having to measure the intervals in the time domain. Fourier transform is a mathematical tool that converts a signal from time domain to the frequency domain. The frequency domain description of a signal represents the sine waves that when added together, 69
+
+reproduces the original signal. Fourier Transform of signal x(t) is simply:
++
+
+X (f ) =
+-
+
+x(t)e-2jf t dt
+
+(4.1)
+
+One of the most common features of the signal in the frequency domain is the dominant frequency. Dominant Frequency is the frequency with the highest peak on the magnitude spectrum. If the signal is periodic, it can be estimated by a single sinusoidal signal with its frequency equal to the dominant frequency. All other decomposed sinusoids have frequencies at multiples of the dominant frequency. Figure 4.1(a) shows the signal y (t) = 2cos (200t) +sin (100t) ; and it's corresponding dominant frequencies in Figure 4.1(b). The peaks in the spectrum correspond to frequencies 50 Hz, and 100 Hz, and the dominant frequency is in fact 100 Hz which corresponds to the cosine signal that has higher amplitude.
+(a)
+2 1
+
+Amplitude
+
+0 -1 -2 -3 0 10 20 30 40 50 60 70 80 90 100
+
+Time( ms)
+0.02 0.015 0.01 0.005 0 0
+
+(b)
+
+50
+
+100
+
+150
+
+200
+
+250
+
+300
+
+Frequency(Hz)
+
+Figure 4.1: (a) Arbitrary signal y (t) = 2cos (200t) +sin (100t) and (b) Power Spectral Density of signal in (a)
+
+70
+
+4.2
+
+Analysis of AF intracardiac electrogram using Dominant Frequency
+
+Dominant frequency analysis is a powerful tool for analysis of atrial rate in AF. The main benefit of frequency domain analysis is the fact that it can be easily applied to the complex electrograms of AF. However, when using the dominant frequency analysis to estimate activation rate, it is important to investigate in the strength and limitations of the technique so that results could be properly interpreted. Rapid heartbeat due to AF results in beat rate of 240-540 cycle/minutes which corresponds to a dominant frequency range of 4-9Hz. In this chapter the signals used are from Intracardiac Atrial Fibrillation Database (iafdb) from PhysioNet [2]. This database includes collections of high-resolution recordings from eight subjects in atrial fibrillation; each recording includes three surface ECG signals and five intracardiac signals, all simultaneously recorded. Data are collected at sampling frequency of 1kHz. Intracardiac signals are recorded by a decapolar catheter with 2-5-2mm spacing (7mm spacing between bipoles) which was placed in four separate regions of the heart: · SVC: The distal tip of the catheter is close to the annulus of the superior vena cava · IVC: The proximal tip of the catheter is close to the annulus of the inferior vena cava · TVA: The distal tip is close to the tricuspid valve annulus · AFW: The entire catheter rests against the atrial free wall Figure 4.2 shows 10 seconds of bipolar electrogram recording where the activation deflections change in morphology and amplitude. This signal is the intracardiac signal recorded from the proximal tip of the catheter (IVC) close to the annulus of the inferior vena cava. There are 13 beat cycles during 2 seconds as shown in Figure 4.3 (a) which gives an average activation impulse of 153 sec, or frequency of 6.5 Hz. This has been proved by extracting the power spectrum of the signal as shown in Figure 4.3(c). Note that the original signal in the time-domain has been zero-padded in order to increase the frequency resolution. 71
+
+2
+
+1.5
+
+Apmlitude( mV)
+
+1
+
+0.5
+
+0
+
+-0.5 0 1 2 3 4 5 6 7 8 9
+
+Time(sec)
+
+Figure 4.2: 10- sec bipolar signal recorded from the proximal tip of the catheter placed at the annulus of the inferior vena cava- Signal is from Physionet [2] One of the characteristics of intracardiac electrograms during AF is the signal irregularity in time and amplitude. In the next sections, the influence of phase change and amplitude variations on dominant frequency has been investigated.
+
+4.2.1
+
+Influence of Phase Change on DF
+
+It should be remembered that dominant frequency analysis identifies the frequency of the sinusoid that best approximates the signal. Thus, any change in the phase of the signal will result in different dominant frequency. Figures 4.3 and 4.4 show the effect of phase change on the dominant frequency. In this simulation, power spectrum of the sinusoidal signal in Figure 4.4(a) confirms the dominant frequency value of 5Hz as shown in Figure 4.4 (b). However, for the same signal, the phase change in Figure 4.5(a) causes a deviation in dominant frequency shown in Figure 4.5(b). Dominant frequency of the phase changed signal is 4.6 Hz, which is lower than the expected rate of 5 Hz. In AF electrograms, the phase component of the signal is an essential factor in morphology of the signal in the time domain. Although the deviation of dominant frequency is minor in the mentioned simulation (Figure 4.4 and 4.5), there are cases where 180 degree phase change will 72
+
+(a)
+Amplitude(mV)
+2
+
+1
+
+0 0 0.2 0.4 0.6 0.8 1 1.2 1.4 1.6 1.8
+
+Time(ms) (b)
+
+3
+
+Amplitude(mV)
+
+2 1 0 -1 0 x 10
+-5
+
+1
+
+2
+
+3
+
+4
+
+5
+
+6
+
+7
+
+8
+
+9
+
+10
+
+3 2 1
+
+Time(ms) (c)
+
+0 0
+
+5
+
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+40
+
+45
+
+50
+
+Frequency(Hz)
+
+Figure 4.3: (a) 2- sec bipolar signal recorded from the proximal tip of the catheter placed at the annulus of the inferior vena cava (b) zero-padded signal in (a) ; (c)Power spectral density of the zero-padded signal with dominant frequency of 6.55 Hz. result in doubling the dominant frequency [18].
+
+4.2.2
+
+Influence of Amplitude Change on DF
+
+In order to investigate the influence of amplitude variations on dominant frequency, several electrograms were simulated. The rate (and phase) kept constant in all, but variations in amplitude were applied. This was done by distributing random numbers between zero and one throughout the signal. The simulated recordings were 2 seconds in duration, with a sampling frequency of 1000 Hz. The simulations are illustrated in Figure 4.6 along with the power spectrum for each case. It can be concluded that with constant phase, amplitude variations does not greatly affect the dominant frequency of the signal. The dominant frequencies obtained are 6.6Hz, 6.55Hz, and 6.5Hz respectively. It can be concluded that frequency analysis works in above case (amplitude variations in the 73
+
+(a) 1 0.5 0 -0.5 -1 0
+
+500
+
+1000
+
+1500 Time( ms) (b)
+
+2000
+
+2500
+
+3000
+
+3500
+
+0.2 0.15 0.1 0.05 0 0
+
+2
+
+4
+
+6 Frequency(Hz)
+
+8
+
+10
+
+12
+
+Figure 4.4: (a) Sinusoidal signal x(t) = sin(5t) and (b) corresponding DF of 5 Hz electrogram) since a single sinusoid of approximately 5Hz could still well approximate the signal despite the high variation of amplitude. Thus it can be concluded that dominant frequency analysis is robust on recordings with significant amplitude variability. [75] This technique may provide a good estimate when applied to the regular signal morphologies; however it may fail when applied to complex AF electrograms consisting of varying amplitude and frequency. Other common properties of AF electrograms include: high variability of the activation intervals, as well as complex fractionation. For these cases, signals can not be easily characterized using a single sine wave that corresponds to the frequency of activation [76]. As a result, due to signal non- stationarity of the complex electrograms, frequency domain analysis does not always provide the best estimate of the atrial activation rate. The frequency of the signal can be monitored instantaneously for the non- stationary signals [77,78] which has been discussed in the next section.
+
+74
+
+(a) 1 0.5 0 -0.5 -1
+
+500
+
+1000
+
+1500 Time( ms) (b)
+
+2000
+
+2500
+
+3000
+
+0.05 0.04 0.03 0.02 0.01 0 1 2 3 4 5 Frequency(Hz) 6 7 8 9
+
+Figure 4.5: (a) Sinusoidal signal x(t)=sin(5t) with phase change occurs at t= 1.5 sec and (b) Change in power spectral density causes DF to deviated to 4.6 Hz
+
+4.3
+
+Analysis of AF using EMD and IF
+
+Using EMD, 3- sec of the signal shown in Figure 4.2 has been decomposed into 10 IMFs, followed by the residue as shown in Figure 4.7. It can be clearly seen that the lower order IMFs contain higher frequency components of the signal and vice versa. To extract the instantaneous frequency of each IMF, the Hilbert transform is applied to each of the IMFs to obtain the amplitude and the phase of the analytical signal. Figure 4.8 shows IMFs 6, 7 , and 8 and their corresponding IF as well as power spectral densities. Previously, the atrial activation rate of this signal was estimated by calculating the dominant frequency which was found to be 6.55 Hz ( Figure 4.3) . Dominant frequencies of the IMF6 to IMF8 can be extracted from the PSD plot in Figure 4.8. It can be observed that the dominant frequency of IMF6 is very close to that of the original signal. This means that the oscillations and thus the frequency of the original signal can be well approximated by signal reconstructions of IMF 6 and higher IMFs as follows:
+=10 xreconstructed = j j =6 cj + r (t)
+
+(4.2)
+
+75
+
+(a) 2 1
+
+(b)
+
+Amplitude(mV)
+
+1.5 0.5 1 0 0.5
+
+-0.5 0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1 Time(ms) (c)
+
+1.2
+
+1.4
+
+1.6
+
+1.8
+
+0
+
+5
+
+10
+Frequency(Hz)
+
+15
+
+20
+
+(d) 2
+
+1
+
+Amplitude(mV)
+
+1.5 0.5 1 0 0.5
+
+-0.5 0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1 Time(ms) (e)
+
+1.2
+
+1.4
+
+1.6
+
+1.8
+
+0
+
+5
+
+10 Frequency(Hz) (f)
+
+15
+
+20
+
+2 1.5
+
+Amplitude(mV)
+
+1.5 1 1 0.5 0 0.5
+
+0
+
+0.2
+
+0.4
+
+0.6
+
+0.8
+
+1 Time(ms)
+
+1.2
+
+1.4
+
+1.6
+
+1.8
+
+0
+
+5
+
+10 Frequency(Hz)
+
+15
+
+20
+
+Figure 4.6: (a) ,(c), (d) 2-seconds of intracardiac AF signal with varied amplitudes and their corresponding power spectral densities with the peak showing the dominant frequencies of 6.6 Hz, 6.55 Hz, 6.5 Hz at (b), (d) , (f) respectively. Figure 4.7 shows the original signal and the reconstructed signal by adding up IMF6 and higher. As already explained, this partial signal reconstruction results in the same dominant frequency of the original signal. Thus an EMD- based approach could be to identify the significant IMF(s) and using partial reconstruction of the signal for further analysis. The partial reconstructed signal posses less complexity as high frequency components of the signal would be vanished. This may simplify the signal for further analysis. In addition, dominant frequency fails to localize the high frequency sites for ablation purposes [79]. On the other hand, Instantaneous Frequency derived from any IMF could potentially identify area with high activation rate. Note that in the analysis of AF intracardiac electrograms there are both temporal activation rate and spatial activation rate. In this study, activation rate refers to the temporal activation rate.
+
+76
+
+5 0 -5 0 1 0 -1 0 1 0 -1 0 0.5 0 -0.5 0 0.5 0 -0.5 0 0.5 0 -0.5 0 0.5 0 -0.5 0 0.1 0 -0.1 0 0.1 0 -0.1 0 0.05 0 -0.05 0 0.05 0 -0.05 0 0.1 0 -0.1 0
+
+Original signal 0.5 1 1.5 2 2.5 3 IMF 1 0.5 1 1.5 2 2.5 3 IMF 2 0.5 1 1.5 2 2.5 3 IMF 3 0.5 1 1.5 2 2.5 3 IMF 4 0.5 1 1.5 2 2.5 3 IMF 5 0.5 1 1.5 2 2.5 3 IMF 6 0.5 1 1.5 2 2.5 3 IMF 7 0.5 1 1.5 2 2.5 3 IMF 8 0.5 1 1.5 2 2.5 3 IMF 9 0.5 1 1.5 2 2.5 3 IMF 10 0.5 1 1.5 2 2.5 3 Residue 0.5 1 1.5 2 2.5 3
+
+Amplitude( mV)
+
+Time ( sec)
+
+Figure 4.7: EMD decomposition of the Intacardiac AF signal showing the original signal in black; IMFs 1 to 10 in blue; and the residue in red.
+
+77
+
+(a) 0.2 0.045 0.1 0 -0.1 -0.2 0 0.5 1 1.5 2 2.5 0.04 0.035
+
+(b) 5 4 3 0.03 0.025 0.02 0.015 0 0.5 1 1.5 2 2.5 2 1
+
+x 10
+
+-4
+
+(c)
+
+0
+
+0.05
+
+0.1
+
+0.15
+
+0.2
+
+0.25
+
+0.3
+
+x 10 0.06 0.04
+Amplitude(mV) Frequency(Hz)
+
+-5
+
+0.03 0.025 0.02 0.015 0.01 0.5 1 1.5 2 2.5 0 0.5 1 1.5 2 2.5
+Amplitude(db)
+
+3 2.5 2 1.5 1 0.5 0 0.05 0.1 0.15 0.2 0.25 0.3
+
+0.02 0 -0.02 -0.04 0
+
+0.04 0.07 0.02 0 -0.02 -0.04 0 0.5 1 1.5 Time(s) 2 2.5 0.06 0.05 0.04 0.03 0.02 0.01 0 0.5 1 1.5 Time(s) 2 2.5 8 6 4 2 10
+
+x 10
+
+-6
+
+0
+
+0.05
+
+0.1
+
+0.15 0.2 Frequency(Hz)
+
+0.25
+
+0.3
+
+Figure 4.8: Column (a) IMFs 6 to 8 from top to bottom; column (b) the Instantaneous Frequencies corresponding to IMFs 6 to 8 ; column (c) power spectral densities corresponding to IMFs 6 to 8 ( Note that frequency axis in column c has been normalized)
+
+78
+
+2
+
+original signal reconstructed signal from IMF 6 and Higher
+1.5
+
+Amplitude(mV)
+
+1
+
+0.5
+
+0
+
+-0.5 0 0.5 1 1.5 2 2.5
+
+Time(s)
+
+Figure 4.9: Original Intra cardiac AF signal in Blue; Partial reconstructed signal from IMF6 and higher in Red
+
+4.4
+
+Chapter Summary
+
+In this chapter an overview of analyzing AF intra cardiac signal processing using dominant frequency was studies. Limitations of this method with clear examples were identified, and potential solutions using EMD and partial signal reconstructions were presented. Since IF is a tool to analyze and monitor the signal non-stationarity, it offers a wider features in calculating the atrial cycle length and also in identifying the high activation sites within atrium.
+
+79
+
+Chapter 5 Discussion and Future Works
+Heart is the organ that supplies blood and oxygen to all parts of the body. When this organ does not work properly, it will cause mis-function in brain or other organs of the body. Anomalies in ventricle repolarization will cause TWA which is a risk stratier for SCD. The presence of large amplitude TWA often presages lethal ventricular arrhythmia. TWA signal is typically in the microvolt range. As a result accurate and sensitive detection algorithm are needed to control for confounding noise and changing physiological conditions ( i.e signal non- stationarity). A number of analytical techniques have been proposed to detect the micro volt TWA from the ECG. Between all existing methods, SM is the most commonly used method in the clinical practices to quantify the TWA signal. In SM method Fourier representation of signal is analyzed. The major challenge to apply SM on TWA signals is the non-stationary nature of these signals causing multiple choices for window length in performing STFT (which is the most important part of the SM method). To overcome this limitation, , Empirical Mode Decomposition( EMD) is introduced as a technique for processing non- stationary and non-linear data. Unlike Fourier transform or wavelet-based methods that require some pre- defined basis functions to represent a signal, EMD relies on a fully data-driven mechanism that does not need any a priori known basis. On the other hand, this method was tested to analyse intracardiac AF electrograms and to identify areas with high frequency activation sites within atrium using Instantaneous Frequency.
+
+80
+
+5.1
+
+Summary of Results
+
+The capability of the proposed method was tested on both synthetic and real world TWA suffering patients. The classification accuracy of the EMD based feature was 86.1% for 72 synthetic signals obtained from publicly accessible Physionet database and for 81.8% for 55 ambulatory ECG signals obtained from the Toronto General Hospital. For this database 84.2% and 80.6% were achieved as sensitivity and specificity using the EMD-based method. Furthermore, the false positive and false negative detection rates are 15.8% and 19.4% respectively giving an acceptable false negative and false positive value due to acceptable medicine acceptable range. A comparative analysis was performed on the same database using the precious methods and the proposed feature. The results show that the proposed feature performs relatively well for the given database. For the analysis of AF intracardiac electrograms, partial reconstruction of the signal via summation of IMFs were proposed as a potential solution to identity the areas with high activation rate within atrium. In addition, instantaneous frequencies extracted from IMFs helps to monitor the instantaneous changes in the signal and thus could be used as a tool to precisely locate and identify the abnormal drivers. Unlike DF that fails to locate the abnormal drivers in presence of data nonstationarity (phase change), IF can potentially capture the changes instantly.
+
+5.2
+
+Summary of Contributions
+
+The proposed study achieved the set of objectives of the thesis and followings are the summary of the contributions: · The novel work of TWA detection using EMD- based technique was performed. Features extracted from instantaneous frequency showed to be unique and well distinct. The validation of the method was performed on a new database from Toronto General Hospital. · The novel work of analyzing intracardiac AF electrgorams using instantaneous frequency was proposed in this work. The current method in analyzing intracardiac AF electrgorams via Dominant Frequency fails in the presence of data non-stationarity. As a result, IF could potentially be a powerful tool to analyze these non- stationarities. 81
+
+5.3
+
+Future Work
+
+The followings are areas which could potentially optimize TWA classification and analysis of intracadrdiac AF electrograms : · In TWA detections, other versions of EMD such as Ensemble Empirical Mode Decomposition (EEMD) [49] and Intrinsic Time-scale Decomposition (ITD) [80] could be used to enhance the algorithm. EMD suffers from mode mixing effect [49] which could potentially affect the amplitude variations of T- waves. · Using IF to localize the areas of atrium that cause abnormal pulse generations
+
+82
+
+Bibliography
+[1] J. M. Nerbonne and R. S. Kass, "Molecular physiology of cardiac repolarization," Science Signaling, vol. 85, no. 4, p. 1205, 2005. [2] A. L. Goldberger, L. A. Amaral, L. Glass, J. M. Hausdorff, P. C. Ivanov, R. G. Mark, J. E. Mietus, G. B. Moody, C.-K. Peng, and H. E. Stanley, "Physiobank, physiotoolkit, and physionet: Components of a new research resource for complex physiologic signals," Circulation, vol. 101, no. 23, pp. e215­e220, 2000. [3] B. Ghoraani, S. Krishnan, R. Selvaraj, and V. Chauhan, "Adaptive time-frequency matrix features for t wave alternans analysis," in Engineering in Medicine and Biology Society, 2009. EMBC 2009. Annual International Conference of the IEEE, pp. 39­42, IEEE, 2009. [4] H. Abe, Regulation of Cardiac Function: Molecular, Cellular and Pathophysiological. VSP, 1984. [5] S. Nattel, "New ideas about atrial fibrillation 50 years on," Nature, vol. 415, no. 6868, pp. 219­226, 2002. [6] V. Fuster, L. E. Ryd´ en, D. S. Cannom, H. J. Crijns, A. B. Curtis, K. A. Ellenbogen, J. L. Halperin, J.-Y. Le Heuzey, G. N. Kay, J. E. Lowe, et al., "Acc/aha/esc 2006 guidelines for the management of patients with atrial fibrillationexecutive summarya report of the american college of cardiology/american heart association task force on practice guidelines and the european society of cardiology committee for practice guidelines (writing committee to revise the 2001 guidelines for the management of patients with atrial fibrillation) developed in col-
+
+83
+
+laboration with the european heart rhythm association and the heart rhythm society," Journal of the American College of Cardiology, vol. 48, no. 4, pp. 854­906, 2006. [7] A. J. Camm, P. Kirchhof, G. Y. Lip, U. Schotten, I. Savelieva, S. Ernst, I. C. Van Gelder, N. Al-Attar, G. Hindricks, B. Prendergast, et al., "Guidelines for the management of atrial fibrillation the task force for the management of atrial fibrillation of the european society of cardiology (esc)," European heart journal, vol. 31, no. 19, pp. 2369­2429, 2010. [8] G. D. Clifford, F. Azuaje, P. McSharry, et al., Advanced methods and tools for ECG data analysis. Artech house London, 2006. [9] J. M. Smith, E. A. Clancy, C. R. Valeri, J. N. Ruskin, and R. J. Cohen, "Electrical alternans and cardiac electrical instability," Circulation, vol. 77, no. 1, pp. 110­121, 1988. [10] A. K. Gehi, R. H. Stein, L. D. Metz, and J. A. Gomes, "Microvolt t-wave alternans for the risk stratification of ventricular tachyarrhythmic eventsa meta-analysis," Journal of the American College of Cardiology, vol. 46, no. 1, pp. 75­82, 2005. [11] J. Cinca, A. Sassine, P. Deceuninck, J. Roca, P. Gagne, H. Morena, and P. Puech, "The dependence of t wave alternans on diastolic resting period duration.," European journal of cardiology, vol. 7, no. 4, p. 299, 1978. [12] S. Weber, H. Tillmanns, and B. Waldecker, "Prevalence of t wave alternans in healthy subjects," Pacing and clinical electrophysiology, vol. 26, no. 1p1, pp. 49­51, 2003. [13] D. S. Rosenbaum, L. E. Jackson, J. M. Smith, H. Garan, J. N. Ruskin, and R. J. Cohen, "Electrical alternans and vulnerability to ventricular arrhythmias," New England Journal of Medicine, vol. 330, no. 4, pp. 235­241, 1994. [14] E. S. Kaufman, J. A. Mackall, B. Julka, C. Drabek, and D. S. Rosenbaum, "Influence of heart rate and sympathetic stimulation on arrhythmogenic t wave alternans," American Journal of Physiology-Heart and Circulatory Physiology, vol. 279, no. 3, pp. H1248­H1255, 2000.
+
+84
+
+[15] J. Halperin, R. Hart, et al., "Atrial fibrillation and stroke: new ideas, persisting dilemmas," Stroke, vol. 19, no. 8, pp. 937­941, 1988. [16] P. Petersen and J. Godtfredsen, "Embolic complications in paroxysmal atrial fibrillation.," Stroke, vol. 17, no. 4, pp. 622­626, 1986. [17] F. Ravelli and M. Mas` e, "A time-domain approach for the identification of atrial fibrillation drivers," in Engineering in Medicine and Biology Society, EMBC, 2011 Annual International Conference of the IEEE, pp. 5527­5530, IEEE, 2011. [18] J. Ng, A. H. Kadish, and J. J. Goldberger, "Effect of electrogram characteristics on the relationship of dominant frequency to atrial activation rate in atrial fibrillation," Heart Rhythm, vol. 3, no. 11, pp. 1295­1305, 2006. [19] A. Elvan, A. C. Linnenbank, M. W. van Bemmel, A. R. R. Misier, P. P. H. Delnoy, W. P. Beukema, and J. M. de Bakker, "Dominant frequency of atrial fibrillation correlates poorly with atrial fibrillation cycle lengthclinical perspective," Circulation: Arrhythmia and Electrophysiology, vol. 2, no. 6, pp. 634­644, 2009. [20] S. Krishnan, "A new approach for estimation of instantaneous mean frequency of a timevarying signal," EURASIP Journal on Applied Signal Processing, vol. 2005, pp. 2848­2855, 2005. [21] J. P. Mart´ inez and S. Olmos, "Methodological principles of t wave alternans analysis: a unified framework," Biomedical Engineering, IEEE Transactions on, vol. 52, no. 4, pp. 599­ 613, 2005. [22] L. Burattini, W. Zareba, J. Couderc, E. Titlebaum, and A. Moss, "Computer detection of nonstationary t wave alternans using a new correlation method," in Computers in Cardiology 1997, pp. 657­660, IEEE, 1997. [23] L. Burattini, W. Zareba, and A. J. Moss, "Correlation method for detection of transient t-wave
+
+85
+
+alternans in digital holter ecg recordings," Annals of Noninvasive Electrocardiology, vol. 4, no. 4, pp. 416­424, 1999. [24] B. D. Nearing and R. L. Verrier, "Modified moving average analysis of t-wave alternans to predict ventricular fibrillation with high accuracy," Journal of Applied Physiology, vol. 92, no. 2, pp. 541­549, 2002. [25] B. D. Nearing, A. H. Huang, and R. L. Verrier, "Dynamic tracking of cardiac vulnerability by complex demodulation of the t wave," Science, vol. 252, no. 5004, pp. 437­440, 1991. [26] T. Srikanth, D. Lin, N. Kanaan, and H. Gu, "Estimation of low level alternans using periodicity transform-simulation and european st/t database results," in Engineering in Medicine and Biology, 2002. 24th Annual Conference and the Annual Fall Meeting of the Biomedical Engineering Society EMBS/BMES Conference, 2002. Proceedings of the Second Joint, vol. 2, pp. 1407­1408, IEEE, 2002. [27] P. Strumillo and J. Ruta, "Poincare mapping for detecting abnormal dynamics of cardiac repolarization," Engineering in Medicine and Biology Magazine, IEEE, vol. 21, no. 1, pp. 62­ 65, 2002. [28] B. Ghoraani, S. Krishnan, R. J. Selvaraj, and V. S. Chauhan, "T wave alternans evaluation using adaptive time­frequency signal analysis and non-negative matrix factorization," Medical engineering & physics, vol. 33, no. 6, pp. 700­711, 2011. [29] J. M. Smith, E. A. Clancy, C. R. Valeri, J. N. Ruskin, and R. J. Cohen, "Electrical alternans and cardiac electrical instability.," Circulation, vol. 77, no. 1, pp. 110­121, 1988. [30] D. S. Rosenbaum, L. E. Jackson, J. M. Smith, H. Garan, J. N. Ruskin, and R. J. Cohen, "Electrical alternans and vulnerability to ventricular arrhythmias," New England Journal of Medicine, vol. 330, no. 4, pp. 235­241, 1994. [31] D. S. Rosenbaum, P. Albrecht, and R. J. Cohen, "Predicting sudden cardiac death from t
+
+86
+
+wave alternans of the surface electrocardiogram," Journal of cardiovascular electrophysiology, vol. 7, no. 11, pp. 1095­1111, 1996. [32] M. Blanco-Velasco, B. Weng, and K. E. Barner, "Ecg signal denoising and baseline wander correction based on the empirical mode decomposition," Computers in biology and medicine, vol. 38, no. 1, pp. 1­13, 2008. [33] B. Weng, M. Blanco-Velasco, and K. Earner, "Ecg denoising based on the empirical mode decomposition," in Engineering in Medicine and Biology Society, 2006. EMBS'06. 28th Annual International Conference of the IEEE, pp. 1­4, IEEE, 2006. [34] J. Echeverria, J. Crowe, M. Woolfson, and B. Hayes-Gill, "Application of empirical mode decomposition to heart rate variability analysis," Medical and Biological Engineering and Computing, vol. 39, no. 4, pp. 471­479, 2001. [35] J.-t. Tang, X.-l. Yang, J.-c. Xu, Y. Tang, Q. Zou, and X.-k. Zhang, "The algorithm of r peak detection in ecg based on empirical mode decomposition," in Natural Computation, 2008. ICNC'08. Fourth International Conference on, vol. 5, pp. 624­627, IEEE, 2008. [36] J. G. Proakis, Digital Signal Processing: Principles, Algorithms, and Applications, 4/e. Pearson Education India, 2007. [37] D. Posada and T. R. Buckley, "Model selection and model averaging in phylogenetics: advantages of akaike information criterion and bayesian approaches over likelihood ratio tests," Systematic biology, vol. 53, no. 5, pp. 793­808, 2004. [38] H. Li, X. Deng, and H. Dai, "Structural damage detection using the combination method of emd and wavelet analysis," Mechanical Systems and Signal Processing, vol. 21, no. 1, pp. 298­306, 2007. [39] B. Boashash, "Estimating and interpreting the instantaneous frequency of a signal. i. fundamentals," Proceedings of the IEEE, vol. 80, no. 4, pp. 520­538, 1992.
+
+87
+
+[40] L. Cohen, "Time-frequency distributions-a review," Proceedings of the IEEE, vol. 77, no. 7, pp. 941­981, 1989. [41] B. Boashash, "Note on the use of the wigner distribution for time-frequency signal analysis," Acoustics, Speech and Signal Processing, IEEE Transactions on, vol. 36, no. 9, pp. 1518­ 1521, 1988. [42] K. Umapathy, S. Masse, E. Sevaptsidis, J. Asta, S. Krishnan, and K. Nanthakumar, "Spatiotemporal frequency analysis of ventricular fibrillation in explanted human hearts," Biomedical Engineering, IEEE Transactions on, vol. 56, no. 2, pp. 328­335, 2009. [43] N. E. Huang, Z. Shen, S. R. Long, M. C. Wu, H. H. Shih, Q. Zheng, N.-C. Yen, C. C. Tung, and H. H. Liu, "The empirical mode decomposition and the hilbert spectrum for nonlinear and non-stationary time series analysis," Proceedings of the Royal Society of London. Series A: Mathematical, Physical and Engineering Sciences, vol. 454, no. 1971, pp. 903­995, 1998. [44] S. Olhede and A. Walden, "The hilbert spectrum via wavelet projections," Proceedings of the Royal Society of London. Series A: Mathematical, Physical and Engineering Sciences, vol. 460, no. 2044, pp. 955­975, 2004. [45] H. Liang, S. L. Bressler, R. Desimone, and P. Fries, "Empirical mode decomposition: a method for analyzing neural data," Neurocomputing, vol. 65, pp. 801­807, 2005. [46] H. Liang, Z. Lin, and R. McCallum, "Artifact reduction in electrogastrogram based on empirical mode decomposition method," Medical and Biological Engineering and Computing, vol. 38, no. 1, pp. 35­41, 2000. [47] M. Suchetha and N. Kumaravel, "Empirical mode decomposition based filtering techniques for power line interference reduction in electrocardiogram using various adaptive structures and subtraction methods," Biomedical Signal Processing and Control, vol. 8, no. 6, pp. 575­ 585, 2013.
+
+88
+
+[48] L. Sun, M. Shen, and F. H. Chan, "A method for estimating the instantaneous frequency of non-stationary heart sound signals," in Neural Networks and Signal Processing, 2003. Proceedings of the 2003 International Conference on, vol. 1, pp. 798­801, IEEE, 2003. [49] K.-M. Chang, "Ensemble empirical mode decomposition for high frequency ecg noise reduction," Biomedizinische Technik/Biomedical Engineering, vol. 55, no. 4, pp. 193­201, 2010. [50] E. Estrada, H. Nazeran, P. Nava, K. Behbehani, J. Burk, and E. Lucas, "Eeg feature extraction for classification of sleep stages," in Engineering in Medicine and Biology Society, 2004. IEMBS'04. 26th Annual International Conference of the IEEE, vol. 1, pp. 196­199, IEEE, 2004. [51] J.-H. Wang and J.-Y. Leu, "Stock market trend prediction using arima-based neural networks," in Neural Networks, 1996., IEEE International Conference on, vol. 4, pp. 2160­ 2165, IEEE, 1996. [52] B. Hjorth, "Eeg analysis based on time domain properties," Electroencephalography and clinical neurophysiology, vol. 29, no. 3, pp. 306­310, 1970. [53] B. Hjorth, "The physical significance of time domain descriptors in eeg analysis," Electroencephalography and clinical neurophysiology, vol. 34, no. 3, pp. 321­325, 1973. [54] B. Hjorth, "Time domain descriptors and their relation to a particular model for generation of eeg activity," CEAN-Computerized EEG analysis, pp. 3­8, 1975. [55] R. RM, "Biomedical signal analysisa casestudy approach". "IEEE/Wiley, New York", 2002. [56] L. S¨ ornmo and P. Laguna, Bioelectrical signal processing in cardiac and neurological applications [electronic resource]. Academic Press, 2005. [57] B. Hjorth, "Eeg analysis based on time domain properties," Electroencephalography and clinical neurophysiology, vol. 29, no. 3, pp. 306­310, 1970.
+
+89
+
+[58] B. Hjorth, "The physical significance of time domain descriptors in eeg analysis," Electroencephalography and clinical neurophysiology, vol. 34, no. 3, pp. 321­325, 1973. [59] R. O. Duda, P. E. Hart, and D. G. Stork, Pattern classification. John Wiley & Sons, 2012. [60] H.-C. Kim, D. Kim, and S. Y. Bang, "Face recognition using lda mixture model," in Pattern Recognition, 2002. Proceedings. 16th International Conference on, vol. 2, pp. 486­489, IEEE, 2002. [61] A. P. Bradley, "The use of the area under the roc curve in the evaluation of machine learning algorithms," Pattern recognition, vol. 30, no. 7, pp. 1145­1159, 1997. [62] J. Pan and W. J. Tompkins, "A real-time qrs detection algorithm," Biomedical Engineering, IEEE Transactions on, no. 3, pp. 230­236, 1985. [63] J. L. Urrusti and W. J. Tompkins, "Performance evaluation of an ecg qrs complex detection algorithm," in PROC ANNU CONF ENG MED BIOL, IEEE, PISCATAWAY, NJ,(USA), 1993,, vol. 15, pp. 800­801, 1993. [64] P. S. Hamilton and W. J. Tompkins, "Quantitative investigation of qrs detection rules using the mit/bih arrhythmia database," Biomedical Engineering, IEEE Transactions on, no. 12, pp. 1157­1165, 1986. [65] J. N. Froning, M. D. Olson, and V. F. Froelicher, "Problems and limitations of ecg baseline estimation and removal using a cubic spline technique during exercise ecg testing: recommendations for proper implementation," Journal of Electrocardiology, vol. 21, pp. S149­S157, 1988. [66] L. Burattini, W. Zareba, and R. Burattini, "Automatic detection of microvolt t-wave alternans in holter recordings: effect of baseline wandering," Biomedical Signal Processing and Control, vol. 1, no. 2, pp. 162­168, 2006.
+
+90
+
+[67] C. Meyer and H. Keiser, "Electrocardiogram baseline noise estimation and removal using cubic splines and state-space computation techniques," Computers and Biomedical Research, vol. 10, no. 5, pp. 459­470, 1977. [68] T. Klingenheben, P. Ptaszynski, and S. H. Hohnloser, "Quantitative assessment of microvolt t-wave alternans in patients with congestive heart failure," Journal of cardiovascular electrophysiology, vol. 16, no. 6, pp. 620­624, 2005. [69] M. J. Norusis, SPSS advanced statistics user's guide. SPSS Chicago, 1990. [70] W. W. Melek, Z. Lu, A. Kapps, and W. D. Fraser, "Comparison of trend detection algorithms in the analysis of physiological time-series data," Biomedical Engineering, IEEE Transactions on, vol. 52, no. 4, pp. 639­651, 2005. [71] M. V. Valkenburg, "Analog filter design," Holt, Rinehart and Winston, p. 228, 1982. [72] M. Blanco-Velasco, F. Cruz-Rold´ an, J. I. Godino-Llorente, and K. E. Barner, "Nonlinear trend estimation of the ventricular repolarization segment for t-wave alternans detection," Biomedical Engineering, IEEE Transactions on, vol. 57, no. 10, pp. 2402­2412, 2010. [73] G. B. Moody, W. K. Muldrow, and R. G. Mark, "A noise stress test for arrhythmia detectors," Computers in cardiology: September 18-21, 1984, Salt Lake City, Utah, USA, p. 381, 1984. [74] B. J. Maron, J. A. Towbin, G. Thiene, C. Antzelevitch, D. Corrado, D. Arnett, A. J. Moss, C. E. Seidman, and J. B. Young, "Contemporary definitions and classification of the cardiomyopathies an american heart association scientific statement from the council on clinical cardiology, heart failure and transplantation committee; quality of care and outcomes research and functional genomics and translational biology interdisciplinary working groups; and council on epidemiology and prevention," Circulation, vol. 113, no. 14, pp. 1807­1816, 2006. [75] J. Ng and J. J. Goldberger, "Understanding and interpreting dominant frequency analysis of
+
+91
+
+af electrograms," Journal of cardiovascular electrophysiology, vol. 18, no. 6, pp. 680­685, 2007. [76] J. Ng, A. H. Kadish, and J. J. Goldberger, "Effect of electrogram characteristics on the relationship of dominant frequency to atrial activation rate in atrial fibrillation," Heart Rhythm, vol. 3, no. 11, pp. 1295­1305, 2006. [77] S. Krishnan, "A new approach for estimation of instantaneous mean frequency of a timevarying signal," EURASIP Journal on Applied Signal Processing, vol. 2005, pp. 2848­2855, 2005. [78] F. Ravelli and M. Mase, "A time-domain approach for the identification of atrial fibrillation drivers," in Engineering in Medicine and Biology Society, EMBC, 2011 Annual International Conference of the IEEE, pp. 5527­5530, IEEE, 2011. [79] A. Elvan, A. C. Linnenbank, M. W. van Bemmel, A. R. R. Misier, P. P. H. Delnoy, W. P. Beukema, and J. M. de Bakker, "Dominant frequency of atrial fibrillation correlates poorly with atrial fibrillation cycle lengthclinical perspective," Circulation: Arrhythmia and Electrophysiology, vol. 2, no. 6, pp. 634­644, 2009. [80] M. G. Frei and I. Osorio, "Intrinsic time-scale decomposition: time­frequency­energy analysis and real-time filtering of non-stationary signals," Proceedings of the Royal Society A: Mathematical, Physical and Engineering Science, vol. 463, no. 2078, pp. 321­342, 2007.
+
+92
+
+Appendix A List of Publications
+· N.Rahnama, S. Krishnan, " Dominant Frequency & Instantaneous Frequency in Atrial Fibrillation ", Biomedical Engineering & Sciences Technology (BEST) Research Symposium, St. Michael's Hospital, June 2012
+
+· N.Rahnama, S. Krishnan, " Atrial Fibrillation Signal Analysis", ELCE Graduate Research Symposium, Ryerson University , November 2012
+
+· N.Rahnama, S. Krishnan, " T- wave Alternans Detection Using Empirical Mode Decomposition and Feature Extraction" , Biomedical Engineering & Sciences Technology (BEST) Research Symposium, St. Michael's Hospital, June 2013
+
+93
+
+
