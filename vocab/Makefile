@@ -3,7 +3,7 @@ all: nt ttl
 nt: $(patsubst %.skos,%.nt,$(wildcard */*.skos))
 ttl: $(patsubst %.nt,%.ttl,$(wildcard */*.nt))
 
-# extract prefLabel statements for id.loc.gov URIs
+# extract statements for id.loc.gov URIs
 %.nt: %.skos
 	cat $< | grep -Fv  "_:N"  | grep -F "http://id.loc.gov/" > $@
 
