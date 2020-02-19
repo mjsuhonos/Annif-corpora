@@ -1,0 +1,1676 @@
+NUMERICAL STUDIES OF HIGHER ORDER TAU-LEAPING METHODS
+
+by Anuj Dhoj Thapa
+
+A thesis presented to Ryerson University
+
+in partial fulfillment of the requirements for the degree of Master of Science in the program of Applied Mathematics
+
+Toronto, Ontario, Canada, 2018 c Anuj Dhoj Thapa, 2018
+
+AUTHOR'S DECLARATION FOR ELECTRONIC SUBMISSION OF A THESIS I hereby declare that I am the sole author of this thesis. This is a true copy of the thesis, including any required final revisions, as accepted by my examiners.
+
+I authorize Ryerson University to lend this thesis to other institutions or individuals for the purpose of scholarly research.
+
+I further authorize Ryerson University to reproduce this thesis by photocopying or by other means, in total or in part, at the request of other institutions or individuals for the purpose of scholarly research.
+
+I understand that my thesis may be made electronically available to the public.
+
+ii
+
+NUMERICAL STUDIES OF HIGHER ORDER TAU-LEAPING METHODS Master of Science, 2018 Anuj Dhoj Thapa Applied Mathematics Program Ryerson University
+
+Abstract
+Gillespie's algorithm, also known as the Stochastic Simulation Algorithm (SSA), is an exact simulation method for the Chemical Master Equation model of well-stirred biochemical systems. However, this method is computationally intensive when some fast reactions are present in the system. The tau-leap scheme developed by Gillespie can speed up the stochastic simulation of these biochemically reacting systems with negligible loss in accuracy. A number of tau-leaping methods were proposed, including the explicit tau-leaping and the implicit tau-leaping strategies. Nonetheless, these schemes have low order of accuracy. In this thesis, we investigate tau-leap strategies which achieve high accuracy at reduced computational cost. These strategies are tested on several biochemical systems of practical interest.
+
+iii
+
+Acknowledgements
+Initially, I would like to express my wholehearted thanks and courtesy to all the researchers whose journals are cited here and became treasures to enhance my knowledge to complete this thesis. Secondly, I would like to thank my supervisor Prof. Dr. Silvana Ilie; her commendable guidance, professional supervision and elaborative instructions made my research and thesis work come to completion as this document. Thirdly, I would like to thank my family, namely my father (Damber Dhoj Thapa), mother (Angur Thapa), sister (Mamata Thapa), brother (Milan Dhoj Thapa) and wife (Suraksha Khadka), for their constant support, motivation and inspiration through all the ups and downs during the last two years and further. I would like to thank the defense committee chair Dr. Jean-Paul Pascal and members, Dr. Dejan Delic and Dr. Dzung Minh Ha for taking the time to read my thesis and for all their suggestions. In addition to this, I would like to thank Steve Kanellis for his technical support and my course instructor Dr Katrin Rohlf for her guidance. I am always thankful to my friends, Amit Shrestha and Mathbar Singh Raut who keep me always motivated to explore new things.
+
+iv
+
+Contents
+Declaration Abstract Acknowledgements List of Figures 1 Introduction 2 Background on Mathematical Models of Biochemical Systems and Simulation Tools 2.1 2.2 2.3 2.4 2.5 2.6 Deterministic and Stochastic Models . . . . . . . . . . . . . . . . . . Description of Stochastic Models . . . . . . . . . . . . . . . . . . . . Chemical Master Equation . . . . . . . . . . . . . . . . . . . . . . . . Tau-Leaping Method: . . . . . . . . . . . . . . . . . . . . . . . . . . . Chemical Langevin Equation . . . . . . . . . . . . . . . . . . . . . . Reaction Rate Equation . . . . . . . . . . . . . . . . . . . . . . . . . 2.6.1 2.7 Derivation of Reaction Rate Equation: . . . . . . . . . . . . . 6 6 7 10 13 14 16 16 17 25 25 ii iii iv vii 1
+
+Stochastic Simulation Algorithm . . . . . . . . . . . . . . . . . . . . .
+
+3 Stochastic Methods for Well-stirred Biochemical Systems 3.1 The Tau leaping Method for the Chemical Master Equation . . . . .
+
+v
+
+3.2 3.3
+
+Midpoint Tau-leaping Method for Chemical Master Equation . . . . . Trapezoidal Tau-Leaping Formula . . . . . . . . . . . . . . . . . . . .
+
+29 30 32 33
+
+4 Analysis of Tau-Leaping Method 4.1 4.2 Local Error Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . Local Error Formula for the Mean and Covariance of Explicit Tau-leaping Method . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4.3 Local Error Formula for the Implicit Tau-leaping Method . . . . . . .
+
+37 40 43 43 50 55 67 74
+
+5 Numerical Experiments 5.1 5.2 5.3 Simple Reaction Channel . . . . . . . . . . . . . . . . . . . . . . . . . Decay-dimerization Reaction Channel . . . . . . . . . . . . . . . . . . Potassium Channel . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+6 Conclusion Bibliography
+
+vi
+
+List of Figures
+5.1 Simple reaction channel: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.05/4. . . . . . . . . . . . . . . . . . . . . . . . 5.2 Simple reaction channel: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.05/4. . . . . . . . . . . . . . . . . . . . . . . . 5.3 Simple reaction channel: A sample trajectory of number of molecules of species S1 as function of time. . . . . . . . . . . . . . . . . . . . . . 5.4 Simple reaction channel: A sample trajectory of number of molecules of species S2 as function of time. . . . . . . . . . . . . . . . . . . . . . 5.5 Simple reaction channel: Log log plot of the relative global error at time T = 0.05/4 as function of step size  , for all the tau-leaping methods. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.6 Decay dimerization reaction: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.02/4. . . . . . . . . . . . . . . . . . . . . . . . 5.7 Decay dimerization reaction: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.02/4. . . . . . . . . . . . . . . . . . . . . . . . 5.8 Decay dimerization reaction: A sample trajectory of number of molecules of species S1 as function of time. . . . . . . . . . . . . . . . . . . . . . vii 54 53 52 49 48 48 47 46
+
+5.9
+
+Decay dimerization reaction: A sample trajectory of number of molecules of species S2 as function of time. . . . . . . . . . . . . . . . . . . . . . 54
+
+5.10 Decay dimerization reaction: Log log plot of the relative global error at time T = 0.02/4 as function of step size  , for all the tau-leaping methods. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.11 Potassium channel: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.12 Potassium channel: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.13 Potassium channel: Histograms of species S3 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.14 Potassium channel: Histograms of species S4 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.15 Potassium channel: Histograms of species S5 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5.16 Potassium channel: A sample trajectory of number of molecules of species S1 as function of time. . . . . . . . . . . . . . . . . . . . . . . 5.17 Potassium channel: A sample trajectory of number of molecules of species S2 as function of time. . . . . . . . . . . . . . . . . . . . . . . 5.18 Potassium channel: A sample trajectory of number of molecules of species S3 as function of time. . . . . . . . . . . . . . . . . . . . . . . 5.19 Potassium channel: A sample trajectory of number of molecules of species S4 as function of time. . . . . . . . . . . . . . . . . . . . . . . 64 64 63 63 62 61 60 59 58 55
+
+viii
+
+5.20 Potassium channel: A sample trajectory of number of molecules of species S5 as function of time. . . . . . . . . . . . . . . . . . . . . . . 5.21 Potassium channel: Log log plot of the relative global error at time T = 5/4 as function of step size  , for all the tau-leaping methods. . . 66 65
+
+ix
+
+Chapter 1 Introduction
+Mathematical modeling [29, 1, 2] has been successfully used in several biological disciplines for decades. Among the earliest quantitative biological models studied extensively in the literature is the Lotka-Volterra model of species competition and predator-prey relationships. In cell biology, many studies were dedicated to develop accurate models and advanced simulation tools for examining the structure and dynamics within a cell. Among the models considered were deterministic and stochastic ones. Computational modelling in cell biology [40] has been widely used to make significant progress leading to practical innovations in medicine, drug discovery and other related research. At the same time, the modern software and computational tools [28] contributed to the development and analysis of more realistic and complex models of cellular processes. In earlier studies, the mathematical modeling approaches of biological systems were employed deterministic such as differential equations, which considered given initial conditions and neglected the noise and randomness within the system, and produces the similar results. Among the deterministic models, an important class is that of systems of ordinary differential equations (ODE) [23]. For example, ODEs are utilized to model networks of well-stirred biochemical reactions, for which all molecular species have large population
+
+1
+
+numbers. This ODE model, known as the reaction rate equations (RRE), governs the behavior of the vector of concentrations of all species, as functions of time. Nonetheless, when some molecular species in the cell have low population numbers (such as in genetic networks), then the continuous deterministic model of the RRE fails to accurately describe the system dynamics. Indeed, important species in genetic networks come in low molecular counts (between 1 and a few tens), but these species often significantly influence the system behavior. For such systems, stochastic discrete models are required for capturing the random fluctuations which were observed in experiments [5, 6, 11, 13, 14, 32, 34]. One refined stochastic discrete model of
+
+well-stirred biochemical systems is the Chemical Master Equation (CME) [18, 29]. The Chemical Master Equation models the dynamics of the system state. The system state X (t) is a vector with entries the number of molecules of each species at the current time, t, rather than the species concentrations. More precisely, the CME is a system of ordinary differential equations, in which each equation represents the evolution in the probability of the system to be in a particular state. Since often in application the number of all possible system states is very large, so is the dimensions of the CME. Studying the CME directly is very challenging. A simplifying assumptions is that of large population numbers in each species (hundred or more molecules/ species). In this case, the Chemical Master Equation model may be reduced to an approximate time-evolution equation of Langevin type, called the Chemical Langevin Equation (CLE) [20]. In this model, the stochastic process X (t) has entries which are real values, rather than integers, as was the case for Chemical Master Equation. The Chemical Langevin Equation is a system of stochastic differential equations, with one equation for each reactant species in the biochemical system. This model is therefore an easier to simulate numerically and analyze. Further, under the assumption of the thermodynamic limit, in which the system volume and the species populations tend to infinity, such that the species concentrations
+
+2
+
+are bounded, the deterministic part dominates the stochastic part of the CLE. Then we can neglect the stochastic terms of the Chemical Langevin Equation and we can reduce the CLE to get a system of ODEs, namely the Reaction Rate Equations (RRE). Since the Chemical Master Equation is very challenging to solve directly, many studies were dedicated to the development of indirect methods to simulate the solution of this model. Stochastic simulation strategies for the Chemical Master Equations are classified as: exact and approximate methods. The Stochastic Simulation Algorithm (SSA), proposed by Daniel Gillespie in 1976 [16, 17] is an exact such method, in the sense that it generates trajectories of the stochastic process X (t), having a probability in exact agreement with that modeled by the Chemical Master Equation. The SSA is thus a Monte Carlo simulation strategy, Nonetheless, when the biochemical system is subjected to some reactions which are very fast, the exact method is computationally intensive. The next reaction method published in 2000 by Gibson and Bruck [15] is another exact scheme for the CME, which has improved computational cost of simulation compared to SSA. In the next reaction method, the unused reaction times are reused and the algorithm employs a dependency graph for storing the reaction propensities. Only the propensities affected by a reaction fires in the next step are updated. While the next reaction method is more efficient than the SSA, it is still very slow on stiff models of cellular processes. An exact methods for the Chemical Master Equation were quite inefficient on stiff models of biochemical systems, there was a growing demand for faster simulation methods, allowing some minor sacrifice in accuracy in exchange for significant speed up. Examples of faster approximate simulation methods for CME include hybrid methods and tau-leaping schemes. Hybrid methods may combine exact or approximate methods for the CME, with numerical methods for the CLE or the RRE to more efficiently simulate the solution of a model of well-stirred biochemical system [1, 2, 25, 26, 35, 38]. The tau-leaping methods for the CME are based on the following idea: if a larger step-size  may be chosen, to jump over many reactions of each type and the number
+
+3
+
+of each reactions may be accurate be approximated, then the system state can be updated accordingly. The explicit tau-leaping method was developed in 2001 by Gillespie [21]. This approximate strategy is applicable when the leap condition is valid, that is the leap size  is chosen small enough such that no propensity is varied significantly over that step. When the condition is obeyed the number of reactions of the j th type firing in [t, t +  ) is approximated by a Poisson distribution with mean and variance equal to aj (X (t)). , where aj is the propensity function of the j th reaction and X (t) is the system state at the beginning of the interval. When many reactions occur over a step  , the tau-leaping method is more efficient than the exact methods for the CME. But the explicit tau-leaping scheme is inefficient on stiff problems. For such problems Rathinam et al. [37] introduced the implicit tau-leaping scheme. Both the explicit and implicit tau-leaping methods were shown to have low order of accuracy by Rathinam et al. [37]. More accurate numerical strategies for stochastic discrete biochemical systems are required, to assist researchers in the development and analysis of refined models of cellular processes. Two such higher order of accuracy method are analyzed in this thesis: the midpoint tau-leaping scheme [21] and the trapezoidal tau-leaping strategy [9]. The midpoint tau-leaping scheme is half degree higher order of accuracy than the explicit tau-leaping technique. The trapezoidal tau-leaping is an implicit method, as is the implicit tau-leaping strategy, but of higher order of accuracy. Also the trapezoidal rule is A-stable and does not have the damping of noise effect as the implicit tau-leaping. Our studies of the two higher order accuracy tau-leaping methods are numerical in nature. We tested these methods on several models of biochemical networks of practical interest and compared the results with those obtained using the explicit and implicit tau-leaping schemes and the exact SSA. Finally, the outline of thesis is as follows. Chapter 2 presents the backgrounds on stochastic modeling approaches for well-stirred biochemical systems, namely the CME and the CLE, along with the reduced deterministic model of the RRE. Stochastic
+
+4
+
+simulation methods for the CME and CLE models are given in chapter 3. Chapter 4 gives some theoretical results on the order of accuracy of several existing tau-leaping strategies. Numerical tests of the higher order tau-leaping methods considered in this thesis are included in chapter 5. The summary of our findings and the topics of future research are given in chapter 6.
+
+5
+
+Chapter 2 Background on Mathematical Models of Biochemical Systems and Simulation Tools
+Mathematical models are required to describe the behavior of biochemical systems [12] and effective and accurate computational tools are needed to simulate their numerical solution, to study the biological systems and reveal the factors affecting the system like disease in organs and organisms. In addition to this, the mathematical models also help to predict some data pattern which leads to biological discovery such as treatment of diseases. Mathematical models of biochemical systems are classified into two categories [30, 35]: deterministic and stochastic.
+
+2.1
+
+Deterministic and Stochastic Models
+
+The deterministic model of well-stirred biochemical systems consists of systems of ordinary differential equation (ODE) and with this model the outcomes are predictable and remain the same if the initial conditions are kept constant. Deterministic models are accurate for describing biochemical systems having very large molecular populations, 6
+
+while stochastic models [39, 41, 43] are also accurate in predicting the dynamics of biochemical systems involving small number of molecules in some species, e.g. in a cell.
+
+2.2
+
+Description of Stochastic Models
+
+In a well-stirred biochemical system, the molecules can be assumed distributed evenly [24, 34, 6, 8, 44]. In other words, a well-mixed system involves randomly distributed reactant species which are no more likely to be found in any sub-part of the system than in another of the same size. However, the natural motion of the molecules can change the concentration of a particular sub-volume of the system [42] and the system becomes heterogeneous and thus, to accomplish the requirements, one should stir the system externally. Let us consider a well-stirred (well-mixed) biochemical system kept at thermal equilibrium in a constant volume. It consists of N molecular species {S1 , S2 , ..., SN } undergoing M reaction channels {R1 , R2 , ..., RM }. At time t, the dynamical state X (t)  1     X2 (t)       .    X (t) =    .       .    XN (t)  
+
+(2.2.1)
+
+describes the biochemical system; here Xi (t) is the non-negative number of Si molecules
+
+7
+
+at time t. Moreover, the state change vector of the reaction Rj is  1 j 
+
+     2 j       .  , ij =     .       .    N j where ij =the change in the number of Xi molecules produced by one Rj reaction. The array {ij } with 1  i  N , 1  j  M is an N × M matrix, called the stoichiometric matrix, where N represents the total number of species in a model and M represents the total number of reactions. To each reaction channel Rj it is associated a propensity function aj (x) such that aj (x)dt is defined as the probability that one Rj reaction will happen within the volume V in the next infinitesimal time interval [t, t + dt), given that X (t) = x. For instance, if the following reaction happens, C A+B - with xA and xB being the number of molecules of A and B respectively, the propensity function is given by aj = c j x A x B where cj is the reaction rate constant. The propensity function depends on the molecular amounts of the reacting species, while the reaction rate depends on the concentration of such species. The types of reactions considered in the thesis are outlined below. Since reactions are assumed to be instantaneous events, no more than two molecules may interact at any moment in the system. 8
+cj
+
+First order reaction: Sm -  something. Here, if xm (t) denotes the number of Sm molecules at time t, then the propensity function is aj (x) = cj xm (t) and the stochastic rate constant cj depends on the deterministic reaction rate parameters kj according to: cj = kj . Second order reaction: Sm + Sn -  something. Here when m = n, if xm (t) and xn (t) denote the number of Sm and Sn molecules, respectively, and V is the volume of the system, then the propensity function is aj (x) = cj xm (t)xn (t). If cj and kj are the stochastic and deterministic reaction rate parameters, respectively, and V is the system volume, then cj = Dimerization reaction: Sm + Sm -  something.
+kj kj kj
+
+kj . V
+
+9
+
+Here, the propensity function may be written as aj ( x ) = cj xm (t)(xm (t) - 1) , 2
+
+and the following relationship exists between the stochastic and deterministic rate constants: cj = 2kj . V
+
+2.3
+
+Chemical Master Equation
+
+If we consider a homogeneous biochemical system with fixed volume and temperature [46], at each point in time, the state of the system is X (t) given by (2.2.1). Here X (t) is a Markov process [18, 38, 11], we will show that the stochastic process X (t) is modelled using a system of ordinary differential equations (ODEs), called the Chemical Master Equation (CME) [19, 23]. Let us consider X (t0 ) = x0 to be the initial conditions, which are assumed known. To describe the dynamics of the system, we determine P (x, t|x0 , t0 ) the probability of the system to be in state x at time t, given that X (t0 ) = x0 . For simplicity, we denote this probability by P (x, t). We wish to find P (x, t + dt) for an infinitesimally small time dt and any system state x. In other words, here the system jumps from X (t) to X (t + dt) = x. We have two options to be in the latter state: either the system was already in state x at time t and no reaction took place during [t, t + dt) or, for some 1  j  M the system was in state (x - j ) at time t and the j th reaction happened during [t, t + dt) resulting in the system being in state x at t + dt. In order to account for all such events, we have to use a result from the probability theory, called the law of total probability. 10
+
+Let us assume A to be the event of interest and suppose that the events H0 , H1 , H2 , ..., HM , HM +1 are such that: a) no more than one can happen. b) at least one event must occur. Using the law of total probability, we obtain,
+M +1
+
+P (A) =
+j =0
+
+P (A|Hj )P (Hj ).
+
+(2.3.1)
+
+where P (A|Hj ) is being the probability of getting A given that Hj happens. Here A is the event which describes the system in the state x at time t + dt. Let us assume that H0 is the event that the system is in state x at time t, and Hj for 1  j  M to describe the event that the system is in state x - j at time t. Assume that HM +1 is the event that the system is in any other state at time t. Note that, for 1  j  M, P (A|Hj ) represents the probability of the reaction Rj happening during [t, t + dt). Now, using the definition of propensity function, we get P (A|Hj ) = aj (x - j )dt (2.3.2)
+
+for 1  j  M . We also remark that, P (A|H0 ) represents the probability that no reaction happens during [t, t + dt). The probability of no reaction happening during [t, t + dt) is 1 minus the probability of any event happening in [t, t + dt), hence
+M
+
+P (A|H0 ) = 1 -
+j =1
+
+aj (x)dt
+
+(2.3.3)
+
+11
+
+We note that, P (A|HM +1 ) = 0 (2.3.4)
+
+since HM +1 refers to all the states that are two or more reactions away from x and during [t, t + dt) we assumed that at most one reaction can occur. Now, from equations (2.3.1)- (2.3.4),we get
+M M
+
+P (x, t + dt) = (1 -
+j =1
+
+aj (x)dt)P (x, t) +
+j =1
+
+aj (x - j )dtP (x - j , t)
+
+(2.3.5)
+
+After simplifying the above equation, we obtain, P (x, t + dt) - P (x, t) = dt
+M
+
+(aj (x - j )P (x - j , t) - aj (x)P (x, t))
+j =1
+
+As dt  0, the above equation becomes an ordinary differential equation: dP (x, t) = dt
+M
+
+aj (x - j )P (x - j , t) - aj (x)P (x, t) .
+j =1
+
+(2.3.6)
+
+Equation (2.3.6) is known as the Chemical Master Equation [19]. Recall that the expectation is defined as of a function f (.) of the stochastic process X evaluated at t. E(f (X (t))) 
+x
+
+f (x)P (x, t)
+
+(2.3.7)
+
+Applying the expectation to equation (2.3.6) and using equation (2.3.7), we derive dE(Xi (t)) = dt for j = 1, ..., M . Suppose that all the reactions are at most of first order, then the propensity
+M
+
+vij E(aj (X (t))),
+j =1
+
+12
+
+functions will be linear functions of the state variables or constants and thus E aj (X (t)) = aj E(X (t)) .
+
+If there are some bi-molecular reactions, we may obtain E aj (X (t)) = aj E(X (t)) .
+
+If all the reactions are of at most first order, then we derive d E(X (t)) = dt
+M
+
+j aj (E(X ))
+j =1
+
+(2.3.8)
+
+If Y (t) = E(X (t)), then equation (2.3.8) is the Reaction Rate Equation (RRE) in the average trajectory, Y (t). The reaction rate equation is a set of N coupled first-order ODEs. This model was traditionally employed for studying chemical kinetics, where molecular populations of all species are in large molecules.
+
+2.4
+
+Tau-Leaping Method:
+
+In 2001, Gillespie proposed the tau-leaping method [21]. This method may significantly reduce the computational cost of Gillespie algorithm without loss of accuracy. In this strategy the step size  is previously chosen. (with applying Leap Condition). Moreover, it is an approximate method. The tau-leap scheme may be applied when the following leap condition is obeyed:  > 0 is small enough such that aj (X (s)) aj (X (t)) for any 1  j  M and any
+t+ t
+
+t  s  t +  . The number of events that happens in [t, t +  ) is Pj (
+
+aj (X (s)ds))
+
+Pj (aj (X (t)). ), where Pj is a Poisson distribution. We assumed that the leap condition applies. Provided that X (t) = x, the number of reaction Rj that fire during the interval [t, t +  ] has a Poisson distribution with parameter aj (X (t)) . Using the leap 13
+
+condition, we can write the basic tau-leaping method as
+M
+
+X (t +  ) = x +
+j =1
+
+Pj (aj (x) )j
+
+(2.4.1)
+
+if X (t) = x.
+
+2.5
+
+Chemical Langevin Equation
+
+Under certain assumptions, the biochemical systems may be described using a simplified stochastic model [20, 25, 26].These assumptions are: (1). The step size  is small enough such that each propensity function aj (X (t)) changes insignificantly over [t, t +  ). (2).  is large enough such that the product aj (X (t)). is much larger than 1 for any 1  j  M . Derivation of the Chemical Langevin Equation (CLE): Since aj (X (t)). >> 1, then we can approximate the Poisson random variable Pj (aj (X (t). ) with a normal random variable Nj (aj (X (t)) ), aj (X (t)) ) with the same mean and variance, namely aj (X (t)) , in the tau-leaping method. Thus Pj (aj (X (t) ))  aj (X (t)) + and substituting in (2.4.1) we obtain
+M
+
+aj (X (t)) Zj ,
+
+X (t +  ) = X (t) + 
+j =1
+
+j (aj (X (t)) +
+
+
+
+M
+
+
+j =1
+
+j
+
+aj (X (t)Zj
+
+(2.5.1)
+
+where Zj are independent normal distributions with mean 0 and variance 1. Here, the entries of the state vector are real numbers, since the amount of molecular species 14
+
+are computed using real-valued normal random variables rather than integer valued Poisson random variables. Equation (2.5.1) represents the Euler-Maruyama method for a stochastic differential equation (SDE). Taking,   dt an infinitesimal step, in the limit, we obtain, the following stochastic differential equation,
+M M
+
+dX (t) =
+j =1
+
+j (aj (X (t)))dt +
+j =1
+
+j
+
+aj (X (t)dWj (t)
+
+(2.5.2)
+
+where Wj (t) are independent scalar Wiener processes for 1  j  M . The stochastic differential equation (2.5.2) is known as the Chemical Langevin Equation(CLE) [20]. This model is used when conditions (1) and (2) above simultaneously apply. These two conditions can be applied if all the molecular populations for all species are sufficiently large. We remind the reader that a Weiner process is a stochastic process W : [0, 1] such that 1. W (0) = 0 with probability one. 2. for any 0  s  t, W (t) - W (s) is normally distributed with mean 0 and variance (t - s). 3. for any 0  u  v  s  t, W (t) - W (s) and W (v ) - W (u) are independent random variables. Note that the Chemical Langevin Equation is an N-dimensional SDE and it may be derived by reducing the CME in the regime of large population numbers.
+
+15
+
+2.6
+
+Reaction Rate Equation
+
+The law of mass action governs the reaction rates in biochemistry, in other words it is the fundamental empirical law and it states that, for a reaction in a well-mixed and free medium, the reaction rate is proportional to the concentrations of the individual reactants involved. This law leads to the deterministic model of biochemical system known as the Reaction Rate Equations (RRE). Thermodynamic limit: This is defined as the state at which the molecular amount of each species and the volume V of the system approach infinity such that
+Xi V
+
+is
+
+bounded for any 1  i  N . In this limit, the size of the stochastic term in equation (2.5.2) is much smaller compared to the size of the deterministic term, thus it may be ignored. Therefore, the CLE (2.5.2) may be simplified to the reaction rate equation: dX (t) = dt
+M
+
+j (aj (X (t))).
+j =1
+
+(2.6.1)
+
+Equation (2.6.1) is valid when the molecular amounts of all species are very large.
+
+2.6.1
+
+Derivation of Reaction Rate Equation:
+
+Indeed, if the molecular population is very large, the stochastic part of Chemical Langevin Equation (CLE) can be neglected and the new equation is an ordinary differential equation, called the reaction rate equation [27]. In order to get the reaction
+
+16
+
+rate equation, let us take the expectation in equation (2.5.2), and we get
+M M
+
+E(dX (t)) = E(
+j =1 M
+
+j (aj (X (t))))dt + E
+j =1 M
+
+j
+
+aj (X (t))dWj (t)
+
+E(dX (t)) =
+j =1 M
+
+E(j (aj (X (t))))dt +
+j =1
+
+j E
+
+aj (X (t))dWj (t)
+
+E(dX (t)) =
+j =1
+
+j E((aj (X (t))))dt
+
+Dividing both sides by dt, we get, d E(X ) = dt
+M
+
+j E((aj (X (t)))).
+j =1
+
+For a first order reaction with a propensity function of the form aj (x) = cj Xm or aj (x) = cj we have, then E(aj (x)) = aj (E(x)). However, for a second order reaction
+m -1) with a propensity function either aj (x) = cj xm xn for m = n or aj (x) = cj xm (x2
+
+for m = n, in general E(aj (x)) = aj (E(x)). Consequently, for biochemical systems with reactions of order zero or one, the behavior of the average trajectory of the CME satisfies the RRE: dX (t) = dt
+M
+
+j (aj (X (t)))
+j =1
+
+(2.6.2)
+
+In conclusion, equation (2.6.2) representing the RRE, can be derived from Chemical Langevin Equation or from the Chemical Master Equation when all the reactions are first or zero order.
+
+2.7
+
+Stochastic Simulation Algorithm
+
+The Chemical Master Equation is a system of ordinary differential equations of very large dimension. It has one equation in P (x, t) for each possible state of the system, x. Due to its very large dimension, it can not be solved directly, in general, by analytical or numerical methods [27]. However, there exist Monte Carlo simulation methods for
+
+17
+
+generating trajectories in exact agreement with the solution of the Chemical Master Equation. The Stochastic Simulation Algorithm (SSA) is one such method and it was proposed by Gillespie[16, 17]. The SSA is based on the idea of generating trajectories of X (t) obeying a certain probability P (, j |x, t). Here, P (, j |x, t), is the probability that, provided that
+
+X (t) = x, the next reaction will be fired in the infinitesimal time interval [t + , t +  + d ) where d is an infinitesimal time and this reaction will be Rj . We so obtain later that, in fact, P (, j |x, t) is the joint probability density function of two random variables which are as follows:  = time to the new reaction and j= index of the new reaction. Assume that P0 ( |x, t) is the probability of no reaction firing in the time interval [t, t +  ), given that X (t) = x. From the laws of probability, we can write, P (, j |x, t)= probability of no reaction in [t, t +  )× probability of reaction Rj in [t + , t +  + d ). Thus P (, j |x, t)d = P0 ( |x, t)aj (x)d. (2.7.1)
+
+Now we compute the conditional probability P0 ( |x, t). The probability P0 ( |x, t) equals the probability of no reaction during [t, t +  + d ), or, equivalently, the probability of no reaction during [t, t +  ) and the probability of no reaction over [t + , t +  + d ). However, the probability of no reaction over the infinitesimal time interval [t + , t +  + d ) is 1 minus sum of probabilities of each reaction Rj occurring in [t + , t +  + d ), 1  j  M , which is
+M
+
+1-
+j =1
+
+aj (x)d
+
+To summarize,
+M
+
+P0 ( + d |x, t) = P0 ( |x, t) 1 -
+j =1
+
+aj (x)d
+
+18
+
+After doing some algebraic simplifications on the latter equation with the limit d  0, we obtain an ordinary differential equations of the form, dP ( |x, t) =- aj (x) d j =1 with the initial condition P (0|x, t) = 1. Solving this equation leads to : P0 ( |x, t) = e(-a0 (x) ) , where a0 (x) =
+j =1 M
+
+M
+
+aj (x).
+
+Substituting this into equation (2.7.1) ,we get P (, j |x, t) = aj (x)e(-a0 (x) ) We can re-write this equation as P (, j |x, t) = aj (x) . a0 (x)e(-a0 (x) ) a0 (x) (2.7.2)
+
+Equation (2.7.2) is the mathematical foundation for the SSA procedure [12]. Indeed, (2.7.2) says that the joint density function of time to the next reaction,  , and the index of the next reaction, j can be expressed as the product of the  density function, which is a0 (x)exp(-a0 (x) ), and the j - density function which is aj (x)/a0 (x). Consequently, we can generate random samples from the above density functions by using the inversion method of the Monte-Carlo theory [15]. If r1 and r2 are random numbers from the uniform distribution in the unit time interval, then  may be computed as = 1 1 ln a0 (x) r1 (2.7.3)
+
+19
+
+while j may be calculated as the smallest integer 1  j  M such that
+j -1 j
+
+aj (x)  r2 a0 (x) <
+j =1 j =1
+
+aj ( x )
+
+(2.7.4)
+
+To justify the computation of the index j to the next reaction in the SSA, we give below some theoretical results. These results explain the choice in equation (2.7.4). Proposition 2.7.1. [45] If Xi = Exp(ai ), i = 1, 2, ..., M are independent random variables distributed exponentially with parameters ai , then the minimum of them is exponentially distributed with parameter a0 as follows,
+M
+
+X0  mini {Xi }  Exp(a0 ), where a0 =
+i=1
+
+ai .
+
+Proof. Note that for an exponential distribution X with parameters a , X  Exp(a) we have P (X >  ) = e-(a ) for  real scalar. Now, consider P (X0 >  ) = P mini=1,...,M {Xi } >  = P
+M
+
+X1 >  P Xi > 
+
+X2 > 
+
+...
+
+XM > 
+
+=
+i=1 M
+
+=
+i=1
+
+e-(ai  )
+M i=1
+
+= e-x
+
+ai
+
+= e-(a0  ) .
+
+20
+
+As a consequence, we derived that, P (X0   ) = 1 - e-(a0  ) and hence X0  Exp(a0 ), is an exponential distribution with parameter a0 =
+M i=1
+
+ai .
+
+Lemma 2.7.1. [45] Suppose that X  Exp(a) and Y  Exp(b) are independent random variables exponentially distributed with parameters a and b. Then the following is true, P (X < Y ) = Proof. We can write the following derivation
+
+
+a . a+b
+
+P (X < Y ) =
+0 
+
+P (X < Y |Y = y )f (y )dy P (X < y )f (y )dy
+0 
+
+= =
+0
+
+(1 - e-ay ) b e-by dy
+
+. Therefore, P (X < Y ) = a . a+b
+
+Proposition 2.7.2. [45] Assume Xj  Exp(aj ), j = 1, 2, ..., M are independent random variables exponentially distributed each with parameter ai , and let i be the index of the smallest of the Xj . Then i is a discrete random variable with probability
+
+21
+
+mass function aj j = , where a0 = a0 Proof. Note that, i = P Xi < minj =i {Xj } = P (Xi < Y ) Here we denoted Y = minj =i {Xj }, so that Y  Exp(a-i ) and a-i =
+j =i M
+
+aj .
+j =1
+
+aj i = ai ai + a-i
+
+Then finally using lemma (2.7.1), i = ai a0
+
+This leads to the SSA [17] as follows: 1 Take t = t0 and x = x0 as initial time and state of the system respectively. 2 Calculate aj (x) and a0 (x) at time t and state x. 3 Find values for  and j using equations(2.7.3) and (2.7.4) 4 Update the system by replacing t  t +  and x  x + j . 5 Save (x, t) as desired and repeat it by going to step 2 or, otherwise, end the simulation. We note that the SSA is slow for some biochemical systems involving some fast reactions but easy to implement. The reason for its inefficiency on many systems 22
+
+arising in applications is due to the factor 1/a0 (x) in equation (2.7.3). This factor becomes very small if the population of the reactant species is large. Another cause of the high computational cost of the SSA is due to searching for the index j of the first reaction and updating all the propensities functions after each time step, in case the biochemical system has many reactions (M large). Gibson and Bruck [15], in 2000, proposed the Next Reaction Method which is an improvement interms of efficiency over the Gillespie algorithm [17]. The Next Reaction Method reduces the computational cost of computing exact trajectories for the CME by updating only the parts of the system changed by a reaction and by storing them in a special structure. At each time-step, Gillespie's First Reaction Method [16, 17] consists of generating all the possible time at which each reaction Rk fires, namely k for each Rk , and then choosing j such that j = mink=1,...,M k . The system is thus updated as x  x + j and t  j . The three time consuming steps (which occur during every iteration of Gillespies First Reaction Method) are proportional to the number of reactions Rj : 1. updating of all reactions associated with propensity functions aj 2. generating a possible time, k for the next reaction Rk and 3. identifying the smallest possible time, j = mink=1,...,M k The Next Reaction Method [15] discards each of these steps and uses new ideas which are as follows: 1. Store not only al but also l , 2. Recalculate al with l only if they are changed by the reaction that occurred ( use a dependency graph, which allows to update the minimum number of propensities al ) 3. Re-use l wherever appropriate. 23
+
+Further, the algorithm of the Next Reaction Method proceeds as follows: 1 Initialize the initial number of molecules X = X0 at time t = 0. 2 Find the propensity function,aj (X ) for each reaction Rj . 3 Generate M independent, uniform(0,1) random numbers rj . 4 Find j ,j =
+1 ln r1j ., aj
+
+for each reaction Rj , j = 1, ..., M .
+
+5 Compute t = minj {j } and suppose k be the time where the minimum is realized. 6 The molecular amount of each species is updated according to reaction Rk . 7 Update all the propensity functions affected by the occurrence of reaction Rk , let them be aj . 8 Set all j =
+aj ( aj j
+
+- t) + t for each j = k .
+1 ln 1 ak r
+
+9 If r is uniform random number in (0,1), then set k = 10 Set aj = aj for each j . 11 Go to step 5 or else end the simulation.
+
++ t.
+
+24
+
+Chapter 3 Stochastic Methods for Well-stirred Biochemical Systems
+3.1 The Tau leaping Method for the Chemical Master Equation
+In 2001, Gillespie proposed the tau-leap method [21] to achieve significant speed-up of the computation without significant loss in accuracy. Gillespie's algorithm is slow when the system is subject to very fast reactions, as it simulates all reactions in the system, one at a time. By contrast, the tau-leaping method [3, 10] collects details of how many reactions of each type occur in a certain time interval. If the time interval is large enough for many reactions to happen, that leads to noticeable gain in the computational time. On the other hand, in order to maintain accuracy, an appropriate length of the time interval,  , has to be chosen, which should be small enough so that the change in each propensity function is negligible. This is called the leap condition. The leap condition: It requires that the size of  is chosen such that the relative changes induced in the propensity functions during  are small. In other words, for 25
+
+the current state x, it requires  to be small enough that the change in the state during [t, t +  ) will be so small that no propensity function will suffer an appreciable change in its value. Tau-leaping proceeds with a pre-selected time  , during which many reactions fire. If  is chosen sufficiently small to satisfy the leap condition and X (t) = x (which makes propensity function almost constant), then each reaction Rj happens nearly Pj (aj (X (t)) ) times in [t, t +  ), where Pj (aj (X (t)) ) is a Poisson distribution of mean and variance aj (X (t)) . The exact formula is
+M t+
+
+X (t +  ) = x +
+j =1
+
+vj Pj
+t
+
+aj (X (s))ds
+
+but due to the leap condition,
+t+
+
+Pj
+t
+
+aj (X (s))ds
+
+Pj (aj (X (t)),  ).
+
+Therefore, we can write the following approximate formula
+M
+
+X (t +  ) = x +
+j =1
+
+vj Pj (aj (X (t)),  ).
+
+(3.1.1)
+
+For this algorithm M Poisson random numbers need to be generated for every leap. Formula (3.1.1) is called the tau-leaping method. It is more efficient than SSA when many reactions are fired during a leap. If   0, the tau-leaping schemes becomes the SSA. Then it becomes very inefficient as most random numbers in equation (3.1.1) will be zero. The tau-leaping method is an approximate Monte Carlo strategy for simulating the solution of the CME. The scheme (3.1.1) is known also as the explicit tau-leaping method and it is appropriate for simulating stochastic models of non-stiff biochemical systems. Stiffness arises in biochemical systems when both fast and slow reactions are present, the fastest dynamics being stable. Stiffness presents challenges for solving
+
+26
+
+deterministic models of biochemical systems and these challenges are more significant when stochastic models are solved. In the deterministic setting, implicit strategies are more efficient for solving numerically stiff problems than the explicit technique. This is also true when dealing with stiff stochastic models of biochemical systems. For these, the so-called implicit tau-leaping method was proposed Rathinam et al.[36]. In fact, in the implicit tau-leaping scheme only the deterministic term is implicit, the stochastic term of mean zero is in an explicit form. The implicit tau-leaping scheme outperforms in terms of efficiency the explicit tau-leaping strategy and the SSA for stiff biochemical systems. Explicit tau-leaping method : As discussed before, if  satisfies the leap condition then the explicit tau-leap method is given by,
+M
+
+X (t +  ) = x +
+j =1
+
+Pj (aj (X (t)),  )j
+
+where X (t) = x. Here Pj (aj (X (t)),  ) are independent Poisson random variables with means and variances (aj (X (t)) ). For stability, the explicit tau-leaping method requires a small step size when fast reactions are present.
+
+Algorithm of Explicit tau-leaping method : 1 Select  satisfying the leap condition and an initial state of x  x0 at time t  t0 . 2 Generate the number of firings kj of channel Rj in [t, t +  ) as kj = P (aj (x) ) with (j = 1, ..., M ). 3 Update t  t +  and x  x +
+M j =1
+
+kj j .
+
+27
+
+4 Record (x, t). Then return to step (1) or else end the simulation. Here, if the generated value of kj are noticeably large, the explicit tau-leaping method will be faster than the SSA. Implicit tau-leaping method : Recall that when solving numerically an ordinary differential equation (ODE) of the form dX = f (X, t) dt We can apply explicit Euler method [22] X (t + t) = X (t) + f (X (t), t)t. When the ODE (3.1.2) is stiff, the implicit Euler method is preferred, as it is unconditionally stable. This method may be written as X (t + t) = X (t) + f (X (t + t), t + t)t. To compute X (t + t an implicit equation needs to be solved. To solve the implicit equation in X (t + t), we can use the Newton iteration method or something similar may be applied to the tau-leaping method. The implicit tau-leaping scheme can be written as
+M
+
+(3.1.2)
+
+X (t +  ) = x +
+j =1
+
+[Pj (aj (X (t)),  ) - aj (X (t)) + (aj (X (t +  )) ]j
+
+where X (t) = x. Here, the mean of the Poisson random variable Pj (aj (X (t)),  ) is subtracted and changed to be the value at time (t +  ). The explicit tau-leaping method may be
+
+28
+
+written in the form:
+M M
+
+X (t +  ) = X (t) +
+j =1
+
+j aj X (t) +
+j =1
+
+j [Pj (aj (X (t)),  ) - aj (X (t)) ]
+
+where
+
+M j =1
+
+j aj X (t) is the deterministic part and
+
+M j =1
+
+j [Pj (aj (X (t)),  )-aj (X (t)) ]
+
+is the stochastic part of mean zero. Now, we can make the method implicit in the deterministic part as below:
+M M
+
+X (t +  ) = X (t) +
+j =1
+
+j [Pj (aj X (t),  ) - aj (X (t)) ] +
+j =1
+
+j aj (X (t +  ) ). (3.1.3)
+
+Equation (3.1.3) can be solved numerically to estimate X (t +  ) by using Newton's method with the initial guess X (t). The implicit tau-leaping scheme is noticeably faster than explicit tau-leaping method on stiff systems as it allows larger step sizes. The former method is unconditionally stable where the latter is conditionally stable.
+
+3.2
+
+Midpoint Tau-leaping Method for Chemical Master Equation
+
+In 2000, Gillespie introduced the mid-point tau-leaping method [21] to get higher accuracy of the numerical simulation. When solving numerically an ordinary differential equation of the form dX = f (X (t)) dt by the explicit or implicit Euler's method, then the accuracy of the numerical solution is O(t). In order to use this technique along with the tau-leaping method, we first create the increment,
+M
+
+ =
+j =1
+
+(aj (x) )j , 29
+
+on the interval [t, t +  ), where X (t) = x. The midpoint is x =x+[  ] 2
+
+. Using this predicted midpoint, the state at the end of the interval is
+M
+
+X (t +  ) = x +
+j =1
+
+Pj (aj (x ),  )j
+
+This formula is known as the midpoint tau-leaping method [21]. Midpoint Tau-leaping Algorithm : 1 Initiate the system state x  x0 at t  t0 and set rate parameters. 2 Select the  which satisfies the leap condition. 3 Compute the expected state change  =
+j
+
+aj (x)j
+
+during [t, t +  ]. 4 Using x = x + [  ], generate for each j = 1...M a sample value kj of the Poisson 2 random variable Pj (aj (x ) ). 5 Update t  t +  and x  x +
+M j =1
+
+k j j .
+
+6 Record (x, t). If t < T return to step [2] or else end the simulation.
+
+3.3
+
+Trapezoidal Tau-Leaping Formula
+
+In 1998, Ascher and Petzold schemed the trapezoidal rule to be A-stable [7]. In this section we discuss the extension of the trapezoidal method for ODEs to the tau-leaping 30
+
+scheme by Cao and Petzold [9]. Though it is of first order for the variance, it is of second order for the mean. Unlike the implicit tau-leaping scheme it is free from the damping effect. The trapezoidal rule has a higher convergence order that the explicit and implicit Euler method for ODEs. Let us consider an ordinary differential equation of the form dX = f (X, t). dt Then, the trapezoidal method to solve the above equation is given by, 1 X (t + t) = X (t) + t(f (X (t) + f (X (t + t)) 2 The trapezoidal tau-leaping formula [9] is   j [P (aj (x),  ) - aj (x) + aj (X tr (t +  ))], 2 2 j =1
+M
+
+X
+
+(tr)
+
+(t +  ) = x +
+
+(3.3.1)
+
+where X (t) = x. We note that (3.3.1) is an implicit strategy in X (t +  ). To solve it, we may apply the iterative Newton's method with the initial guess taken to be X (t). Trapezoidal Tau-leaping Algorithm: 1 Initialize t  t0 and the system state x  x0 . 2 Calculate the propensity function,aj (x) for j = 1, 2, 3, ..., M . 3 Generate M independent random numbers, kj from P (aj (x) ) with j = 1, 2, 3, ..., M . 4 Solve (3.3.1) for X (tr) by Newton's Method. 5 Update the system state and time by step (4) and t +  , respectively. 6 If t < T return to step (2) or else end the simulation.
+
+31
+
+Chapter 4 Analysis of Tau-Leaping Method
+Tau-leaping method uses a piece-wise Poisson approximation with propensity function assumption aj (x) + o( ) as   0 and for such a small value of  , the behavior of both explicit and implicit-tau leaping is obvious as suggested by Stochastic Simulation Algorithm. Here, a quantitative estimate of error analysis as a function of stepsize  is done to develop idea of automatic stepsize selection and to gather information for future study of higher-order accurate tau-leaping methods. Let us suppose X (e) = x is the state at time t and for time step t +  where  > 0 is the state can be written as
+M
+
+X (t +  ) = x +
+j =1
+
+(e)
+
+j Kj (x,  )
+
+(e)
+
+Here, superscript "e" stands for explicit tau-leaping method. Where Kj (x,  ) = Pj (aj (x),  ) for j = 1, ..., M are independent Poisson random variables with mean and variance aj (x) . Suppose that X (i) (t) = x is the state at time t, the state at time t +  using the
+
+(e)
+
+32
+
+implicit tau (unrounded version) method is given by
+M M
+
+X (t +  ) = x +
+j =1
+
+(i)
+
+j aj (X (t +  )) +
+j =1
+
+( i)
+
+j (Pj (aj (x) ) - aj (x) )
+
+where superscript "i" is for implicit-tau leaping method. Now we are going to see the local error using the local expansion of Taylor series in  . Below we follow the analysis by Rathinam et al.[37].
+
+4.1
+
+Local Error Analysis
+
+Here we derive recursive integral forms for the solution of Chemical Master Equations with local Taylor expansions of those integrals. This is the base to find the errors generated by the tau-leaping methods [4]. Let us suppose the multi-index k = (k1 , ..., kl ), where kj  {1, ..., M }, represents a sequence of reaction events Rkj firing in this order. Again, suppose |k | = l is the number of reactions and p(k ; x,  ) represents the probability that the sequence of reactions that happened in the interval (t, t +  ] is exactly k given that X (t) = x. Then p(; x,  ) = e-a0 (x) where  means no reactions occurred. Let us consider the increment in the moments be X (t +  ) - X (t) given that X (t) = x. The conditional expectation may be written as E(X (t +  ) - X (t)|X (t) = x) =
+l=1 k,|k|=l  l
+
+p(k ; x,  )
+=1
+
+k
+
+(4.1.1)
+
+while the order r conditional moment is
+ l r
+
+E((X (t +  ) - X (t)) |X (t) = x) =
+l=1 k,|k|=l
+
+r
+
+p(k ; x,  )
+=1
+
+k
+
+(4.1.2)
+
+33
+
+For any state x and multi-index k , p(k ; x,  ) is an analytic function of  . The components of E((X (t +  ) - X (t))r |X (t) = x) all analytic function of  on a neighbourhood of O. In order to compute the above moments up to terms including of order 2 in  , by assuming the moments exist, we have to add terms with l = 1 and l = 2 in equations (4.1.1) and (4.1.2) and then derive
+M
+
+E(X (t +  ) - X (t)|X (t) = x) =
+j =1 M
+
+j p((j ); x,  )
+M
+
++
+
+(j1 + j2 )p((j1 , j2 ); x,  ) + O( 3 )
+j1 =1 j2 =1
+
+It can be shown that
+
+
+p((k1 , k2 , ..., kl ); x,  ) =
+0
+
+p((k1 , k2 , ..., kl-1 ); x, s)×akl (x+j1 +...jl-1 )e-a0 (x+j1 +...+jl )( -s) ds
+
+By induction, we can show that p(k ; x,  ) = O( |k| ) in the limit as   0. We have,
+
+
+p((j ); x,  ) =
+0
+
+e-a0 (x)s aj (x)e-a0 (x+j )( -s) ds
+
+(4.1.3)
+
+and also
+
+
+p((j1 , j2 ); x,  ) =
+0
+
+p((j1 ); x, s) × aj2 (x + j1 )e-a0 (x+j1 +j2 )( -s) ds
+
+(4.1.4)
+
+for any j, j1 , j2  {1, 2, ..., M }. Then using Taylor series expansion for the equations (4.1.3) and (4.1.4), we get 1 p((j ); x,  ) = aj  -  2 2 j and 1 p((j1 , j2 ); x,  ) =  2 aj1 (x)aj2 (x + j1 ) + O( 3 ). 2 34
+M
+
+aj (x){aj1 (x + j ) + aj1 (x)} + O( 3 )
+
+1 =1
+
+Also, we obtain for the rth order conditional moment
+M
+
+E((X (t +  ) - X (t)) |X (t) = x) =
+j =1 M
+
+r
+
+r j p((j ); x,  ) M
+
++
+
+(j1 + j2 )r p((j1 , j2 ); x,  ) + O( 3 )
+j1 =1 j2 =1
+
+Using the Taylor expansion and simplifying for the mean, we get
+M
+
+E(X (t +  ) - X (t)|X (t) = x) = 
+j =1
+
+j aj (x)
+M M
+
++
+
+1 2  2 j
+3
+
+j1 aj2 (x){aj1 (x + j2 ) - aj1 (x)}
+1 =1 j2 =1
+
++ O( ) Similarly, for the order r moment, we derive
+M
+
+(4.1.5)
+
+E((X (t +  ) - X (t)) |X (t) = x) = 
+j =1
+
+r
+
+r j aj ( x ) M M r j a (x)aj2 (x) 1 j1
+1 =1 j2 =1
+
+-
+
+1 2  2 j
+
+1 2  - 2 j + 1 2  2 j
+3
+
+M
+
+M r j a (x)aj2 (x + j1 ) 1 j1
+
+1 =1 j2 =1
+
+M
+
+M
+
+(j1 + j2 )r aj1 (x)aj2 (x + j1 )
+1 =1 j2 =1
+
++ O ( ) Using the expression, for p((j ); x,  ) and p((j1 , j2 ); x,  ) we can compute the conditional
+
+35
+
+co-variance Cov(X (t +  )|X (t) = x) as Cov(X (t +  )|X (t) = x) = Cov(X (t +  ) - X (t)|X (t) = x) = E((X (t +  ) - X (t))2 |X (t) = x) - (E(X (t +  ) - X (t)|X (t) = x))2
+
+M
+
+= 
+j =1
+
+2 j aj (x) M M 2 j a (x){aj1 (x + j2 ) - aj1 (x)} 1 j2 M M
+
+1 2  + 2 j + 1 2  2 j
+
+1 =1 j2 =1
+
+j1 j2 aj1 (x){aj2 (x + j1 ) - aj2 (x)}
+M M
+
+1 =1 j2 =1
+
+1 2  + 2 j
+
+j1 j2 aj2 (x){aj1 (x + j2 ) - aj1 (x)} (4.1.6)
+
+1 =1 j2 =1
+
++ O ( 3 )
+
+We will find in what follows that the explicit tau-leaping method is weakly consistent to first order in  . Theorem 4.1.1. [37]Order-1 weak consistency of the explicit tau-leaping method Let x be any possible system state and r  1 be any integer, then there exists a constant Mr > 0 and r > 0 such that ||E(X (e) (t +  )) - E(X (e) (t))r |X (e) (t) = x) - E((X (t +  ) - X (t))r |X (t) = x)|| < Mr  2
+
+for any 0   r .
+
+36
+
+Proof. Note that, given X (e) (t) = x, we have for the explicit tau-leap solution E (X (e) (t +  ) - X (e) (t))r |X (e) (t) = x =
+M r
+
+= E
+j =1 M
+
+j Pj (aj (x) )
+r j aj (x) + O( 2 ). (4.1.7) j =1
+
+= 
+
+but for the exact solution we have E (X (t +  ) - X (t))r |X (t) = x =
+M
+
+= 
+j =1
+
+r j aj (x) + O( 2 ).
+
+(4.1.8)
+
+The theorem is proved by combining (4.1.7) and (4.1.8). Since, we know that the explicit method is weakly consistent to first order, now we need to see that the mean and covariance of local error is O( 2 ).
+
+4.2
+
+Local Error Formula for the Mean and Covariance of Explicit Tau-leaping Method
+
+If we use the equation (4.1.5) and the fact that
+M
+
+E(X (e) (t +  ) - X (et) (t)|X (e) (t) = x) = 
+j =1
+
+j aj (x)
+
+37
+
+then, we get the local error in the mean for the explicit tau-leaping method [37] as E(X (e) (t +  ) - X (t +  )|X (e) (t) = X (t) = x) = 1 2  - 2 j
+M M
+
+j1 aj2 (x){aj1 (x + j2 ) - aj1 (x)}
+1 =1 j2 =1
+
++ O( 3 ) Since the Poisson random numbers Pj (aj (x),  ) are independent, we have,
+M
+
+Cov(X (t +  )|X (t) = x) = 
+j =1
+
+(e)
+
+(e)
+
+2 j aj (x).
+
+(4.2.1)
+
+Now using the equations (4.1.6) and (4.2.1), we will get the local error in covariance for explicit tau-leaping method as below ( see also [37]) Cov(X (e) (t +  )|X (e) (t) = x) - Cov(X (t +  )|X (t) = x) = - 1 2  2 j
+M M 2 j a (x){aj1 (x + j2 ) - aj1 (x)} 1 j2
+1 =1 j2 =1
+
+1 2  - 2 j - 1 2  2 j
+3
+
+M
+
+M
+
+j1 j2 aj1 (x){aj2 (x + j1 ) - aj2 (x)}
+1 =1 j2 =1
+
+M
+
+M
+
+j1 j2 aj2 (x){aj1 (x + j2 ) - aj1 (x)}
+1 =1 j2 =1
+
++ O( ). Similar results may be obtained for the implicit tau-leaping method. Theorem 4.2.1. [37] Consistency of rounded implicit tau-leaping method If bounded Poisson random numbers are used then for any polynomial g : RN  R
+
+38
+
+and any possible system state x  ZN + there exist C > 0 and  > 0 such that |E (g (X (ir) (t +  )) - g (X (t +  ))|X (ir) (t) = X (t) = x)| < C 2
+
+for all   [0,  ]. Here, 'ir' denotes rounded implicit of the tau-leaping method. The proof uses the observation that X (0) (t +  ) = X (e) (t +  ) with probability 1, provided that X (0) (t) = X (e) (t) = x, for any   [0,  ]. Theorem 4.2.2. [37] Consistency of unrounded implicit tau-leaping method If bounded Poisson random numbers are used, then for any polynomial g : RN  R and any possible system state x  ZN + there exist C > 0 and  > 0 such that |E (g (X (i) (t +  )) - g (X (t +  ))|X (i) (t) = X (t) = x)| < C 2
+
+for all   [0,  ]. Let us find the formula for the local error of the implicit tau-leaping method using Taylor expansion in  .
+
+39
+
+4.3
+
+Local Error Formula for the Implicit Tau-leaping Method
+
+Using Taylor's formula and writing X (i) (t +  ) = X and the intermediate state Xe where X is a deterministic function of Xe we have:
+M
+
+X
+
+= Xe + 
+j =1
+
+j {aj (Xe ) - aj (x)}
+M
+
++
+
+2 2
+
+M
+
+j1
+j1 =1 j2 =1 3
+
+aj1 (Xe )j2 {aj2 (Xe ) - aj2 (x)} x (4.3.1)
+
++ O ( )
+
+Assuming that bounded Poisson numbers are used, for any function g : RN  R that is Lipschitz continuous on any bounded domain of RN and any possible system state x there exist K > 0 and  > 0 such that |E (g (X (e) (t +  ) - g (x)|X (e) (t) = x)| < K
+
+for all   [0,  ]. This shows that double summation component in equation (4.3.1) can be replaced by O( 3 ). Hence, the equation given below can be used to compare the local error in implicit tau-leaping method to that of explicit tau-leaping scheme:
+M
+
+X (t +  ) = X (t +  ) + 
+j =1
+
+( i)
+
+(e)
+
+j {aj (X (e) (t +  )) - aj (x)} + O( 3 )
+
+Here, we assume X (i) (t) = X (e) = x. In order to calculate the rth moment of X (i) (t +  ), we need to raise the above equation to the power r and take expectation on both sides.
+
+40
+
+Below we present some theorems of weak convergence of the explicit and implicit tau-leaping methods. Theorem 4.3.1. [37] Order-1 weak convergence of explicit tau-leaping method Assuming the propensity functions are linear and x is a possible state, if the explicit tau-leaping method is applied with X (e) (t0 ) = x and the time steps 1 , 2 , ..., n are such that
+n j =1 j
+
+= T ,  = maxj =1,...,n {j }, then for any positive integer r, there
+
+exist constants C > 0 and  > 0 such that ||E((X (e) (t0 + T ))r ) - E((X (t0 + T ))r )|| < C
+
+for all   (0,  ). The proof of this theorem, which is beyond the scope of this thesis, is based on the standard result in numerical analysis stating that consistency and zero-stability imply convergence. Theorem 4.3.2. [37] Order-1 weak convergence of implicit tau-leaping method Assuming the propensity functions are linear and x is a possible state, if the implicit tau-leaping method is applied with X (i) (t0 ) = x and the time steps 1 , 2 , ..., n are such that
+n j =1 j
+
+= T ,  = maxj =1,...,n {j }, then for any positive integer r, there
+
+exist constants C > 0 and  > 0 such that ||E((X (0) (t0 + T ))r ) - E((X (t0 + T ))r )|| < C
+
+for all   (0,  ). Under the assumption that all propensity functions are locally Lipschitz, Li[31] showed that the explicit tau-leaping method has strong order of convergence 1/2 in 41
+
+L2 and weak order of convergence 1. In this case, if the tau-leaping method is applied on a mesh 0 = t0 < t1 < ... < tn = T of the interval [0, T ], then there exists C > 0 such that, for  = max (tl+1 - tl ) we obatin
+0ln-1
+
+sup E |X (e) (tl ) - X (tl )|2
+l n
+
+ C
+
+and |E(g (X (e) (tn ))) - E(g (X (tn )))|  C. This shows that the explicit tau-leaping scheme has strong order of convergence 1/2 and weak order of convergence 1. This is similar with the results for the Euler-Maruyama strategy for SDE.
+
+42
+
+Chapter 5 Numerical Experiments
+In this chapter , we study the behavior of the higher order tau-leaping methods, the midpoint and trapezoidal tau-leaping strategies, compared to the lower order tau-leaping schemes and the exact stochastic simulation algorithm. We test these methods on three models of biochemical systems of practical interest. On each model, we simulate 10,000 trajectories for each method and compare the resulting histograms with the histograms obtained using 10,000 trajectories generated with the exact stochastic simulation algorithm of Gillespie.
+
+5.1
+
+Simple Reaction Channel
+
+Consider first the simple reaction model from having four species and three reaction channels [36]:
+1 S1 -  S3 2 S3 -  S1 3 S1 + S2 -  S1 + S4
+
+c c c
+
+43
+
+The total number of S1 and S3 molecules is constant (denoted by xT ). If we do not consider the by-product S4 , then this model can be expressed as system with two variables, x1 and x2 , where x1 and x2 are the molecular counts of S1 and S2 respectively. The initial conditions and the reaction rate parameters are c1 = 103 c2 = 103 c3 = 0.0005 x1 (0) = 1000 x2 (0) = 100 xT = 2000. The propensity functions for the reactions above are as follows: a1 = c1 x1 a2 = c2 (xT - x1 ) a3 = c3 x1 x2
+
+05 The system is studies on the time interval [0, 0.4 ].
+
+The state change vectors for the reactions R1 , R2 and R3 , respectively are       -1 1 0 v1 =   , v2 =   , v3 =   0 0 -1 We simulated 10000 trajectories for each of the midpoint, trapezoidal, implicit and explicit tau-leaping methods and Gillespie's algorithm and plotted the histograms for these strategies at T = 0.05/4 for each of the species. Figure 5.1 shows the histograms for the species S1 , while figure 5.2 presents the histograms for the species S2 . 44
+
+Sample time-evaluation trajectories for the species S1 and S2 are presented in figures 5.3 and 5.4, respectively. From Figures 5.1 and 5.2, we see that the midpoint and trapezoidal tau-leaping schemes are slightly more accurate for the same size of the leap  than the implicit and explicit tau-leaping techniques. In Figure 5.5, we showed the graphs of the relative global errors of each of the tau-leaping methods at time T = 0.05/4, for the following sequence of step sizes  = 3.125 × 10-7 , 1.563 × 10-7 and 7.81 × 10-8 . The loglog plots are presented. We can clearly see that the errors in the higher order methods are smaller than those for the lower order methods.
+
+45
+
+0.2 0.18 0.16
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+Probability Density
+
+0.14 0.12 0.1 0.08 0.06 0.04 0.02 0 900
+
+920
+
+940
+
+960
+
+980
+
+1000
+
+1020
+
+1040
+
+1060
+
+1080
+
+1100
+
+Number of Molecules (Species 1)
+Figure 5.1: Simple reaction channel: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.05/4.
+
+46
+
+0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 90
+
+95
+
+100
+
+105
+
+Number of Molecules (Species 2)
+Figure 5.2: Simple reaction channel: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.05/4.
+
+47
+
+1060
+
+1040
+
+1020
+
+Species 1
+
+1000
+
+980
+
+960
+
+940
+
+920 0 0.005 0.01 0.015 0.02 0.025 0.03 0.035 0.04 0.045 0.05
+
+t
+
+Figure 5.3: Simple reaction channel: A sample trajectory of number of molecules of species S1 as function of time.
+
+100 99.5 99 98.5
+
+Species 2
+
+98 97.5 97 96.5 96 95.5 95 0 0.005 0.01 0.015 0.02 0.025 0.03 0.035 0.04 0.045 0.05
+
+t
+
+Figure 5.4: Simple reaction channel: A sample trajectory of number of molecules of species S2 as function of time.
+
+48
+
+10-3 5.5
+Implicit Explicit Trapezoid Midtau
+
+5
+
+Relative Error
+
+4.5
+
+4
+
+3.5 10-7 10-6 10-5
+
+Step size(h)
+Figure 5.5: Simple reaction channel: Log log plot of the relative global error at time T = 0.05/4 as function of step size  , for all the tau-leaping methods.
+
+49
+
+5.2
+
+Decay-dimerization Reaction Channel
+
+The second model considered in this thesis is the Decay-dimerization reaction system [36]. The system involves three species and four reactions:
+1 S1 -  0 2 S1 + S1 -  S2 3 S2 -  S1 + S1 4 S2 -  S3
+
+c
+
+c
+
+c c
+
+The model is subjected to the following initial conditions: x1 (0) = 400 x2 (0) = 798 x3 (0) = 0.
+
+It has the following parameter values c1 = 1, c2 = 10, c3 = 1000 and c4 = 0.1. To the reaction channels above correspond the following propensities a1 = x 1 a2 = 5x1 (x1 - 1) a3 = 1000x2 a4 = 0.1x2
+
+.2 ]. This model is integrated on the time interval [0, 04
+
+50
+
+The state change vectors are         -2 -1 2 0 v1 =   , v2 =   , v3 =   , v4 =  . 1 0 -1 -1 As with the previous system, the decay-dimerization model is simulated using 10,000 trajectories using the midpoint, trapezoidal, implicit and explicit tau-leaping methods with the same value of the step-size  and with 10,000 trajectories generated with the SSA. The histograms at T = 0.02/4 obtained using each of these methods for the species S1 and S2 are given in figure 5.6 and figure 5.7, respectively. It is worth noting that this model is stiff, having both fast and slow reactions. The trapezoidal tau-leaping method is the most accurate on this model. The midpoint tau-leaping scheme is slightly less accurate on this stiff problem. The evaluations in time of the molecular counts for species S1 and S2 on a sample SSA are plotted in Figures 5.8 and 5.9, respectively. In addition, the loglog plot of the relative error of each tau-leaping method at T = 0.02/4 compared to the reference SSA solution, as a function of the step size  is shown in Figure 5.10. This Figure confirms that higher order tau-leaping methods are more accurate than lower order ones.
+
+51
+
+0.25
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.2
+
+Probability Density
+
+0.15
+
+0.1
+
+0.05
+
+0 300
+
+350
+
+400
+
+450
+
+Number of Molecules (Species 1)
+Figure 5.6: Decay dimerization reaction: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.02/4.
+
+52
+
+0.4 0.35 0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+Probability Density
+
+0.25 0.2 0.15 0.1 0.05 0 680
+
+690
+
+700
+
+710
+
+720
+
+730
+
+740
+
+750
+
+760
+
+770
+
+780
+
+Number of Molecules (Species 2)
+Figure 5.7: Decay dimerization reaction: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 0.02/4.
+
+53
+
+480 460 440 420
+
+Species 1
+
+400 380 360 340 320 300 280 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1
+
+t
+
+Figure 5.8: Decay dimerization reaction: A sample trajectory of number of molecules of species S1 as function of time.
+
+850
+
+800
+
+750
+
+Species 2
+
+700
+
+650
+
+600
+
+550
+
+500 0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1
+
+t
+
+Figure 5.9: Decay dimerization reaction: A sample trajectory of number of molecules of species S2 as function of time.
+
+54
+
+0.075 0.07 0.065
+Implicit Explicit Trapezoid Midtau
+
+Relative Error
+
+0.06
+
+0.055
+
+0.05
+
+0.045 2 2.5 3 3.5 4 4.5 5 5.5 6 10-6
+
+Step size(h)
+Figure 5.10: Decay dimerization reaction: Log log plot of the relative global error at time T = 0.02/4 as function of step size  , for all the tau-leaping methods.
+
+5.3
+
+Potassium Channel
+
+The final model we analyze is the Potassium channel (A K + channel)system. It consists of three closed states (S1 , S2 , S3 ), one open state (S4 ) and one activation state (S5 ), the there are N = 5 chemical species (S1 , S2 , S3 , S4 , S5 ) reacting through 10 reactions as mentioned below [33], 55
+
+1 S1 -  S2 2 S2 -  S1 3 S2 -  S3 4 S3 -  S2 5 S3 -  S4 6 S4 -  S3 7 S4 -  S5 8 S5 -  S4 9 S5 -  S3 10 S3 -  S5 .
+
+c
+
+c c c c c c c c
+
+c
+
+The propensity functions of the reactions above are, respectively, a1 (x) = c1 x1 a2 (x) = c2 x2 a3 (x) = c3 x2 a4 (x) = c4 x3 a5 (x) = c5 x3 a6 (x) = c6 x4 a7 (x) = c7 x4 a8 (x) = c8 x5 a9 (x) = c9 x5 a10 (x) = c10 x3 . The molecular amount of the Si species is denoted by xi . The stoichiometric matrix of the Potassium channel model may be written as
+
+56
+
+  -1 1 0 0 0 0 0 0 0 0      1 -1 -1 1  0 0 0 0 0 0     V = 0  0 1 - 1 - 1 1 0 0 1 - 1     0 0 0 0 1 -1 -1 1 0 0   0 0 0 0 0 0 1 -1 -1 1 . The initial conditions are set to X (0) = [100, 50, 100, 50, 100]T , while the values of the reaction rate parameters are given by
+
+c(1) = 0.1 c(2) = 0.1 c(3) = 0.1 c(4) = 0.1 c(5) = 0.1 c(6) = 0.1 c(7) = 0.1 c(8) = 0.1 c(9) = 0.1 c(10) = 0.1 . This relatively large size system is integrated on the time interval [0, 5]. A sample size of 10,000 trajectories are simulated with the tau-leaping methods considered in this thesis, using the same leap size  and the results are compared to those generated employing 10,000 trajectories of the exact SSA. The histograms at T = 5 of each of the species S1 , S2 , S3 , S4 and S5 are given in Figures 5.11, 5.12, 5.13, 57
+
+5.14 and 5.15., respectively. All tau-leaping methods are accurate on this model with the step-size used, the midpoint and trapezoidal tau-leaping techniques are slightly more accurate than the lower order implicit and explicit tau-leaping schemes, as expected. As with the previous models, for this larger model the higher order tau-leaping algorithms have higher order of accuracy as tested numerically.
+
+0.35
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.3
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 60
+
+65
+
+70
+
+75
+
+80
+
+85
+
+90
+
+95
+
+100
+
+105
+
+110
+
+Number of Molecules (Species 1)
+Figure 5.11: Potassium channel: Histograms of species S1 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5.
+
+58
+
+0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+Number of Molecules (Species 2)
+Figure 5.12: Potassium channel: Histograms of species S2 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5.
+
+59
+
+0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of Molecules (Species 3)
+Figure 5.13: Potassium channel: Histograms of species S3 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5.
+
+60
+
+0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 40
+
+50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+Number of Molecules (Species 4)
+Figure 5.14: Potassium channel: Histograms of species S4 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5.
+
+61
+
+0.3
+SSA EXPLICIT IMPLICIT MIDTAU TRAPEZOID
+
+0.25
+
+Probability Density
+
+0.2
+
+0.15
+
+0.1
+
+0.05
+
+0 50
+
+60
+
+70
+
+80
+
+90
+
+100
+
+110
+
+120
+
+Number of Molecules (Species 5)
+Figure 5.15: Potassium channel: Histograms of species S5 computed using the SSA, the explicit, implicit, midpoint and trapezoidal tau-leaping methods at time T = 5.
+
+62
+
+100 99.5 99 98.5
+
+Species 1
+
+98 97.5 97 96.5 96 95.5 95 0 0.2 0.4 0.6 0.8 1 1.2 1.4
+
+t
+
+Figure 5.16: Potassium channel: A sample trajectory of number of molecules of species S1 as function of time.
+
+68 66 64 62
+
+Species 2
+
+60 58 56 54 52 50 0 0.2 0.4 0.6 0.8 1 1.2 1.4
+
+t
+
+Figure 5.17: Potassium channel: A sample trajectory of number of molecules of species S2 as function of time.
+
+63
+
+100
+
+98
+
+96
+
+Species 3
+
+94
+
+92
+
+90
+
+88 0 0.2 0.4 0.6 0.8 1 1.2 1.4
+
+t
+
+Figure 5.18: Potassium channel: A sample trajectory of number of molecules of species S3 as function of time.
+
+64
+
+62
+
+60
+
+Species 4
+
+58
+
+56
+
+54
+
+52
+
+50 0 0.2 0.4 0.6 0.8 1 1.2 1.4
+
+t
+
+Figure 5.19: Potassium channel: A sample trajectory of number of molecules of species S4 as function of time.
+
+64
+
+100 99 98 97
+
+Species 5
+
+96 95 94 93 92 91 90 0 0.2 0.4 0.6 0.8 1 1.2 1.4
+
+t
+
+Figure 5.20: Potassium channel: A sample trajectory of number of molecules of species S5 as function of time.
+
+65
+
+0.23 0.22 0.21 0.2 0.19
+Implicit Explicit Trapezoid Midtau
+
+Relative Error
+
+0.18 0.17 0.16 0.15 0.14 0.13 2 3 4 5 6 10-4
+
+Step size(h)
+Figure 5.21: Potassium channel: Log log plot of the relative global error at time T = 5/4 as function of step size  , for all the tau-leaping methods.
+
+66
+
+Chapter 6 Conclusion
+Mathematical modeling and simulation of biochemical systems are important research areas in systems biology. In recent years, mathematical modeling and computer simulations have been recognized as some of the key tools for studying biochemical process taking place in a single cell. With the advance of technology, more accurate biological data become available. Those data may be used for building more realistic models of critical processes at the cellular trend. In the case of processes involving some biochemical species in low molecular counts ( such as DNA and RNA), stochastic models are necessary for an accurate description of the system dynamics. Stochastic models are more complex than the deterministic ones and more challenging to solve numerically. In this thesis, we study a stochastic discrete model of well-stirred biochemical systems known as the Chemical Master Equation. Gillespie proposed an exact Monte Carlo method for the Chemical Master Equation, the Stochastic Simulation Algorithm or the SSA. Nonetheless, the SSA is very expensive on many realistic biochemical systems arising in applications. To deal with this difficulty, Gillespie introduced the approximate tau-leaping method, which steps over many reactions during one simulation step. While the explicit tau-leaping method is applicable to non stiff models of biochemical reactions, the implicit tau-leaping scheme is more efficient
+
+67
+
+for stiff model. The explicit and implicit tau-leaping techniques have low order of accuracy. This work focuses on the study of higher order tau-leaping methods, namely the midpoint and trapezoidal tau-leaping schemes. We study these two higher order methods and compare their performances with that of the low order methods, the explicit and implicit tau-leaping schemes and the exact, but expensive SSA. Our numerical tests on several systems encountered in applications showed that the higher order leaping strategies give more accurate numerical results than the low order leaping schemes and are therefore preferred when high accuracy of the simulation is required. This is important , for example, when studying biochemical systems which are sensitive with respect to some of their parameters. In the future, we plan to study efficient time-stepping strategies for higher order tau-leaping methods.
+
+68
+
+Bibliography
+[1] David Adalsteinsson, David McMillen, and Timothy C Elston. Biochemical network stochastic simulator (bionets): software for stochastic modeling of biochemical networks. BMC Bioinformatics, 5(1):24, 2004. [2] Aur´ elien Alfonsi, Eric Cances, Gabriel Turinici, Barbara Di Ventura, and Wilhelm Huisinga. Adaptive simulation of hybrid stochastic and deterministic models for biochemical systems. In ESAIM: proceedings, volume 14, pages 1­13. EDP Sciences, 2005. [3] David F Anderson. Incorporating postleap checks in tau-leaping. The Journal of Chemical Physics, 128(5):054103, 2008. [4] David F Anderson, Arnab Ganguly, Thomas G Kurtz, et al. Error
+
+analysis of tau-leap simulation methods. The Annals of Applied Probability, 21(6):2226­2262, 2011. [5] Steven S Andrews, Tuan Dinh, and Adam P Arkin. Stochastic models of
+
+biological processes. In Encyclopedia of Complexity and Systems Science, pages 8730­8749. Springer, 2009. [6] Adam Arkin, John Ross, and Harley H McAdams. Stochastic kinetic analysis of developmental pathway bifurcation in phage -infected escherichia coli cells. Genetics, 149(4):1633­1648, 1998.
+
+69
+
+[7] Uri M Ascher and Linda R Petzold. Computer methods for ordinary differential equations and differential-algebraic equations, volume 61. Siam, 1998. [8] Karen Ball, Thomas G Kurtz, Lea Popovic, Greg Rempala, et al. Asymptotic analysis of multiscale approximations to reaction networks. Applied Probability, 16(4):1925­1961, 2006. [9] Yang Cao and Linda Petzold. Trapezoidal tau-leaping formula for the stochastic simulation of biochemical systems. Proceedings of Foundations of Systems The Annals of
+
+Biology in Engineering (FOSBE 2005), pages 149­152, 2005. [10] Abhijit Chatterjee, Dionisios G Vlachos, and Markos A Katsoulakis. Binomial distribution based  -leap accelerated stochastic simulation. Chemical Physics, 122(2):024112, 2005. [11] Edmund J Crampin and Santiago Schnell. New approaches to modelling and analysis of biochemical reactions, pathways and networks, 2004. [12] Hana El Samad, Mustafa Khammash, Linda Petzold, and Dan Gillespie. Stochastic modelling of gene regulatory networks. Robust and Nonlinear Control, 15(15):691­711, 2005. [13] Michael B Elowitz, Arnold J Levine, Eric D Siggia, and Peter S Swain. Stochastic gene expression in a single cell. Science, 297(5584):1183­1186, 2002. [14] Nina Fedoroff and Walter Fontana. Small numbers of big molecules. Science, 297(5584):1129­1131, 2002. [15] Michael A Gibson and Jehoshua Bruck. Efficient exact stochastic simulation of chemical systems with many species and many channels. The Journal of Physical Chemistry A, 104(9):1876­1889, 2000. International Journal of The Journal of
+
+70
+
+[16] Daniel T Gillespie. A general method for numerically simulating the stochastic time evolution of coupled chemical reactions. Journal of Computational Physics, 22(4):403­434, 1976. [17] Daniel T Gillespie. Exact stochastic simulation of coupled chemical reactions. The Journal of Physical Chemistry, 81(25):2340­2361, 1977. [18] Daniel T Gillespie. Markov processes: an introduction for physical scientists. Elsevier, 1991. [19] Daniel T Gillespie. A rigorous derivation of the chemical master equation. Physica A: Statistical Mechanics and its Applications, 188(1-3):404­425, 1992. [20] Daniel T Gillespie. The chemical langevin equation. The Journal of Chemical Physics, 113(1):297­306, 2000. [21] Daniel T Gillespie. Approximate accelerated stochastic simulation of chemically reacting systems. The Journal of Chemical Physics, 115(4):1716­1733, 2001. [22] Daniel T Gillespie. Stochastic simulation of chemical kinetics. Annu. Rev. Phys. Chem., 58:35­55, 2007. [23] Daniel T Gillespie and L Petzold. Numerical simulation for biochemical kinetics. Systems Modelling in Cellular Biology, pages 331­354, 2006. [24] Didier Gonze and Adama Ouattara. Stochastic simulations. 2007. [25] Eric L Haseltine and James B Rawlings. Approximate simulation of coupled fast and slow reactions for stochastic chemical kinetics. The Journal of chemical physics, 117(15):6959­6969, 2002. [26] Eric L Haseltine and James B Rawlings. On the origins of approximations for stochastic chemical kinetics. The Journal of Chemical Physics, 123(16):164115, 2005. 71
+
+[27] Desmond J Higham. Modeling and simulating chemical reactions. SIAM review, 50(2):347­368, 2008. [28] Tobias Jahnke. An adaptive wavelet method for the chemical master equation. SIAM Journal on Scientific Computing, 31(6):4373­4394, 2010. [29] Hiroaki Kitano. Computational systems biology. Nature, 420(6912):206, 2002. [30] Thomas G Kurtz. The relationship between stochastic and deterministic models for chemical reactions. The Journal of Chemical Physics, 57(7):2976­2978, 1972. [31] Tiejun Li. Analysis of explicit tau-leaping schemes for simulating chemically reacting systems. Multiscale Modeling & Simulation, 6(2):417­436, 2007. [32] Harley H McAdams and Adam Arkin. Itsa noisy business! genetic regulation at the nanomolar scale. Trends in Genetics, 15(2):65­69, 1999. [33] Bence M´ elyk´ uti, Kevin Burrage, and Konstantinos C Zygalakis. Fast stochastic simulation of biochemical reaction systems by alternative formulations of the chemical langevin equation. The Journal of Chemical Physics, 132(16):164109, 2010. [34] Johan Paulsson. Summing up the noise in gene networks. Nature, 427(6973):415, 2004. [35] Jacek Puchalka and Andrzej M Kierzek. Bridging the gap between stochastic and deterministic regimes in the kinetic simulations of the biochemical reaction networks. Biophysical Journal, 86(3):1357­1372, 2004. [36] Muruhan Rathinam, Linda R Petzold, Yang Cao, and Daniel T Gillespie. Stiffness in stochastic chemically reacting systems: The implicit tau-leaping method. The Journal of Chemical Physics, 119(24):12784­12794, 2003.
+
+72
+
+[37] Muruhan Rathinam, Linda R Petzold, Yang Cao, and Daniel T Gillespie. Consistency and stability of tau-leaping schemes for chemical reaction systems. Multiscale Modeling & Simulation, 4(3):867­895, 2005. [38] Asawari Samant and Dionisios G Vlachos. Overcoming stiffness in stochastic simulation stemming from partial equilibrium: a multiscale monte carlo
+
+algorithm. The Journal of Chemical Physics, 123(14):144114, 2005. [39] Michael Samoilov, Sergey Plyasunov, and Adam P Arkin. Stochastic
+
+amplification and signaling in enzymatic futile cycles through noise-induced bistability with oscillations. Proceedings of the National Academy of Sciences of the United States of America, 102(7):2310­2315, 2005. [40] Peter S Swain, Michael B Elowitz, and Eric D Siggia. Intrinsic and extrinsic contributions to stochasticity in gene expression. Proceedings of the National Academy of Sciences, 99(20):12795­12800, 2002. [41] Kouichi Takahashi, Kazunari Kaizu, Bin Hu, and Masaru Tomita. A
+
+multi-algorithm, multi-timescale method for cell simulation. Bioinformatics, 20(4):538­546, 2004. [42] Mukund Thattai and Alexander Van Oudenaarden. regulatory networks. 98(15):8614­8619, 2001. [43] Karan Vasudeva and Upinder S Bhalla. Adaptive stochastic-deterministic Intrinsic noise in gene
+
+Proceedings of the National Academy of Sciences,
+
+chemical kinetic simulations. Bioinformatics, 20(1):78­84, 2004. [44] Jos´ e MG Vilar, Hao Yuan Kueh, Naama Barkai, and Stanislas Leibler. Mechanisms of noise-resistance in genetic oscillators. Proceedings of the National Academy of Sciences, 99(9):5988­5992, 2002.
+
+73
+
+[45] Darren J Wilkinson. Stochastic modelling for systems biology. Chapman and Hall/CRC, 2006. [46] Verena Wolf, Rushil Goel, Maria Mateescu, and Thomas A Henzinger. Solving the chemical master equation using sliding windows. BMC Systems Biology, 4(1):42, 2010.
+
+74
+
+
