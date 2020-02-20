@@ -6,7 +6,7 @@ export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicI
 echo 'Training backends...'
 
 # Load vocabularies
-# time docker exec -u root:root annif_bash_1 annif loadvoc rula-tfidf-en Annif-corpora/vocab/lcsh/lcsh.ttl
+time docker exec -u root:root annif_bash_1 annif loadvoc rula-tfidf-en Annif-corpora/vocab/lcsh/lcsh.ttl
 
 # Train individual backends in sequence
 time docker exec -u root:root annif_bash_1 annif train rula-tfidf-en Annif-corpora/training/rula.tsv.gz
