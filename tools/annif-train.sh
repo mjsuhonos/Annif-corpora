@@ -6,30 +6,13 @@ export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicI
 echo 'Training backends...'
 
 # Load vocabularies
-docker exec -u root:root annif_bash_1 annif loadvoc rula-tfidf-en Annif-corpora/vocab/lcsh/lcsh.ttl -v DEBUG
+# time docker exec -u root:root annif_bash_1 annif loadvoc rula-tfidf-en Annif-corpora/vocab/lcsh/lcsh.ttl
 
-# Train individual backends in parallel
-#docker exec -d -u root:root annif_bash_1 annif train rula-maui-en Annif-corpora/fulltext/rula/validate/
-#docker exec -d -u root:root annif_bash_1 annif train rula-tfidf-en Annif-corpora/training/rula.tsv.gz
-#docker exec -d -u root:root annif_bash_1 annif train rula-omikuji-parabel-en Annif-corpora/training/rula.tsv.gz
-#docker exec -d -u root:root annif_bash_1 annif train rula-triple-ensemble-en Annif-corpora/training/rula.tsv.gz
-
-docker run -d -u root:root -v /mnt/annif_data:/annif-projects quay.io/natlibfi/annif \
-	--name rula-maui-en annif train rula-maui-en Annif-corpora/fulltext/rula/validate/
-
-docker run -d -u root:root -v /mnt/annif_data:/annif-projects quay.io/natlibfi/annif \
-	--name rula-tfidf-en annif train rula-tfidf-en Annif-corpora/training/rula.tsv.gz
-
-docker run -d -u root:root -v /mnt/annif_data:/annif-projects quay.io/natlibfi/annif \
-	--name rula-omikuji-parabel-en annif train rula-omikuji-parabel-en Annif-corpora/training/rula.tsv.gz
-
-# Wait until training is done
-time docker wait rula-tfidf-en
-time docker wait rula-maui-en
-time docker wait rula-omikuji-parabel-en
-
-# Train ensemble backend
-time docker exec -u root:root annif_bash_1 annif train rula-triple-ensemble-en Annif-corpora/fulltext/rula/train/ -v DEBUG
+# Train individual backends in sequence
+time docker exec -u root:root annif_bash_1 annif train rula-tfidf-en Annif-corpora/training/rula.tsv.gz
+time docker exec -u root:root annif_bash_1 annif train rula-omikuji-parabel-en Annif-corpora/training/rula.tsv.gz
+time docker exec -u root:root annif_bash_1 annif train rula-maui-en Annif-corpora/fulltext/rula/validate/
+time docker exec -u root:root annif_bash_1 annif train rula-triple-ensemble-en Annif-corpora/training/rula.tsv.gz
 
 # unset environment variable for host IP
 unset DOCKER_HOST
