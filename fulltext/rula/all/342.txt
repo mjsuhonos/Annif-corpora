@@ -34,7 +34,7 @@ Modify SQLite's page caching algorithm so that it will be able to determine whic
 3
 
 SQLite Page Cache Overview
-Illustration 1 displays the overall page cache architecture for SQLite. It implements two linked lists. The first is the dirty page list which is a linked list of pointers pointing to the actual data in the LRU list. The dirty page list keeps track of transient pages which have been marked as dirty. Once the number of memory references reaches zero, the page is moved from the dirty list to the LRU list. The source code (pcache.h, struct PGroup) documents this list as Least Recently Used (LRU) list, however from studying the source code it operates in a simple (First In First Out) FIFO mode. There is no indication in the data structures (struct PGroup, PgHdr1, PgHdr, PCache and struct PCache1) that it keeps track of how often a page was used in the past, nor is there any sort of order. When a page needs to be evicted the first item pointed to by the LRU list is removed. In our case this would be the page pointed to by the head pointer. The cache can operate in two modes: · · Shared: There is a global Page Group which can contain multiple caches. Each cache belongs to only one Page Group. Separate: Each Page Group has only one cache. Each cache belongs to only one Page Group.
+Illustration 1 displays the overall page cache architecture for SQLite. It implements two linked lists. The first is the dirty page list which is a linked list of pointers pointing to the actual data in the LRU list. The dirty page list keeps track of transient pages which have been marked as dirty. Once the number of memory references reaches zero, the page is moved from the dirty list to the LRU list. The source code (pcache.h, struct PGroup) documents this list as Least Recently Used (LRU) list, however from studying the source code it operates in a simple (First In First Out) FIFO mode. There is no indication in the data structures (struct PGroup, PgHdr1, PgHdr, PCache and struct PCache1) that it keeps track of how often a page was used in the past, nor is there any sort of order. When a page needs to be evicted the first item pointed to by the LRU list is removed. In our case this would be the page pointed to by the head pointer. The cache can operate in two modes: Â· Â· Shared: There is a global Page Group which can contain multiple caches. Each cache belongs to only one Page Group. Separate: Each Page Group has only one cache. Each cache belongs to only one Page Group.
 
 SQLite also permits a third party to implement their own page caching algorithm for the LRU list via the function pointers seen below. A developer can write their own implementation and point the function pointers below to their own implementation. SQLite does not provide an interface for developers to modify the Dirty Page list.
 typedef struct sqlite3_pcache_methods2 sqlite3_pcache_methods2; struct sqlite3_pcache_methods2 { int iVersion; void *pArg; int (*xInit)(void*); void (*xShutdown)(void*); sqlite3_pcache *(*xCreate)(int szPage, int szExtra, int bPurgeable); void (*xCachesize)(sqlite3_pcache*, int nCachesize); int (*xPagecount)(sqlite3_pcache*); /* Truncated list of functions */ }
@@ -82,7 +82,7 @@ Execution Time (micro seconds)
 
 Orig Mod. LRU (15) Mod. LRU (30) Opt. LRU (15) Opt. LRU (30) Opt. LRU (60)
 
-The Valgrind tool [2] was used to determine where most of the slow down was occurring. valgrind ­tool=callgrind ­trace-children=yes ./testfixture ../test/speed1.test After making change #1 we see that pcache1Unpin is consuming a lot of time (6.56 CPU execution time). The window on the right shows the source code where the slowdown is occurring. It is the code to traverse the linked list. Illustration 5 shows this output. If Valgrind is run on the unmodified SQLite, pcache1Unpin's CPU usage is only a small fraction and thus very far down the list. After implementing change #2 by adding the histLookup array index for quick inserts performance improves slightly and we see the overall CPU execution for this time go down from 8 th place down to 23rd place in Illustration 6. Valgrind shows the same parts of the source code which is slow. This is a decent improvement but is still slower than the unmodified SQLite. Illustration 6 shows this output.
+The Valgrind tool [2] was used to determine where most of the slow down was occurring. valgrind Â­tool=callgrind Â­trace-children=yes ./testfixture ../test/speed1.test After making change #1 we see that pcache1Unpin is consuming a lot of time (6.56 CPU execution time). The window on the right shows the source code where the slowdown is occurring. It is the code to traverse the linked list. Illustration 5 shows this output. If Valgrind is run on the unmodified SQLite, pcache1Unpin's CPU usage is only a small fraction and thus very far down the list. After implementing change #2 by adding the histLookup array index for quick inserts performance improves slightly and we see the overall CPU execution for this time go down from 8 th place down to 23rd place in Illustration 6. Valgrind shows the same parts of the source code which is slow. This is a decent improvement but is still slower than the unmodified SQLite. Illustration 6 shows this output.
 
 8
 
@@ -157,32 +157,32 @@ struct PgHdr1
 struct pcache.h
 
 pcache.c
-Function/Structure sqlite3PCacheFetch sqlite3PcacheRelease sqlite3PcacheRef Purpose Obtain page from cache. Decrement reference count on page. This is different than histRef count. Increase reference count on page. This is different than histRef count. Remove page from dirty list. Mark page as clean Synchronize histRef counts between the dirty list and LRU list. · · · · Change(s) Made Initialization of histRef=0 Call pcache1HistRefInc Call sqlite3PcacheSyncHist Increment PgHdr->histRef and wrap around when it reaches the max e.g. 15 Call sqlite3PcacheSyncHist Call sqlite3PcacheSyncHist
+Function/Structure sqlite3PCacheFetch sqlite3PcacheRelease sqlite3PcacheRef Purpose Obtain page from cache. Decrement reference count on page. This is different than histRef count. Increase reference count on page. This is different than histRef count. Remove page from dirty list. Mark page as clean Synchronize histRef counts between the dirty list and LRU list. Â· Â· Â· Â· Change(s) Made Initialization of histRef=0 Call pcache1HistRefInc Call sqlite3PcacheSyncHist Increment PgHdr->histRef and wrap around when it reaches the max e.g. 15 Call sqlite3PcacheSyncHist Call sqlite3PcacheSyncHist
 
 sqlite3PcacheDrop sqlite3PcacheMakeClean sqlite3PCacheSyncHist
 
-· ·
+Â· Â·
 
-·
+Â·
 
 New function.
 
 pcache1.c
 Function/Structure pcache1HistRefInc pcache1Fetch Purpose Increment histRef count for LRU page. Fetch page by key value. Also Changes Made
 
-· ·
+Â· Â·
 
 New function Initialize histRef=0
 
 16
 
-allocates new pages as well. pcache1Unpin Mark page as unpinned (eligible for recycling) · · Inserted page based on histRef order Created quick look up table for inserts into list based on histRef New function
+allocates new pages as well. pcache1Unpin Mark page as unpinned (eligible for recycling) Â· Â· Inserted page based on histRef order Created quick look up table for inserts into list based on histRef New function
 
 pcache1PrintList
 
 Used for debug purposes to print out LRU linked list.
 
-·
+Â·
 
 Debug information was added during testing to ensure the linked list contained histRef values in order. Sample of debug fprintf() messages below.
 ====== pcache1Unpin - Enter =====
@@ -198,7 +198,7 @@ pcache1Unpin - Adding page to front of list pPage->iKey: 15 pPage->histRef: 0 ==
 pcache1Unpin - Adding page to front of list pPage->iKey: 15 pPage->histRef: 0 ============ Printing Linked list after adding to tail ============== PgHdr1->iKey 15 PgHdr1->histRef 0 PgHdr1->iKey 13 PgHdr1->histRef 0 PgHdr1->iKey 10 PgHdr1->histRef 0 PgHdr1->iKey 9 PgHdr1->histRef 0 PgHdr1->iKey 11 PgHdr1->histRef 0 PgHdr1->iKey 12 PgHdr1->histRef 1 ============ Linked list end ============== inc pCache->nRecyclable 6 ====== pcache1Unpin - Exit =====
 
 References
-[1] SQLite ­ Application Defined Page Cache http://www.sqlite.org/c3ref/pcache_methods2.html [2] Valgrind http://valgrind.org/ [3] SQLite Amalgamation http://sqlite.org/amalgamation.html
+[1] SQLite Â­ Application Defined Page Cache http://www.sqlite.org/c3ref/pcache_methods2.html [2] Valgrind http://valgrind.org/ [3] SQLite Amalgamation http://sqlite.org/amalgamation.html
 
 18
 
