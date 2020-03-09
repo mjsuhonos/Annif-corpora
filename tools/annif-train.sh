@@ -6,7 +6,7 @@ export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicI
 echo 'Loading vocabularies...'
 
 # Load vocabularies
-time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/lcsh/lcsh.ttl
+time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/lcsh/lcsh-nogf.ttl
 
 echo 'Training backends...'
 
