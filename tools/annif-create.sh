@@ -10,7 +10,7 @@ doctl compute droplet create \
 	docker-host \
 	--image docker-18-04 \
 	--region nyc1 \
-	--size g-4vcpu-16gb \
+	--size c-8 \
 	--wait \
 	--volumes e181b0d1-4c33-11ea-ac31-0a58ac144605 \
 	--ssh-keys $(doctl compute ssh-key list --format ID --no-header | sed 's/$/,/' | tr -d '\n' | sed 's/,$//')
@@ -24,7 +24,7 @@ sleep 30
 doctl compute ssh docker-host --ssh-command 'mkdir -p /mnt/annif_data'
 doctl compute ssh docker-host --ssh-command 'mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0DO_Volume_annif-data /mnt/annif_data'
 doctl compute ssh docker-host --ssh-command "echo '/dev/disk/by-id/scsi-0DO_Volume_annif-data /mnt/annif_data ext4 defaults,nofail,discard 0 0' | sudo tee -a /etc/fstab"
-	
+
 # clone Annif & run docker
 doctl compute ssh docker-host --ssh-command 'git clone https://github.com/NatLibFi/Annif.git'
 doctl compute ssh docker-host --ssh-command 'ANNIF_PROJECTS=/mnt/annif_data MY_UID=$(id -u) MY_GID=$(id -g) docker-compose -f Annif/docker-compose.yml up -d'
