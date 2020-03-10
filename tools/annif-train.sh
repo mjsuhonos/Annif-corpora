@@ -14,8 +14,8 @@ echo 'Training backends...'
 time docker exec -u root:root annif_bash_1 annif train rula-tfidf-en Annif-corpora/training/rula.tsv.gz
 time docker exec -u root:root annif_bash_1 annif train rula-omikuji-parabel-en Annif-corpora/training/rula.tsv.gz
 
-time docker exec -u root:root annif_bash_1 annif train rula-maui-en Annif-corpora/fulltext/rula/all/
-time docker exec -u root:root annif_bash_1 annif train rula-triple-ensemble-en Annif-corpora/fulltext/rula/all/
+time docker exec -u root:root annif_bash_1 annif train rula-maui-en Annif-corpora/fulltext/rula/5000/
+time docker exec -u root:root annif_bash_1 annif train rula-triple-ensemble-en Annif-corpora/fulltext/rula/5000/
 
 # unset environment variable for host IP
 unset DOCKER_HOST
