@@ -1,16 +1,16 @@
 #!/bin/bash
 
-# m-2vcpu-16gb : $90
 # g-4vcpu-16gb : $120
 # c-8 (8/16gb) : $160
 # m-4vcpu-32gb : $180
+# g-8vcpu-32gb : $240
 echo 'Creating droplet...'
 
 doctl compute droplet create \
 	docker-host \
 	--image docker-18-04 \
 	--region nyc1 \
-	--size c-8 \
+	--size g-8vcpu-32gb \
 	--wait \
 	--volumes e181b0d1-4c33-11ea-ac31-0a58ac144605 \
 	--ssh-keys $(doctl compute ssh-key list --format ID --no-header | sed 's/$/,/' | tr -d '\n' | sed 's/,$//')
