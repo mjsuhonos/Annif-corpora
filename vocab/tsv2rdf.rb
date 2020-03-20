@@ -16,13 +16,13 @@ alt_label = RDF::URI.intern RDF::Vocab::SKOS.altLabel
 
 # open the output file for writing
 RDF::Writer.open("#{tsv_file}.nt") do |writer|
-  
+
   # open file, iterate over subject strings
   File.readlines(tsv_file).each do |line|
     fields = line.split("\t")
     subject = RDF::URI(fields[0].gsub(/[\<\>]/, ''))
 
-    writer << RDF::Statement.new(subject, RDF::Vocab::SKOS.prefLabel, RDF::Literal.new(fields[1], language: :en))
+    writer << RDF::Statement.new(subject, RDF::Vocab::SKOS.prefLabel, RDF::Literal.new(fields[1].chomp, language: :en))
     writer << RDF::Statement.new(subject, RDF.type, RDF::Vocab::SKOS.Concept)
   end
 
