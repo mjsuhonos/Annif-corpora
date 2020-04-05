@@ -3,7 +3,10 @@
 # set environment variable for host IP
 export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicIPv4" | grep docker-host | sed 's/[a-zA-Z<>/ :-]//g'`
 
-echo 'Loading vocabularies...'
+echo 'Resetting Annif and loading vocabularies...'
+
+# Clear Annif to initial state
+time docker exec -u root:root annif_bash_1 annif clear
 
 # Load vocabularies
 time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/rula/rula-lcsh-nogf.ttl
