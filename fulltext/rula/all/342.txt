@@ -14,18 +14,18 @@ Ma, Jason V., "SQLite Page Caching Algorithm" (2013). Computer Science Technical
 
 This Technical Report is brought to you for free and open access by the Computer Science at Digital Commons @ Ryerson. It has been accepted for inclusion in Computer Science Technical Reports by an authorized administrator of Digital Commons @ Ryerson. For more information, please contact bcameron@ryerson.ca.
 
-SQLite Page Caching algorithm Modification
+SQLite Page Caching algorithm Modification
 
 Jason Ma jason.ma@ryerson.ca April 16, 2013.
 
 1
 
-Contents
+Contents
 Introduction Project Objective SQLite Page Cache Overview SQLite Page Cache Modifications Performance Benchmarks Conclusion Appendix Reference 3 3 4 5 7 15 16 18
 
 2
 
-Introduction
+Introduction
 SQLite is a database which can be easily embedded inside an application written in the C programming language. One common use is inside the Mozilla Firefox web browser. It supports a subset of the SQL language but was not intended to be a replacement for a multi-user database such as MySQL, Oracle or Microsoft SQL Server. The entire database is integrated into one *.c file and the command shell for the command line interface is inside another file. Thus to embed the database a developer just has to copy and paste the source code into their database. It also comes in another format with separate files for each component but is not recommended for use due to slower performance. SQLite's developers indicate there is a 5-10% performance improvement when using the amalgamation due to compiler optimizations for a single file [3]. SQLite supports connections via multiple threads, but it does not support intra-query parallelism. For example commercial databases can divide a large query so that it is run concurrently across separate CPUs. SQLite has a very coarse locking level. Since the database is located inside one file, the entire file is locked for writing. Concurrent reads can still occur on the file. It does not support finer levels of locking such as table or row locks.
 
 Project Objective
@@ -33,7 +33,7 @@ Modify SQLite's page caching algorithm so that it will be able to determine whic
 
 3
 
-SQLite Page Cache Overview
+SQLite Page Cache Overview
 Illustration 1 displays the overall page cache architecture for SQLite. It implements two linked lists. The first is the dirty page list which is a linked list of pointers pointing to the actual data in the LRU list. The dirty page list keeps track of transient pages which have been marked as dirty. Once the number of memory references reaches zero, the page is moved from the dirty list to the LRU list. The source code (pcache.h, struct PGroup) documents this list as Least Recently Used (LRU) list, however from studying the source code it operates in a simple (First In First Out) FIFO mode. There is no indication in the data structures (struct PGroup, PgHdr1, PgHdr, PCache and struct PCache1) that it keeps track of how often a page was used in the past, nor is there any sort of order. When a page needs to be evicted the first item pointed to by the LRU list is removed. In our case this would be the page pointed to by the head pointer. The cache can operate in two modes: · · Shared: There is a global Page Group which can contain multiple caches. Each cache belongs to only one Page Group. Separate: Each Page Group has only one cache. Each cache belongs to only one Page Group.
 
 SQLite also permits a third party to implement their own page caching algorithm for the LRU list via the function pointers seen below. A developer can write their own implementation and point the function pointers below to their own implementation. SQLite does not provide an interface for developers to modify the Dirty Page list.
@@ -43,20 +43,20 @@ SQLite's documentation also explicitly states that "The cache must not perform a
 
 4
 
-Illustration 1: SQLite Page Cache Overview. Note each page in the LRU list can belong to different caches.
+Illustration 1: SQLite Page Cache Overview. Note each page in the LRU list can belong to different caches.
 
 SQLite Page Cache Modifications
 Two changes were made to the LRU a algorithm in two stages: 1. Sort the LRU list so that the head contains the least frequently referenced memory page and the tail contains the most frequently used page. 2. The array histLookup was added to improve insertion speed into the LRU list. The first change is self explanatory. To keep track of the historical references to the page, the function sqlite3PCacheSynchHist() was added to synchronize the historical reference (histRef member) between the structures PgHdr (dirty list structure) and PgHdr1 (LRU structure). Additional changes were made to the function pcache1Unpin. Change #2 was made to try and improve on the slow performance after making modification #1 above. The goal was to improve insertion performance to reduce the length taken to insert a new item into the LRU list. The idea is to add an index to the linked list so that an insert goes quickly without having to traverse the entire linked list to perform an inserted sorted by histRef value.
 
 5
 
-This was implemented by adding an array with a size the same as the largest number of histRef counts. For example if histRef wraps around when it reaches 30, the histLookup[] array is the same size. Illustration 2 displays the change. A detailed list of changes such as functions change is in the Appendix section.
+This was implemented by adding an array with a size the same as the largest number of histRef counts. For example if histRef wraps around when it reaches 30, the histLookup[] array is the same size. Illustration 2 displays the change. A detailed list of changes such as functions change is in the Appendix section.
 
 Illustration 2: Modifications made to LRU algorithm. A reference count was added (e.g. Ref:0) and the index histLookup to permit quick inserts. histLookup always points to the last element with the same histRef so that an insert will be made immediately after the node it points to. After the insert histLookup is updated to point to the new node.
 
 6
 
-Performance Benchmarks
+Performance Benchmarks
 SQLite includes its own set of benchmarks under the test directory which is called from a Tcl script. The test run was speed1.test which contains many other sub tests. The tests require that development tcl libraries and headers be installed. 1. Add -g (symbols) to TCC and BCC makefile variables 2. Add -ltcl8.5 to LIBTCL makefile variable 3. make test 4. ./testfixture test/speed1.test Illustration 3 displays the output. Orig is the unmodified SQLite, Mod. LRU is the first modification in which the LRU list is sorted. Opt. LRU is when the histLookup index was added to try and improve insert performance into the list. The number behind it is the maximum histRef count before it wraps around. The histLookup array for each test was set to the same size as the maximum histRef. The initial modifications have disappointingly slowed the performance of the database down by 3 to 5 times compared to the unmodified SQLite.
 
 Speed1.test
@@ -72,7 +72,7 @@ Illustration 3: Mod. is the first modification where the LRU list is sorted. Opt
 
 7
 
-the histLookup array index it improves performance over the original modification of just sorting the LRU list. However it is still much slower than the unmodified SQLite. Illustration 4: Closeup of update/copy/delete operations since these ran faster then the histLookup index was added.
+the histLookup array index it improves performance over the original modification of just sorting the LRU list. However it is still much slower than the unmodified SQLite. Illustration 4: Closeup of update/copy/delete operations since these ran faster then the histLookup index was added.
 
 Speed1.test (close up of update/copy/delete)
 5000000 4500000 4000000 3500000 3000000 2500000 2000000 1500000 1000000 500000 0 update4 copy1 copy2 copy3 random-del1 update3 delete1 delete2 drop1 random1 random-del2
@@ -86,19 +86,19 @@ The Valgrind tool [2] was used to determine where most of the slow down was occu
 
 8
 
-The algorithm for pcache1Unpin works by: 1. Check if histRef is smaller or equal to the value in the head node of the linked list. If so we can quickly insert it to before the head node. 2. Check if histRef is larger or equal to the value in the tail node of the linked list. If so we can quickly append the new page to the end of the list. 3. Check histLookup index to see if we can quickly insert the value into the list. 4. Traverse list if #3 fails. Most of the cases should fall into step #1 to step #3, except when the histLookup array is being populated the first time. Additional coding improvements were made by adding the newly inserted page into the histLookup index in step #1 and step #2. After making these changes performance has significantly improved and is close to the original performance of SQLite as seen in Illustration 7 As the maximum number of historical references (histRef) for each page is increased from 15 to 30 there is a slight performance decrease as well. This value does not have any effect on the length of the LRU list. In Illustration 7 there will still be some overhead during the initial insert into the LRU linked list before the histLookup index array is populated. SQLite has a hash table for quick lookup of a memory page (**apHash in struct PCache1) when specifying a key (iKey) associated with the page. This is not useful for sorting of the LRU list since it is sorted on histRef instead of iKey.
+The algorithm for pcache1Unpin works by: 1. Check if histRef is smaller or equal to the value in the head node of the linked list. If so we can quickly insert it to before the head node. 2. Check if histRef is larger or equal to the value in the tail node of the linked list. If so we can quickly append the new page to the end of the list. 3. Check histLookup index to see if we can quickly insert the value into the list. 4. Traverse list if #3 fails. Most of the cases should fall into step #1 to step #3, except when the histLookup array is being populated the first time. Additional coding improvements were made by adding the newly inserted page into the histLookup index in step #1 and step #2. After making these changes performance has significantly improved and is close to the original performance of SQLite as seen in Illustration 7 As the maximum number of historical references (histRef) for each page is increased from 15 to 30 there is a slight performance decrease as well. This value does not have any effect on the length of the LRU list. In Illustration 7 there will still be some overhead during the initial insert into the LRU linked list before the histLookup index array is populated. SQLite has a hash table for quick lookup of a memory page (**apHash in struct PCache1) when specifying a key (iKey) associated with the page. This is not useful for sorting of the LRU list since it is sorted on histRef instead of iKey.
 
 9
 
-Illustration 5: Valgrind output after making change #1 (sorting LRU list). pcache1Unpin is consuming 6.56 CPU units during execution. Code on right side shows 2.39 CPU units consumed just to traverse the linked list. Note: I'm unable to find how what units are used by Valgrind to measure CPU execution time.
+Illustration 5: Valgrind output after making change #1 (sorting LRU list). pcache1Unpin is consuming 6.56 CPU units during execution. Code on right side shows 2.39 CPU units consumed just to traverse the linked list. Note: I'm unable to find how what units are used by Valgrind to measure CPU execution time.
 
 10
 
-Illustration 6: Valgrind output after adding the histLookup index for quick inserts. Performance is improved but still much slower than the unmodified SQLite.
+Illustration 6: Valgrind output after adding the histLookup index for quick inserts. Performance is improved but still much slower than the unmodified SQLite.
 
 11
 
-Speed1.test after further optimization
+Speed1.test after further optimization
 14000000 12000000
 Execution Time (micro seconds)
 
@@ -111,7 +111,7 @@ Illustration 7: Significant performance increase after adding original optimizat
 
 12
 
-insert1 insert2 select1 select2 createidx select3 select4 select5 select6 vacuum update1 update2 update3 update4 delete1 copy1 delete2 copy2 drop1 copy3 random1 random-del1 random-del2
+insert1 insert2 select1 select2 createidx select3 select4 select5 select6 vacuum update1 update2 update3 update4 delete1 copy1 delete2 copy2 drop1 copy3 random1 random-del1 random-del2
 
 Orig 465582 773463 635233 1838341 396145 287580 1318412 1683413 859303 665195 180882 1155061 499155 1498018 9973 558177 441137 569343 11848 43747 145629 233280 168091
 
@@ -125,7 +125,7 @@ Illustration 8: Numbers which generated the graph for Illustration 7
 
 13
 
-insert1 insert2 select1 select2 createidx select3 select4 select5 select6 vacuum update1 update2 update3 update4 delete1 copy1 delete2 copy2 drop1 copy3 random1 random-del1 random-del2
+insert1 insert2 select1 select2 createidx select3 select4 select5 select6 vacuum update1 update2 update3 update4 delete1 copy1 delete2 copy2 drop1 copy3 random1 random-del1 random-del2
 
 Orig 465582 773463 635233 1838341 396145 287580 1318412 1683413 859303 665195 180882 1155061 499155 1498018 9973 558177 441137 569343 11848 43747 145629 233280 168091
 
@@ -141,14 +141,14 @@ Illustration 9: Valgrind output for unmodified SQLite. Illustration 9 shows the 
 
 14
 
-Illustration 10: Valgrind output for all modifications made so that the speed1.test is approximately the same as unmodified SQLite. These correspond to Illustration 7's Opt2 runs.
+Illustration 10: Valgrind output for all modifications made so that the speed1.test is approximately the same as unmodified SQLite. These correspond to Illustration 7's Opt2 runs.
 
 Conclusion
 SQLite's page caching algorithm was modified so the LRU list is sorted by the number of past historical references so that the most frequently used page is kept in memory, but the least recently used is evicted. SQLite's unmodified LRU algorithm is just a FIFO and exhibits no signs that it keeps track of past references. An index was also added so that items added to the LRU list do not have to traverse the linked list to to perform a sorted insert. After two stages of optimizations, the final performance is very close to the unmodified SQLite database except for a few benchmarks which are still slow than the unmodified SQLite database.
 
 15
 
-Appendix
+Appendix
 List of functions modified. Each modification has a comment beside it called "Jason" so it can easily be found by using the UNIX/Linux grep function. pcache.h
 Function/Structure struct PgHdr Purpose Structure used to keep meta data for dirty list page. Structure used to keep meta data for LRU list page. Change(s) Made Added histRef member to keep track of how many times the page was referenced in the past. Added histRef member to keep track of how many times the page was referenced in the past. Moved some function declarations from pcache.c to pcache.h so some functions can be called from both pcache*.c files.
 
@@ -176,7 +176,7 @@ New function Initialize histRef=0
 
 16
 
-allocates new pages as well. pcache1Unpin Mark page as unpinned (eligible for recycling) · · Inserted page based on histRef order Created quick look up table for inserts into list based on histRef New function
+allocates new pages as well. pcache1Unpin Mark page as unpinned (eligible for recycling) · · Inserted page based on histRef order Created quick look up table for inserts into list based on histRef New function
 
 pcache1PrintList
 
@@ -195,11 +195,11 @@ pcache1Unpin - Adding page to front of list pPage->iKey: 15 pPage->histRef: 0 ==
 
 17
 
-pcache1Unpin - Adding page to front of list pPage->iKey: 15 pPage->histRef: 0 ============ Printing Linked list after adding to tail ============== PgHdr1->iKey 15 PgHdr1->histRef 0 PgHdr1->iKey 13 PgHdr1->histRef 0 PgHdr1->iKey 10 PgHdr1->histRef 0 PgHdr1->iKey 9 PgHdr1->histRef 0 PgHdr1->iKey 11 PgHdr1->histRef 0 PgHdr1->iKey 12 PgHdr1->histRef 1 ============ Linked list end ============== inc pCache->nRecyclable 6 ====== pcache1Unpin - Exit =====
+pcache1Unpin - Adding page to front of list pPage->iKey: 15 pPage->histRef: 0 ============ Printing Linked list after adding to tail ============== PgHdr1->iKey 15 PgHdr1->histRef 0 PgHdr1->iKey 13 PgHdr1->histRef 0 PgHdr1->iKey 10 PgHdr1->histRef 0 PgHdr1->iKey 9 PgHdr1->histRef 0 PgHdr1->iKey 11 PgHdr1->histRef 0 PgHdr1->iKey 12 PgHdr1->histRef 1 ============ Linked list end ============== inc pCache->nRecyclable 6 ====== pcache1Unpin - Exit =====
 
 References
 [1] SQLite ­ Application Defined Page Cache http://www.sqlite.org/c3ref/pcache_methods2.html [2] Valgrind http://valgrind.org/ [3] SQLite Amalgamation http://sqlite.org/amalgamation.html
 
 18
 
-
+
