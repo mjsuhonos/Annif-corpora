@@ -13,7 +13,7 @@ time ./annif-eval.sh
 ./annif-destroy.sh
 
 # Notify with sound / popup
-echo 'Annif workload complete!' | alerter -sound default
+echo ' ==> Annif workload complete! <== ' | alerter -sound default
 
 #
 #
