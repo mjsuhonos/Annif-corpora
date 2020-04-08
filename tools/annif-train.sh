@@ -6,10 +6,13 @@ export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicI
 echo ' ==> Resetting Annif and loading vocabularies...'
 
 # Clear Annif to initial state
-time docker exec -u root:root annif_bash_1 annif clear rula-maui-en
+docker exec -u root:root annif_bash_1 annif clear rula-tfidf-en
+docker exec -u root:root annif_bash_1 annif clear rula-maui-en
+docker exec -u root:root annif_bash_1 annif clear rula-omikuji-parabel-en
+docker exec -u root:root annif_bash_1 annif clear rula-triple-ensemble-en
 
 # Load vocabularies
-time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/rula/rula-lcsh-nogf.ttl
+#time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/rula/rula-lcsh-nogf.ttl
 
 echo ' ==> Training backends...'
 
