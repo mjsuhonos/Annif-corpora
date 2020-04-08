@@ -34,11 +34,12 @@ doctl compute ssh docker-annif -v --ssh-command 'mkdir -p /mnt/annif_data; mount
 doctl compute ssh docker-annif -v --ssh-command "echo '/dev/disk/by-id/scsi-0DO_Volume_annif-data /mnt/annif_data ext4 defaults,nofail,discard 0 0' | sudo tee -a /etc/fstab"
 
 # Pull Annif-Corpora from git
-#
 # Clone if the folder doesn't exist, otherwise pull
+#
 doctl compute ssh docker-annif -v --ssh-command 'cd /mnt/annif_data/; [ -d /mnt/annif_data/Annif-corpora ] && git -C Annif-corpora pull ||  git clone https://github.com/mjsuhonos/Annif-corpora.git'
 
 echo ' ==> Starting Docker...'
 
 # Run Docker
-doctl compute ssh docker-annif -v --ssh-command 'ANNIF_PROJECTS=/mnt/annif_data MY_UID=$(id -u) MY_GID=$(id -g) docker-compose -f /mnt/annif_data/Annif-corpora/tools/docker-compose.yml up -d'
+doctl compute ssh docker-annif -v --ssh-command 'git clone https://github.com/NatLibFi/Annif.git'
+doctl compute ssh docker-annif -v --ssh-command 'ANNIF_PROJECTS=/mnt/annif_data MY_UID=$(id -u) MY_GID=$(id -g) docker-compose -f Annif/docker-compose.yml up -d'
