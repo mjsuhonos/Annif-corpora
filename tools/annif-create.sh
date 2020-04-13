@@ -8,8 +8,6 @@
 
 echo ' ==> Creating droplet...'
 
-# TODO: parameterize
-#
 doctl compute droplet create \
 	docker-annif \
 	--image docker-18-04 \
@@ -22,14 +20,11 @@ doctl compute droplet create \
 # Wait for SSH to run commands
 sleep 30
 
-# TODO: move this to an init script on the server directly
-
 # remove rate limiting on SSH
 doctl compute ssh docker-annif -v --ssh-command  'ufw allow ssh'
 
 echo ' ==> Mounting block storage...'
 
-# mount block storage
 doctl compute ssh docker-annif -v --ssh-command 'mkdir -p /mnt/annif_data; mount -o discard,defaults,noatime /dev/disk/by-id/scsi-0DO_Volume_annif-data /mnt/annif_data'
 doctl compute ssh docker-annif -v --ssh-command "echo '/dev/disk/by-id/scsi-0DO_Volume_annif-data /mnt/annif_data ext4 defaults,nofail,discard 0 0' | sudo tee -a /etc/fstab"
 
@@ -37,6 +32,7 @@ doctl compute ssh docker-annif -v --ssh-command "echo '/dev/disk/by-id/scsi-0DO_
 # Clone if the folder doesn't exist, otherwise pull
 #
 doctl compute ssh docker-annif -v --ssh-command 'cd /mnt/annif_data/; [ -d /mnt/annif_data/Annif-corpora ] && git -C Annif-corpora pull ||  git clone https://github.com/mjsuhonos/Annif-corpora.git'
+doctl compute ssh docker-annif -v --ssh-command 'cd /mnt/annif_data/; cp Annif-corpora/tools/projects.cfg ./'
 
 echo ' ==> Starting Docker...'
 
