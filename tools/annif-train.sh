@@ -22,5 +22,9 @@ time docker exec -u root:root annif_bash_1 annif train rula-tfidf-en Annif-corpo
 time docker exec -u root:root annif_bash_1 annif train rula-omikuji-parabel-en Annif-corpora/training/rula.tsv.gz -v DEBUG
 time docker exec -u root:root annif_bash_1 annif train rula-nn-ensemble-en Annif-corpora/fulltext/rula/1000/
 
+time docker exec -u root:root annif_bash_1 annif train rula-nn-fulltext-1k-en Annif-corpora/fulltext/rula/1000/
+time docker exec -u root:root annif_bash_1 annif train rula-nn-fulltext-3k-en Annif-corpora/fulltext/rula/3000/
+time docker exec -u root:root annif_bash_1 annif train rula-nn-shorttext-en Annif-corpora/training/rula.tsv.gz
+
 # unset environment variable for host IP
 unset DOCKER_HOST
