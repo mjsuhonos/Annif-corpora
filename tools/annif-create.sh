@@ -1,10 +1,14 @@
 #!/bin/bash
 
-# g-4vcpu-16gb : $120
-# m-4vcpu-32gb : $180
+# g-4vcpu-16gb	: $120
+# c-8 (8/16gb)	: $160
 
-# c-8 (8/16gb) : $160
-# g-8vcpu-32gb : $240
+# m-4vcpu-32gb	: $180
+# g-8vcpu-32gb	: $240
+# c-16 (16/32gb): $320
+
+# s-12vcpu-48gb : $240
+# s-16vcpu-64gb : $320
 
 echo ' ==> Creating droplet...'
 
