@@ -1,10 +1,16 @@
+#  rdf2tsv.rb
+#
+#  Given a SKOS vocabulary in RDF format (eg. LCSH),
+#  generate 2 TSV files of term/URI pairs:
+#  one for prefLabels, one for altLabels
+#
+
 require 'bundler/inline'
 
 gemfile do
   source 'https://rubygems.org'
   gem 'linkeddata'
   gem 'rdf-vocab'
-  gem 'pry'
 end
 
 skos_file = ARGV[0]
