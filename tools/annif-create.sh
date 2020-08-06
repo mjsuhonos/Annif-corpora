@@ -43,3 +43,7 @@ echo ' ==> Starting Docker...'
 # Run Docker
 doctl compute ssh docker-annif -v --ssh-command 'git clone https://github.com/NatLibFi/Annif.git'
 doctl compute ssh docker-annif -v --ssh-command 'ANNIF_PROJECTS=/mnt/annif_data MY_UID=$(id -u) MY_GID=$(id -g) docker-compose -f Annif/docker-compose.yml up -d'
+
+# export DOCKER_HOST=ssh://root@`doctl compute droplet list --format "Name,PublicIPv4" | grep docker-annif | sed 's/[a-zA-Z<>/ :-]//g'`
+
+# unset DOCKER_HOST
