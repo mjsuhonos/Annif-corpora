@@ -12,5 +12,20 @@ docker exec -u root:root annif_bash_1 annif eval rula-omikuji-parabel-en Annif-c
 echo ' ==> Evaluating backend: fasttext'
 docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
 
+echo ' ==> Evaluating backend: mllm'
+docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
+
+echo ' ==> Evaluating backend: stwfsa'
+docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
+
+echo ' ==> Evaluating backend: yake'
+docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
+
+echo ' ==> Evaluating backend: vw-multi'
+docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
+
+echo ' ==> Evaluating backend: svc'
+docker exec -u root:root annif_bash_1 annif eval rula-fasttext-en Annif-corpora/fulltext/rula/test/
+
 echo ' ==> Evaluating backend: nn-ensemble'
 docker exec -u root:root annif_bash_1 annif eval rula-nn-ensemble-en Annif-corpora/fulltext/rula/test/

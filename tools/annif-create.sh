@@ -14,7 +14,7 @@ echo ' ==> Creating droplet...'
 
 doctl compute droplet create \
 	docker-annif \
-	--image docker-18-04 \
+	--image docker-20-04 \
 	--region nyc1 \
 	--size c-8 \
 	--wait \
