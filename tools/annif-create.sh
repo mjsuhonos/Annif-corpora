@@ -16,7 +16,7 @@ doctl compute droplet create \
 	docker-annif \
 	--image docker-20-04 \
 	--region nyc1 \
-	--size c-8 \
+	--size g-8vcpu-32gb \
 	--wait \
 	--volumes e181b0d1-4c33-11ea-ac31-0a58ac144605 \
 	--ssh-keys $(doctl compute ssh-key list --format ID --no-header | sed 's/$/,/' | tr -d '\n' | sed 's/,$//')
