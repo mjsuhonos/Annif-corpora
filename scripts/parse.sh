@@ -20,12 +20,13 @@ awk '
 
     # Convert subject from a URI to just the identifier digits
     sub(/.*\/Q/,"Q",subject)
+#    sub(".*/", "",subject)
 
     # Convert object from a URI to just the identifier digits
     sub(/.*\/Q/,"Q",object)
 	sub(/ \./,"",object)
 
     # Print the subject identifier and object
-#    print subject "\t" object
-    print subject
-}' P31.nt > P31-subject.qids
+    print subject "\t" object
+#    print subject
+}' id-to-qid.nt > id-to-qid.tsv
