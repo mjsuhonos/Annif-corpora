@@ -1,2 +1,11 @@
 # Corpora
- Document corpora for training Annif automated classification
+ Document corpora for training [Annif](https://github.com/NatLibFi/Annif/) automated classification
+
+## Folder Index
+
+- **data**: vocabularies and trained projects
+- **evaluations**: output of evaluation runs
+- **fulltext**: training data in a supported corpus format
+- **projects.d**: project configurations
+- **scripts**: helper scripts
+- **ruby**: helper Ruby scripts
