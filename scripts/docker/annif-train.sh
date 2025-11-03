@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo ' ==> Loading vocabularies...'
+time docker exec -u root:root annif_bash_1 annif loadvoc rula-maui-en Annif-corpora/vocab/rula/rula-lcsh.ttl
+
 # Train individual backends in sequence
 echo ' ==> Training backends...'
 
