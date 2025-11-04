@@ -1,15 +1,16 @@
 import streamlit as st
 import pandas as pd
 import requests
+import re
 from datetime import datetime
-
-import streamlit as st
 from annif.config import AnnifConfigDirectory, find_config
 from annif.registry import AnnifRegistry
 from annif.project import Access
 
 ANNIF_API = "http://localhost:5000/v1"
+#ANNIF_API = "https://api.annif.org/v1"
 
+########################################
 def get_annif_version():
     # Connect to running instance via API
     try:
@@ -21,7 +22,8 @@ def get_annif_version():
         st.error(f"Error connecting to Annif: {e}")
         return []
 
-def get_projects():
+########################################
+def get_local_projects():
     # TODO Add robustness
 
     # Locate the configuration directory
@@ -38,241 +40,202 @@ def get_projects():
     # Get all available projects
     return registry.get_projects(min_access=Access.private)
 
-
-# Displays an interactive table of project details
-def list_projects(projects):
-
-    ####################################################
+########################################
+def get_api_projects():
     try:
         r = requests.get(f"{ANNIF_API}/projects")
         r.raise_for_status()
-        raw_projects = r.json()
-
-        # Flatten backend level
-        for project in raw_projects.get("projects", []):
+        
+        projects = r.json().get("projects")
+        
+        # Flatten backend and vocab levels
+        for project in projects:
             backend_info = project.get("backend", {})
             if isinstance(backend_info, dict) and "backend_id" in backend_info:
                 project["backend"] = backend_info["backend_id"]
 
+            vocab = project.get("vocab", {})
+
+            if isinstance(vocab, dict) and "vocab_id" in vocab:
+                project["vocab"] = vocab["vocab_id"]
+
+        return projects
+
     except Exception as e:
         st.error(f"Error fetching projects: {e}")
-        return []
+        return []    
 
-    ####################################################
-    # Show a sortable table of all projects
+# Displays an interactive table of project details
+def list_projects(projects):
 
-    column_order = ["name", "backend", "is_trained", "language", "modification_time"]
-    column_config = {
-        "name": "Project",
-        "backend": "Backend",
-        "is_trained": st.column_config.CheckboxColumn("Trained"),
-        "language": "Language",
-        "modification_time": st.column_config.DatetimeColumn("Modified")
-    }
-    
     with st.container():
-        
-        st.write(raw_projects)
-        st.divider()
-            
-        df = pd.DataFrame(raw_projects["projects"])
+        # Show a sortable table of all projects
+        df = pd.DataFrame(projects)
+
+        column_order = ["name", "vocab", "backend", "is_trained", "language", "modification_time"]
+        column_config = {
+            "name": "Project",
+            "backend": "Backend",
+            "vocab": "Vocab",
+            "is_trained": st.column_config.CheckboxColumn("Trained"),
+            "language": "Language",
+            "modification_time": st.column_config.DatetimeColumn("Modified")
+        }
+
         st.dataframe(df, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
-    with st.container():
-        details = st.empty()
+########################################
+def project_details(projects):
+    # Get the selected row index (Streamlit stores it in session state)
+    selected_rows = st.session_state.table["selection"]["rows"] if "selection" in st.session_state.table else []
 
-        # Get the selected row index (Streamlit stores it in session state)
-        selected_rows = st.session_state.table["selection"]["rows"] if "selection" in st.session_state.table else []
+    if selected_rows:
+        row_index = selected_rows[0]
 
-        if selected_rows:
-            row_index = selected_rows[0]
-            project_id = df.iloc[row_index]['project_id'] 
-            project = projects[project_id]
+#        st.write(row_index)
+#        st.write(get_api_projects())
 
-            with details.container():
-                with st.expander(f"**{project.name}**", expanded=True):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        project_form(project)
-                    with col2:
-                        backend_form(project)
-        else:
-            details.info("Select a row to see details.")
+        # FIXME: should we do a key lookup instead of relying on array index?
+        api_project = get_api_projects()[row_index]
         
+        try:
+            project = projects[api_project['project_id']]
 
+        except Exception as e:
+            st.error(f"Error fetching project: {e}")
+            return []    
+
+        with st.expander(f"**{project.name}**", expanded=True):
+
+            col1, col2, col3 = st.columns([1,1,1])
+
+            col1.write(f"**Analyzer:** {project.analyzer_spec}")
+            col2.write(f"**Transform:** {project.transform_spec}")
+            col3.write(f"**Vocab:** {project.vocab_spec}")
+
+            # TODO: implement real vocabs
+            vocabs = [
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 826287,
+                    "vocab_id": "uP279_P910_P361"
+                  },
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 958101,
+                    "vocab_id": "u0_broader"
+                  },
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 817567,
+                    "vocab_id": "u1_broader"
+                  },
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 1887927,
+                    "vocab_id": "u2_broader"
+                  },
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 825067,
+                    "vocab_id": "u3_broader"
+                  },
+                  {
+                    "languages": ["en"],
+                    "loaded": True,
+                    "size": 825067,
+                    "vocab_id": "u3_norel"
+                  }
+                ]
+                
+            vocab_name = re.match(r"([^(]+)", project.vocab_spec).group(1)
+            vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
+
+            col3.write(f"**Size:** {vocab_size}")
+
+            col1, col2 = st.columns([2,1])
+            with col1:
+                backend_form(project)
+            with col2:
+                project_form(api_project)
+
+########################################
 def project_form(project):
-    p = project.dump()
-
-    if p['is_trained']:
+#    project
+    
+    if project['is_trained']:
         st.subheader("Trained", divider="green")
-        st.write(f"**Modified:** {p['modification_time']}")
-        if st.button("Evaluate", key=f"eval_{p['project_id']}"):
-            st.info(f"⚡ Evaluate action triggered for {p['name']}")
+        
+        dt = datetime.fromisoformat(project['modification_time'])
+        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        
+        st.write(f"**Modified:** {formatted_time}")
+        if st.button("Evaluate", key=f"eval_{project['project_id']}"):
+            st.info(f"⚡ Evaluate action triggered for {project['name']}")
 
     else:
         st.subheader("Not Trained", divider="red")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
-        if st.button("Train", key=f"train_{p['project_id']}", type="primary"):
-            st.info(f"⚡ Train action triggered for {p['name']}")
+        if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
+            st.info(f"⚡ Train action triggered for {project['name']}")
 
-    uploaded_file = st.file_uploader("Upload a file to train/eval", key=p['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
+    uploaded_file = st.file_uploader("Upload a file to train or evaluate", key=project['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
 
-    st.write("Analyzer: ", project.analyzer_spec)
-    st.write("Transform: ", project.transform_spec)
-    st.write(p)
-
+########################################
 def backend_form(project):
-    p = project.dump()
-    
-    project_id = p['project_id']
-    backend_id = p['backend']['backend_id']
+    backend = project.backend
 
-    # Example backend data (could be read from annif project config)
-    backend_configs = {
-        "stwfsa": {
-            "language": "en",
-            "params": {
-                "concept_type_uri": "",                   # URI of concept type to use
-                "expand_abbreviation_with_punctuation": True,
-                "sub_thesaurus_type_uri": "",
-                "thesaurus_relation_is_specialisation": True,
-                "thesaurus_relation_type_uri": "",
-                "use_txt_vec": False,
-                "limit": 100                               # maximum number of suggested concepts
-            },
-        },
-        "nn_ensemble": {
-            "language": "en",
-            "params": {
-                
-            }
-        },
-        "fasttext": {
-            "language": "en",
-            "params": {
-                "dim": 100,
-                "t": 0,
-                "thread": 4,
-                "wordNgrams": 1,
-                "ws": 5,
-                "pretrainedVectors": "", 
-            },
-        },
-        "tfidf": {
-            "language": "en",
-            "params": {
-                "analyzer": "word",
-                "max_df": 0.95,
-                "min_df": 2,
-                "token_pattern": r"(?u)\b\w\w+\b",
-                "ngram": 1,
-                "max_features": None,
-            },
-        },
-        "svc": {
-            "language": "en",
-            "params": {
-                "kernel": "linear",
-                "C": 1.0,
-                "gamma": "scale",
-                "class_weight": "balanced",
-                "min_df": 1,
-                "ngram": 1,
-            },
-        },
-        "omikuji": {
-            "language": "en",
-            "params": {
-                "cluster_balanced": True,
-                "cluster_k": 2,
-                "collapse_every_n_layers": 0,
-                "max_depth": 20,
-                "min_df": 1,
-                "ngram": 1,
-                "label_limit": 100,
-            },
-        },
-        "mllm": {
-            "language": "en",
-            "params": {
-                "model": "sentence‑transformers/all‑MiniLM‑L6‑v2",
-                "dim": 384,
-                "batch_size": 32,
-                "max_leaf_nodes": 1000,
-                "max_samples": 0.9,
-                "min_samples_leaf": 20,
-                "use_hidden_labels": False,
-            },
-        },
-        "vw_multi": {
-            "language": "en",
-            "params": {
-                "passes": 10,
-                "loss_function": "logistic",
-                "learning_rate": 0.5,
-                "bit_precision": 32,
-                "ngram": 1,
-                "label_limit": 100,
-            },
-        },
-        "yake": {
-            "language": "en",
-            "params": {
-                "deduplication_algo": "levs",
-                "deduplication_threshold": 0.9,
-                "features": None,
-                "label_types": ["prefLabel", "altLabel"],
-                "max_ngram_size": 4,
-                "num_keywords": 100,
-                "remove_parentheses": False,
-                "window_size": 1,
-            },
-        },
-        "ensemble": {
-            "language": "en",
-            "params": {
-                "backend_ids": ["fasttext", "tfidf"],
-                "weights": [0.5, 0.5],
-                "min_docs": 10,
-            },
-        },
-        "dummy": {
-            "language": "en",
-            "params": {
-                "subject_id": 0,
-            },
-        }
-    }
+#    project
+#    backend
 
-    backend = backend_configs[backend_id]
+    if backend:
+#        backend.params
+#        DEFAULT_PARAMETERS
+        st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
-    updated_params = {}
+        updated_params = {}
 
-    st.subheader(f"{backend_id} parameters", divider="gray")
+        with st.container(border=True):
+            for key, value in backend.DEFAULT_PARAMETERS.items():
+                col1, col2 = st.columns([2,1])
 
-    for key, value in backend["params"].items():
-        if isinstance(value, (int, float)):
-            updated_params[key] = st.number_input(f"{key}", value=value, key=f"{project_id}_{backend_id}_{key}")
-        elif isinstance(value, str):
-            updated_params[key] = st.text_input(f"{key}", value=value, key=f"{project_id}_{backend_id}_{key}")
-        else:
-            updated_params[key] = st.text_input(f"{key}", value=str(value), key=f"{project_id}_{backend_id}_{key}")
+                with col1:
+                    if isinstance(value, bool):
+                        updated_params[key] = st.checkbox(
+                            f"{key}",
+                            value=backend.params[key],
+                            key=f"{project.project_id}_{backend.backend_id}_{key}"
+                        )
+                    elif isinstance(value, (int, float)):
+                        updated_params[key] = st.number_input(
+                            f"{key}",
+                            value=float(backend.params[key]),
+                            key=f"{project.project_id}_{backend.backend_id}_{key}"
+                        )
+                    else:
+                        updated_params[key] = st.text_input(
+                            f"{key}",
+                            value=str(backend.params[key]),
+                            key=f"{project.project_id}_{backend.backend_id}_{key}"
+                        )
 
-    if st.button("Save Configuration", key=f"save_{project_id}_{backend_id}", type="primary"):
-        st.success(f"Configuration for **{project_id}** saved successfully!")
-        st.json({
-            "backend_id": backend_id,
-            "language": backend["language"],
-            "params": updated_params,
-        })
+                with col2:
+                    st.caption(f"Default: {value}")
 
-    if project.backend:
-        st.write(project.backend.DEFAULT_PARAMETERS)
-        st.write(project.backend.params)
+        if st.button("Save Configuration", key=f"save_{project.project_id}_{backend.backend_id}", type="primary"):
+            st.success(f"Configuration for **{project.project_id}** saved successfully!")
+            st.json({
+                "backend_id": backend.backend_id,
+                "language": backend["language"],
+                "params": updated_params,
+            })
 
-
-####################################################
-
+########################################
 def main():
     st.set_page_config(page_title="cannif", layout="wide")
     st.markdown(
@@ -284,9 +247,9 @@ def main():
     if version:
         st.caption(f"Annif {version} at {ANNIF_API}")
 
-    projects = get_projects()
+    list_projects(get_api_projects())
+    project_details(get_local_projects())
 
-    list_projects(projects)
 
 if __name__ == "__main__":
     main()
