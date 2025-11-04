@@ -200,9 +200,10 @@ def backend_form(project):
     if backend:
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
-        updated_params = {}
-
         with st.container(border=True):
+
+            updated_params = {}
+
             for key, value in backend.DEFAULT_PARAMETERS.items():
                 col1, col2 = st.columns([2,1])
 
@@ -229,6 +230,15 @@ def backend_form(project):
                 with col2:
                     st.caption(f"Default: {value}")
 
+                if "ensemble" == backend.backend_id:
+                    sources = backend.params['sources']
+            
+                    updated_params['sources'] = st.text_input(
+                        "sources",
+                        value=str(sources),
+                        key=f"{project.project_id}_{backend.backend_id}_sources"
+                    )
+                
         if st.button("Save Configuration", key=f"save_{project.project_id}_{backend.backend_id}", type="primary"):
             st.success(f"Configuration for **{project.project_id}** saved successfully!")
             st.json({
