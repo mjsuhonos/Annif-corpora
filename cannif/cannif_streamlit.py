@@ -8,7 +8,6 @@ from annif.registry import AnnifRegistry
 from annif.project import Access
 
 ANNIF_API = "http://localhost:5000/v1"
-#ANNIF_API = "https://api.annif.org/v1"
 
 ########################################
 def get_annif_version():
@@ -21,6 +20,57 @@ def get_annif_version():
     except Exception as e:
         st.error(f"Error connecting to Annif: {e}")
         return []
+
+def get_vocabs():
+    
+    # TODO: check version for field (v1.4.0+)
+    try:
+        r = requests.get(f"{ANNIF_API}/vocabs")
+        r.raise_for_status()        
+        vocabs = r.json()["vocabs"]
+
+    except Exception as e:
+        # st.error(f"Error connecting to Annif: {e}")
+        # TODO: implement real vocabs
+        vocabs = [
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 826287,
+                "vocab_id": "uP279_P910_P361"
+              },
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 958101,
+                "vocab_id": "u0_broader"
+              },
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 817567,
+                "vocab_id": "u1_broader"
+              },
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 1887927,
+                "vocab_id": "u2_broader"
+              },
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 825067,
+                "vocab_id": "u3_broader"
+              },
+              {
+                "languages": ["en"],
+                "loaded": True,
+                "size": 825067,
+                "vocab_id": "u3_norel"
+              }
+            ]
+    return vocabs
 
 ########################################
 def get_local_projects():
@@ -82,7 +132,7 @@ def list_projects(projects):
             "modification_time": st.column_config.DatetimeColumn("Modified")
         }
 
-        st.dataframe(df, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
+        st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
 ########################################
 def project_details(projects):
@@ -91,9 +141,6 @@ def project_details(projects):
 
     if selected_rows:
         row_index = selected_rows[0]
-
-#        st.write(row_index)
-#        st.write(get_api_projects())
 
         # FIXME: should we do a key lookup instead of relying on array index?
         api_project = get_api_projects()[row_index]
@@ -113,50 +160,12 @@ def project_details(projects):
             col2.write(f"**Transform:** {project.transform_spec}")
             col3.write(f"**Vocab:** {project.vocab_spec}")
 
-            # TODO: implement real vocabs
-            vocabs = [
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 826287,
-                    "vocab_id": "uP279_P910_P361"
-                  },
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 958101,
-                    "vocab_id": "u0_broader"
-                  },
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 817567,
-                    "vocab_id": "u1_broader"
-                  },
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 1887927,
-                    "vocab_id": "u2_broader"
-                  },
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 825067,
-                    "vocab_id": "u3_broader"
-                  },
-                  {
-                    "languages": ["en"],
-                    "loaded": True,
-                    "size": 825067,
-                    "vocab_id": "u3_norel"
-                  }
-                ]
+            vocabs = get_vocabs()
                 
             vocab_name = re.match(r"([^(]+)", project.vocab_spec).group(1)
             vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
 
-            col3.write(f"**Size:** {vocab_size}")
+            col3.badge(f"**Size:** {vocab_size}")
 
             col1, col2 = st.columns([2,1])
             with col1:
@@ -166,8 +175,6 @@ def project_details(projects):
 
 ########################################
 def project_form(project):
-#    project
-    
     if project['is_trained']:
         st.subheader("Trained", divider="green")
         
@@ -190,12 +197,7 @@ def project_form(project):
 def backend_form(project):
     backend = project.backend
 
-#    project
-#    backend
-
     if backend:
-#        backend.params
-#        DEFAULT_PARAMETERS
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
         updated_params = {}
@@ -231,7 +233,7 @@ def backend_form(project):
             st.success(f"Configuration for **{project.project_id}** saved successfully!")
             st.json({
                 "backend_id": backend.backend_id,
-                "language": backend["language"],
+                "language": project.language,
                 "params": updated_params,
             })
 
