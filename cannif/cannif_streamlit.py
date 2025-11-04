@@ -70,12 +70,15 @@ def list_projects(projects):
         "modification_time": st.column_config.DatetimeColumn("Modified")
     }
     
-    with st.container(border=True):
+    with st.container():
         
+        st.write(raw_projects)
+        st.divider()
+            
         df = pd.DataFrame(raw_projects["projects"])
         st.dataframe(df, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
-    with st.container(border=True):
+    with st.container():
         details = st.empty()
 
         # Get the selected row index (Streamlit stores it in session state)
@@ -101,14 +104,13 @@ def project_form(project):
     p = project.dump()
 
     if p['is_trained']:
-        st.subheader("Trained")
+        st.subheader("Trained", divider="green")
         st.write(f"**Modified:** {p['modification_time']}")
         if st.button("Evaluate", key=f"eval_{p['project_id']}"):
             st.info(f"⚡ Evaluate action triggered for {p['name']}")
 
     else:
-        st.subheader("NOT trained")
-        st.info(":material/model_training:")
+        st.subheader("Not Trained", divider="red")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{p['project_id']}", type="primary"):
             st.info(f"⚡ Train action triggered for {p['name']}")
@@ -132,12 +134,6 @@ def backend_form(project):
             "params": {
                 "concept_type_uri": "",                   # URI of concept type to use
                 "expand_abbreviation_with_punctuation": True,
-                "expand_ampersand_with_spaces": True,
-                "extract_any_case_from_braces": False,
-                "extract_upper_case_from_braces": True,
-                "handle_title_case": True,
-                "remove_deprecated": True,
-                "simple_english_plural_rules": True,
                 "sub_thesaurus_type_uri": "",
                 "thesaurus_relation_is_specialisation": True,
                 "thesaurus_relation_type_uri": "",
@@ -155,15 +151,6 @@ def backend_form(project):
             "language": "en",
             "params": {
                 "dim": 100,
-                "lr": 0.25,
-                "epoch": 5,
-                "minCount": 1,
-                "loss": "hs",
-                "bucket": 2000000,
-                "lrUpdateRate": 100,
-                "maxn": 0,
-                "minn": 0,
-                "neg": 5,
                 "t": 0,
                 "thread": 4,
                 "wordNgrams": 1,
@@ -261,7 +248,7 @@ def backend_form(project):
 
     updated_params = {}
 
-    st.subheader(f"{backend_id} parameters")
+    st.subheader(f"{backend_id} parameters", divider="gray")
 
     for key, value in backend["params"].items():
         if isinstance(value, (int, float)):
