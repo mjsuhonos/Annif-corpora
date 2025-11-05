@@ -171,11 +171,11 @@ def project_details(projects):
             #vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
             #col3.badge(f"**Size:** {vocab_size}")
 
-            col1, col2 = st.columns([2,1])
+            col1, col2 = st.columns([1,2])
             with col1:
-                backend_form(project)
-            with col2:
                 project_form(api_project)
+            with col2:
+                backend_form(project)
 
 ########################################
 def project_form(project):
@@ -196,7 +196,7 @@ def project_form(project):
         st.write(f"**Modified:** {formatted_time}")
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
-        uploaded_file = st.file_uploader("", key=project['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
+        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
 
     else:
         st.subheader("Not Trained", divider="red")
@@ -208,7 +208,7 @@ def project_form(project):
 ########################################
 def backend_form(project):
     backend = project.backend
-
+    
     if backend:
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
@@ -269,10 +269,20 @@ def backend_form(project):
 
                 st.json(response)
     else:
+        st.error(f"Error fetching backend.")
         pass
 
 ########################################
+# Function to load custom CSS
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+########################################
 def main():
+    # Load the CSS file
+    local_css("style.css")
+    
     st.set_page_config(page_title="cannif", layout="wide")
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
