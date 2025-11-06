@@ -7,7 +7,11 @@ from annif.config import AnnifConfigDirectory, find_config
 from annif.registry import AnnifRegistry
 from annif.project import Access
 
+# external dependencies
+import iso639
+
 ANNIF_API = "http://localhost:5000/v1"
+#ANNIF_API = "http://api.annif.org/v1"
 
 ########################################
 def get_annif_version():
@@ -112,7 +116,7 @@ def get_local_projects():
     # Initialize the Annif registry
     registry = AnnifRegistry(
         projects_config_path=config_path,
-        datadir=".",
+        datadir="cannif",
         init_projects=False
     )
 
@@ -172,25 +176,21 @@ def project_details(projects):
 ########################################
 # Uses an api_project dict
 def project_form(project):
-
-    # FIXME: this requires an explicit API call just for size
-    #vocabs = get_vocabs()                
-    #vocab_name = re.match(r"([^(]+)", project['vocab_spec']).group(1)
-    #vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
+    lang = iso639.Language.from_part1(project['language'])
 
     if None == project['is_trained']:
         pass
 
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
         st.subheader("Training Not Required", divider="green")
-        st.write(f"**Vocab:** {project['vocab_spec']}")
+        st.write(f"**Language:** {lang.name}")
 
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
     elif project['is_trained']:
         st.subheader("Trained", divider="green")
-        st.write(f"**Vocab:** {project['vocab_spec']}")
+        st.write(f"**Language:** {lang.name}")
         
         dt = datetime.fromisoformat(project['modification_time'])
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -203,7 +203,7 @@ def project_form(project):
 
     else:
         st.subheader("Not Trained", divider="red")
-        st.write(f"**Vocab:** {project['vocab_spec']}")
+        st.write(f"**Language:** {lang.name}")
         
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
@@ -218,8 +218,28 @@ def backend_form(project):
     if backend:
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
-        st.write(f"**Analyzer:** {project.analyzer_spec}")
-        st.write(f"**Transform:** {project.transform_spec}")
+        vocabs = get_vocabs()
+        vocab_id = re.match(r"([^(]+)", project.vocab_spec).group(1)
+
+        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+        index = vocab_ids.index(vocab_id)
+
+        st.selectbox("**Vocab**", vocab_ids, index)
+
+        analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
+        try:
+            # Find index in list (handle case if not found)
+            analyzer = project.analyzer_spec.split('(')[0]
+            index = analyzers.index(analyzer)
+        except:
+            index = None
+        
+        st.selectbox("**Analyzer**", analyzers, index)
+        
+        st.text_input("**Transform:**",
+            value=project.transform_spec,
+            key=f"{project.project_id}_{backend.backend_id}_transform"
+        )
         
         with st.container(border=True):
 
