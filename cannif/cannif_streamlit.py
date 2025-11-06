@@ -103,9 +103,9 @@ def get_local_projects():
     # TODO Add robustness
 
     # Locate the configuration directory
+    # Default is "projects.d"
     try:
         config_path = find_config()
-        config_dir = AnnifConfigDirectory(config_path)
     except Exception as e:
         st.error(f"Error fetching local projects: {e}")
 
@@ -154,25 +154,15 @@ def project_details(projects):
         
         try:
             project = projects[api_project['project_id']]
+            # add vocab data to api_project
+            # TODO: this can come from the Annif /projects API in 1.4+
+            api_project['vocab_spec'] = project.vocab_spec
 
         except Exception as e:
             st.error(f"Error fetching project: {e}")
             return []
 
         with st.expander(f"**{project.name}**", expanded=True):
-
-            col1, col2, col3 = st.columns([1,1,1])
-
-            col1.write(f"**Analyzer:** {project.analyzer_spec}")
-            col2.write(f"**Transform:** {project.transform_spec}")
-            col3.write(f"**Vocab:** {project.vocab_spec}")
-
-            # FIXME: this requires an explicit API call just for size
-            #vocabs = get_vocabs()                
-            #vocab_name = re.match(r"([^(]+)", project.vocab_spec).group(1)
-            #vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
-            #col3.badge(f"**Size:** {vocab_size}")
-
             col1, col2 = st.columns([1,2])
             with col1:
                 project_form(api_project)
@@ -180,17 +170,27 @@ def project_details(projects):
                 backend_form(project)
 
 ########################################
+# Uses an api_project dict
 def project_form(project):
+
+    # FIXME: this requires an explicit API call just for size
+    #vocabs = get_vocabs()                
+    #vocab_name = re.match(r"([^(]+)", project['vocab_spec']).group(1)
+    #vocab_size = next((v["size"] for v in vocabs if v["vocab_id"] == vocab_name), None)
+
     if None == project['is_trained']:
         pass
 
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
         st.subheader("Training Not Required", divider="green")
+        st.write(f"**Vocab:** {project['vocab_spec']}")
+
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
     elif project['is_trained']:
         st.subheader("Trained", divider="green")
+        st.write(f"**Vocab:** {project['vocab_spec']}")
         
         dt = datetime.fromisoformat(project['modification_time'])
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -198,22 +198,29 @@ def project_form(project):
         st.write(f"**Modified:** {formatted_time}")
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
-        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
+
+        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
 
     else:
         st.subheader("Not Trained", divider="red")
+        st.write(f"**Vocab:** {project['vocab_spec']}")
+        
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
             st.info(f"⚙️ Train action triggered for {project['name']}")
-        uploaded_file = st.file_uploader("", key=project['project_id'], type=["tsv", "csv", "rdf", "xml", "ttl", "nt", "jsonl", "txt", "gz"])
+        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
 
 ########################################
+# Uses a local project object
 def backend_form(project):
     backend = project.backend
     
     if backend:
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
+        st.write(f"**Analyzer:** {project.analyzer_spec}")
+        st.write(f"**Transform:** {project.transform_spec}")
+        
         with st.container(border=True):
 
             # Start response body
