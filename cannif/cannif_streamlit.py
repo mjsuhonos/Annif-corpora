@@ -21,6 +21,7 @@ def get_annif_version():
         st.error(f"Error connecting to Annif: {e}")
         return []
 
+########################################
 def get_vocabs():
     
     # TODO: check version for field (v1.4.0+)
@@ -73,27 +74,6 @@ def get_vocabs():
     return vocabs
 
 ########################################
-def get_local_projects():
-    # TODO Add robustness
-
-    # Locate the configuration directory
-    try:
-        config_path = find_config()
-        config_dir = AnnifConfigDirectory(config_path)
-    except Exception as e:
-        st.error(f"Error fetching local projects: {e}")
-
-    # Initialize the Annif registry
-    registry = AnnifRegistry(
-        projects_config_path=config_path,
-        datadir=".",
-        init_projects=False
-    )
-
-    # Get all available projects
-    return registry.get_projects(min_access=Access.private)
-
-########################################
 def get_api_projects():
     try:
         r = requests.get(f"{ANNIF_API}/projects")
@@ -118,6 +98,28 @@ def get_api_projects():
         st.error(f"Error fetching API projects: {e}")
         return []
 
+########################################
+def get_local_projects():
+    # TODO Add robustness
+
+    # Locate the configuration directory
+    try:
+        config_path = find_config()
+        config_dir = AnnifConfigDirectory(config_path)
+    except Exception as e:
+        st.error(f"Error fetching local projects: {e}")
+
+    # Initialize the Annif registry
+    registry = AnnifRegistry(
+        projects_config_path=config_path,
+        datadir=".",
+        init_projects=False
+    )
+
+    # Get all available projects
+    return registry.get_projects(min_access=Access.private)
+
+########################################
 # Displays an interactive table of project details
 def list_projects(projects):
 
@@ -270,7 +272,6 @@ def backend_form(project):
                 st.json(response)
     else:
         st.error(f"Error fetching backend.")
-        pass
 
 ########################################
 # Function to load custom CSS
