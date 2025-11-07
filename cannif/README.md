@@ -23,6 +23,7 @@ The recommended way is to install cannif into a virtual environment.
     python3 -m venv cannif-venv
     source cannif-venv/bin/activate
     pip install annif
+    pip install python-iso639
     pip install streamlit
 
 Make sure Annif is running:
