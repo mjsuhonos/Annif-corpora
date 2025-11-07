@@ -8,15 +8,15 @@ Cannif is a web GUI for the [Annif toolkit](https://annif.org). It provides:
 
 It is a pretty small script built using [Streamlit](https://streamlit.io).
 
+Because Streamlit apps are just regular Python scripts, cannif can also interact with a local copy of Annif directly, potentially providing full functionality.  However, cannif is a development tool and as such, should be used with caution when executing actions that modify data.
+
+## why
+
+For Annif installations of a few projects, editing projects by hand and managing them isn't too much work.  However, for cases where there are tens of projects or more, it quickly becomes onerous.  Additionally, gathering the output of dozens of evaluations and keeping them organized can be a pain.  These things aren't the job of Annif, so cannif was created.
+
+Why `cannif`?  In Canada we often prepend 'can' to names, so can-Annif, cannif.  From Toronto to Helsinki. 🇨🇦🤝🇫🇮
+
 ## installation
-
-Cannif connects to the Annif REST API. By default this is an Annif server running at `http://localhost:5000/v1/`.  When connected, it presents an interactive table of projects and their details.  One of the features is that the table can be downloaded as a CSV file.
-
-You can edit the `ANNIF_API` constant to point at any Annif server, eg. `https://api.annif.org/v1`:
-
-![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/cannif.png?raw=true)
-
-Because Streamlit apps are just regular Python scripts, cannif can also interact with a local copy of Annif directly, potentially providing full functionality.  However, cannif is a development tool and as such, should be used with caution when executing actions that modify data.  Thankfully, none of those work yet.
 
 The recommended way is to install cannif into a virtual environment.
 
@@ -25,11 +25,16 @@ The recommended way is to install cannif into a virtual environment.
     pip install annif
     pip install streamlit
 
-Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
+Make sure Annif is running:
 
-Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the Annif root folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d` to improve isolation.
+    annif run
 
-Start up the application:
+    INFO:     Started server process [58021]
+    INFO:     Waiting for application startup.
+    INFO:     Application startup complete.
+    INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
+
+Open a new terminal.  Start up the application:
 
     streamlit run cannif_streamlit.py
 
@@ -44,6 +49,16 @@ You should see:
 
     $ pip install watchdog
 
+When connected, it presents an interactive table of projects and their details.  One of the features is that the table can be downloaded as a CSV file.
+
+By default cannif connects to the REST API of an Annif server running at `http://localhost:5000/v1/`.  You can edit `ANNIF_API` to point at any Annif server, eg. `https://api.annif.org/v1`:
+
+![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/cannif.png?raw=true)
+
+Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
+
+Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the Annif root folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
+
 Now when you select projects in the table, details about that project appear below.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
@@ -52,9 +67,8 @@ Now when you select projects in the table, details about that project appear bel
 
 Cannif doesn't do anything else yet, but there are some things being developed:
 
+- create and load vocabularies
 - drag-and-drop training and evaluation
 - split-ensemble training for memory reduction
 
 If you have any other ideas for how to improve cannif, get in touch or submit a pull request!
-
-🇨🇦🤝🇫🇮
