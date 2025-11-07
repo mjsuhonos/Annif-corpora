@@ -126,6 +126,8 @@ def get_local_projects():
 ########################################
 # Displays an interactive table of project details
 def list_projects(projects):
+    if not projects:
+        return
 
     with st.container():
         # Show a sortable table of all projects
@@ -148,7 +150,10 @@ def list_projects(projects):
 ########################################
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
-    selected_rows = st.session_state.table["selection"]["rows"] if "selection" in st.session_state.table else []
+    try:
+        selected_rows = st.session_state.table["selection"]["rows"] if "selection" in st.session_state.table else []
+    except:
+        return
 
     if selected_rows:
         row_index = selected_rows[0]
@@ -164,7 +169,7 @@ def project_details(projects):
             api_project['transform_spec'] = project.transform_spec
 
         except Exception as e:
-            st.error(f"Error fetching project: {e}")
+            st.error(f"Error fetching local project: {e}")
             return []
 
         with st.expander(f"**{project.name}**", expanded=True):
