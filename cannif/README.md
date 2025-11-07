@@ -64,6 +64,10 @@ Now when you select projects in the table, details about that project appear bel
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
 
+Cannif looks for evaluation information in the `eval` directory.  Files in the Annif `--metrics-file` format will be used if they match the name of a project_id.  When metrics are available, they are displayed in both the project table and in a series of charts.
+
+![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
+
 ## that's all folks
 
 Cannif doesn't do anything else yet, but there are some things being developed:
@@ -71,7 +75,7 @@ Cannif doesn't do anything else yet, but there are some things being developed:
 - load vocabularies
 - create new projects
 - drag-and-drop file upload for training and evaluation
-- display interactive evaluation results
+- more interactive evaluation results
 - split-ensemble creation for reduced memory during training
 
 If you have any other ideas for how to improve cannif, get in touch or submit a pull request!
