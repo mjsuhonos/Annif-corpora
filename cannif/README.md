@@ -61,11 +61,11 @@ Depending on how and where Annif is installed on your system, the local version 
 
 Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the Annif root folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
 
-Now when you select projects in the table, details about that project appear below.
+Now when you select a project in the table, details about that project appear below.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
 
-Cannif looks for evaluation information in the `eval` directory.  Files in the Annif `--metrics-file` format will be used if they match the name of a project_id.  When metrics are available, they are displayed in both the project table and in a series of charts.
+Cannif looks for evaluation information in the `eval` directory.  JSON files in the Annif `--metrics-file` format will be used if they match the name of a project_id.  When metrics are available, they are displayed in both the project table and in a series of charts.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
 
