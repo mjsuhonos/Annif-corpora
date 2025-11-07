@@ -187,54 +187,55 @@ def project_details(projects):
                 backend_form(project)
 
         # Display evaluation metrics
-        with st.expander("**Metrics**", expanded=True):
-            metrics = get_evaluation(api_project)
-            
-            st.write(f"**Documents Evaluated:** {metrics['Documents_evaluated']}")
-            #st.write(f"**F1@5:** {metrics['F1@5']}")
+        metrics = get_evaluation(api_project)
 
-            col1, col2, col3 = st.columns([1,1,1])
-            with col1:
-                data = {
-                    "Cutoff": ["@1", "@3", "@5"],
-                    "Precision": [
-                        metrics["Precision@1"],
-                        metrics["Precision@3"],
-                        metrics["Precision@5"]
-                    ]
-                }
+        if metrics:
+            with st.expander("**Metrics**", expanded=True):
+                st.write(f"**Documents Evaluated:** {metrics['Documents_evaluated']}")
+                #st.write(f"**F1@5:** {metrics['F1@5']}")
 
-                df = pd.DataFrame(data).set_index("Cutoff")
-                st.subheader('Precision')
-                st.bar_chart(df, sort=False)
+                col1, col2, col3 = st.columns([1,1,1])
+                with col1:
+                    data = {
+                        "Cutoff": ["@1", "@3", "@5"],
+                        "Precision": [
+                            metrics["Precision@1"],
+                            metrics["Precision@3"],
+                            metrics["Precision@5"]
+                        ]
+                    }
 
-            with col2:
-                data = {
-                    "Metric": ["Recall", "FPos", "FNeg"],
-                    "Percent": [
-                        metrics["Recall_microavg"] * 100,
-                        metrics["false_positive_rate"] * 100,
-                        metrics["false_negative_rate"] * 100
-                    ]
-                }
+                    df = pd.DataFrame(data).set_index("Cutoff")
+                    st.subheader('Precision')
+                    st.bar_chart(df, sort=False)
 
-                df = pd.DataFrame(data).set_index("Metric")
-                st.subheader('Accuracy')
-                st.bar_chart(df, sort=False)
+                with col2:
+                    data = {
+                        "Metric": ["Recall", "FPos", "FNeg"],
+                        "Percent": [
+                            metrics["Recall_microavg"] * 100,
+                            metrics["false_positive_rate"] * 100,
+                            metrics["false_negative_rate"] * 100
+                        ]
+                    }
 
-            with col3:
-                data = {
-                    "Cutoff": ["@1", "@5", "@10"],
-                    "NDCG": [
-                        metrics["NDCG"],
-                        metrics["NDCG@5"],
-                        metrics["NDCG@10"]
-                    ]
-                }
+                    df = pd.DataFrame(data).set_index("Metric")
+                    st.subheader('Recall')
+                    st.bar_chart(df, sort=False)
 
-                df = pd.DataFrame(data).set_index("Cutoff")
-                st.subheader('NDCG')
-                st.bar_chart(df, sort=False)
+                with col3:
+                    data = {
+                        "Cutoff": ["@1", "@5", "@10"],
+                        "NDCG": [
+                            metrics["NDCG"],
+                            metrics["NDCG@5"],
+                            metrics["NDCG@10"]
+                        ]
+                    }
+
+                    df = pd.DataFrame(data).set_index("Cutoff")
+                    st.subheader('NDCG')
+                    st.bar_chart(df, sort=False)
 
 # Uses an api_project dict
 def project_form(project):
