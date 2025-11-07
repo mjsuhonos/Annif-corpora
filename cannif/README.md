@@ -67,8 +67,10 @@ Now when you select projects in the table, details about that project appear bel
 
 Cannif doesn't do anything else yet, but there are some things being developed:
 
-- create and load vocabularies
-- drag-and-drop training and evaluation
-- split-ensemble training for memory reduction
+- load vocabularies
+- create new projects
+- drag-and-drop file upload for training and evaluation
+- display interactive evaluation results
+- split-ensemble creation for reduced memory during training
 
 If you have any other ideas for how to improve cannif, get in touch or submit a pull request!
