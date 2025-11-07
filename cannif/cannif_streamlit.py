@@ -14,52 +14,40 @@ import iso639
 
 ANNIF_API = "http://localhost:5000/v1"
 
-def get_annif_version():
-    # Connect to running instance via API
+def api_request(url):
     try:
-        r = requests.get(f"{ANNIF_API}/")
+        r = requests.get(url)
         r.raise_for_status()
-        return r.json()["version"]
+        return r.json()
 
     except Exception as e:
         st.error(f"Error connecting to Annif: {e}")
         return []
+
+def get_annif_version():
+    response = api_request(f"{ANNIF_API}/")
+    return response["version"] if response else []
 
 def get_vocabs():
-    
     # TODO: check version for field (v1.4.0+)
-    try:
-        r = requests.get(f"{ANNIF_API}/vocabs")
-        r.raise_for_status()        
-        return r.json()["vocabs"]
-
-    except Exception as e:
-        st.error(f"Error connecting to Annif: {e}")
-        return []
+    response = api_request(f"{ANNIF_API}/vocabs")
+    return response["vocabs"] if response else []
 
 def get_api_projects():
-    try:
-        r = requests.get(f"{ANNIF_API}/projects")
-        r.raise_for_status()
-        
-        projects = r.json().get("projects")
-        
-        # Flatten backend and vocab levels
-        for project in projects:
-            backend_info = project.get("backend", {})
-            if isinstance(backend_info, dict) and "backend_id" in backend_info:
-                project["backend"] = backend_info["backend_id"]
+    response = api_request(f"{ANNIF_API}/projects")
+    projects = response["projects"]
+    
+    # Flatten backend and vocab levels
+    for project in projects:
+        backend_info = project.get("backend", {})
+        if isinstance(backend_info, dict) and "backend_id" in backend_info:
+            project["backend"] = backend_info["backend_id"]
 
-            vocab = project.get("vocab", {})
+        vocab = project.get("vocab", {})
+        if isinstance(vocab, dict) and "vocab_id" in vocab:
+            project["vocab"] = vocab["vocab_id"]
 
-            if isinstance(vocab, dict) and "vocab_id" in vocab:
-                project["vocab"] = vocab["vocab_id"]
-
-        return projects
-
-    except Exception as e:
-        st.error(f"Error fetching API projects: {e}")
-        return []
+    return projects
 
 def get_local_projects():
     # TODO Add robustness
