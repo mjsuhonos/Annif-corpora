@@ -161,6 +161,7 @@ def project_details(projects):
             # add vocab data to api_project
             # TODO: this can come from the Annif /projects API in 1.4+
             api_project['vocab_spec'] = project.vocab_spec
+            api_project['transform_spec'] = project.transform_spec
 
         except Exception as e:
             st.error(f"Error fetching project: {e}")
@@ -178,37 +179,67 @@ def project_details(projects):
 def project_form(project):
     lang = iso639.Language.from_part1(project['language'])
 
+    vocabs = get_vocabs()
+    vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
+
     if None == project['is_trained']:
         pass
 
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
         st.subheader("Training Not Required", divider="green")
-        st.write(f"**Language:** {lang.name}")
 
+    elif project['is_trained']:
+        st.subheader("Trained", divider="green")
+
+    else:
+        st.subheader("Not Trained", divider="red")
+
+    st.write(f"**Language:** {lang.name}")
+
+    vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+    index = vocab_ids.index(vocab_id)
+
+    st.selectbox("**Vocab**", vocab_ids, index)
+
+    analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
+    try:
+        # Find index in list (handle case if not found)
+        analyzer = project.analyzer_spec.split('(')[0]
+        index = analyzers.index(analyzer)
+    except:
+        index = None
+    
+    st.selectbox("**Analyzer**", analyzers, index)
+    
+    st.text_input("**Transform:**",
+        value=project['transform_spec'],
+        key=f"{project['project_id']}_transform"
+    )
+
+    if None == project['is_trained']:
+        pass
+
+    elif "ensemble" == project['backend'] or "yake" == project['backend']:
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
     elif project['is_trained']:
-        st.subheader("Trained", divider="green")
-        st.write(f"**Language:** {lang.name}")
-        
         dt = datetime.fromisoformat(project['modification_time'])
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
         
         st.write(f"**Modified:** {formatted_time}")
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
+    else:
         uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
 
-    else:
-        st.subheader("Not Trained", divider="red")
-        st.write(f"**Language:** {lang.name}")
-        
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
             st.info(f"⚙️ Train action triggered for {project['name']}")
-        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
+
 
 ########################################
 # Uses a local project object
@@ -218,29 +249,6 @@ def backend_form(project):
     if backend:
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
-        vocabs = get_vocabs()
-        vocab_id = re.match(r"([^(]+)", project.vocab_spec).group(1)
-
-        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-        index = vocab_ids.index(vocab_id)
-
-        st.selectbox("**Vocab**", vocab_ids, index)
-
-        analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
-        try:
-            # Find index in list (handle case if not found)
-            analyzer = project.analyzer_spec.split('(')[0]
-            index = analyzers.index(analyzer)
-        except:
-            index = None
-        
-        st.selectbox("**Analyzer**", analyzers, index)
-        
-        st.text_input("**Transform:**",
-            value=project.transform_spec,
-            key=f"{project.project_id}_{backend.backend_id}_transform"
-        )
-        
         with st.container(border=True):
 
             # Start response body
