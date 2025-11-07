@@ -2,18 +2,18 @@ import streamlit as st
 import pandas as pd
 import requests
 import re
+import os
+import json
 from datetime import datetime
 from annif.config import AnnifConfigDirectory, find_config
 from annif.registry import AnnifRegistry
 from annif.project import Access
 
-# external dependencies
+# TODO: external dependencies
 import iso639
 
 ANNIF_API = "http://localhost:5000/v1"
-#ANNIF_API = "http://api.annif.org/v1"
 
-########################################
 def get_annif_version():
     # Connect to running instance via API
     try:
@@ -25,59 +25,18 @@ def get_annif_version():
         st.error(f"Error connecting to Annif: {e}")
         return []
 
-########################################
 def get_vocabs():
     
     # TODO: check version for field (v1.4.0+)
     try:
         r = requests.get(f"{ANNIF_API}/vocabs")
         r.raise_for_status()        
-        vocabs = r.json()["vocabs"]
+        return r.json()["vocabs"]
 
     except Exception as e:
-        # st.error(f"Error connecting to Annif: {e}")
-        # TODO: implement real vocabs
-        vocabs = [
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 826287,
-                "vocab_id": "uP279_P910_P361"
-              },
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 958101,
-                "vocab_id": "u0_broader"
-              },
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 817567,
-                "vocab_id": "u1_broader"
-              },
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 1887927,
-                "vocab_id": "u2_broader"
-              },
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 825067,
-                "vocab_id": "u3_broader"
-              },
-              {
-                "languages": ["en"],
-                "loaded": True,
-                "size": 825067,
-                "vocab_id": "u3_norel"
-              }
-            ]
-    return vocabs
+        st.error(f"Error connecting to Annif: {e}")
+        return []
 
-########################################
 def get_api_projects():
     try:
         r = requests.get(f"{ANNIF_API}/projects")
@@ -102,7 +61,6 @@ def get_api_projects():
         st.error(f"Error fetching API projects: {e}")
         return []
 
-########################################
 def get_local_projects():
     # TODO Add robustness
 
@@ -123,31 +81,80 @@ def get_local_projects():
     # Get all available projects
     return registry.get_projects(min_access=Access.private)
 
-########################################
+def get_evaluation(project):
+    evaldir = 'eval'
+    project_id = project.get('project_id')
+
+    filepath = os.path.join(os.getcwd(), evaldir, f"{project_id}.json")
+
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, 'r') as f:
+                metrics = json.load(f)
+                
+                tp = metrics["True_positives"]
+                fp = metrics["False_positives"]
+                fn = metrics["False_negatives"]
+            
+                # Calculations
+                false_positive_rate = fp / (fp + tp) if (fp + tp) > 0 else 0
+                false_negative_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
+                
+                metrics["false_positive_rate"] = false_positive_rate
+                metrics["false_negative_rate"] = false_negative_rate
+
+                return metrics
+
+        except Exception as e:
+            st.error(f"Error loading {filepath}: {e}")
+    else:
+        return {}
+
+# get local evaluation reults if they exist
+def get_evaulations(projects):
+    evaldir = 'eval'
+    results = []
+
+    for project in projects:
+        evals = get_evaluation(project)
+        
+        if evals:
+            results.append({**project, **evals})
+        else:
+            results.append(project)
+
+    return results
+
 # Displays an interactive table of project details
 def list_projects(projects):
     if not projects:
         return
 
+    # Show a sortable table of all projects
     with st.container():
-        # Show a sortable table of all projects
+        projects = get_evaulations(projects)
+
         df = pd.DataFrame(projects)
         
         df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "")
 
-        column_order = ["name", "vocab", "backend", "language", "modification_time", "available"]
+        column_order = ["name", "vocab", "backend", "language", "modification_time", "available", "F1@5", "NDCG", "Recall_microavg", "false_positive_rate", "false_negative_rate", "Precision@1", "Precision@3", "Precision@5"]
         column_config = {
             "name": "Project",
-            "backend": "Backend",
             "vocab": "Vocab",
+            "backend": "Backend",
             "language": "Language",
             "modification_time": st.column_config.DatetimeColumn("Modified"),
             "available": "Available",
+            "Recall_microavg": "Recall",
+            "false_positive_rate": "FPR",
+            "false_negative_rate": "FNR"
         }
 
         st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
-########################################
+        #st.bar_chart(df, x="name", y=["Recall_microavg"])
+
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
     try:
@@ -179,13 +186,59 @@ def project_details(projects):
             with col2:
                 backend_form(project)
 
-########################################
+        # Display evaluation metrics
+        with st.expander("**Metrics**", expanded=True):
+            metrics = get_evaluation(api_project)
+            
+            st.write(f"**Documents Evaluated:** {metrics['Documents_evaluated']}")
+            #st.write(f"**F1@5:** {metrics['F1@5']}")
+
+            col1, col2, col3 = st.columns([1,1,1])
+            with col1:
+                data = {
+                    "Cutoff": ["@1", "@3", "@5"],
+                    "Precision": [
+                        metrics["Precision@1"],
+                        metrics["Precision@3"],
+                        metrics["Precision@5"]
+                    ]
+                }
+
+                df = pd.DataFrame(data).set_index("Cutoff")
+                st.subheader('Precision')
+                st.bar_chart(df, sort=False)
+
+            with col2:
+                data = {
+                    "Metric": ["Recall", "FPos", "FNeg"],
+                    "Percent": [
+                        metrics["Recall_microavg"] * 100,
+                        metrics["false_positive_rate"] * 100,
+                        metrics["false_negative_rate"] * 100
+                    ]
+                }
+
+                df = pd.DataFrame(data).set_index("Metric")
+                st.subheader('Accuracy')
+                st.bar_chart(df, sort=False)
+
+            with col3:
+                data = {
+                    "Cutoff": ["@1", "@5", "@10"],
+                    "NDCG": [
+                        metrics["NDCG"],
+                        metrics["NDCG@5"],
+                        metrics["NDCG@10"]
+                    ]
+                }
+
+                df = pd.DataFrame(data).set_index("Cutoff")
+                st.subheader('NDCG')
+                st.bar_chart(df, sort=False)
+
 # Uses an api_project dict
 def project_form(project):
     lang = iso639.Language.from_part1(project['language'])
-
-    vocabs = get_vocabs()
-    vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
 
     if None == project['is_trained']:
         pass
@@ -201,6 +254,8 @@ def project_form(project):
 
     st.write(f"**Language:** {lang.name}")
 
+    vocabs = get_vocabs()
+    vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
     vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
     index = vocab_ids.index(vocab_id)
 
@@ -245,8 +300,6 @@ def project_form(project):
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
             st.info(f"⚙️ Train action triggered for {project['name']}")
 
-
-########################################
 # Uses a local project object
 def backend_form(project):
     backend = project.backend
@@ -313,13 +366,11 @@ def backend_form(project):
     else:
         st.error(f"Error fetching backend.")
 
-########################################
 # Function to load custom CSS
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-########################################
 def main():
     # Load the CSS file
     local_css("style.css")
