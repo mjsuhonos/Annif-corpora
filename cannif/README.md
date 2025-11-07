@@ -3,8 +3,9 @@
 
 Cannif is a web GUI for the [Annif toolkit](https://annif.org). It provides:
 
-- a sortable, searchable DataFrame-based list of projects
+- a sortable, searchable, export-able list of projects and details
 - an editor for project backend parameters
+- simple charts of evaluation metrics
 
 It is a pretty small script built using [Streamlit](https://streamlit.io).
 
