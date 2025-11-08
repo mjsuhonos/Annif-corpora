@@ -374,8 +374,11 @@ def main():
     if version:
         st.caption(f"Annif {version} at {ANNIF_API}")
 
-    list_projects(get_api_projects())
-
+    api_projects = get_api_projects()
+    list_projects(api_projects)
+    
+    st.caption(f"{len(api_projects)} projects")
+    
     project_details(get_local_projects())
 
     st.write("🇨🇦🤝🇫🇮")
