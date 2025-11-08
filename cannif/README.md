@@ -52,17 +52,17 @@ You should see:
 
     $ pip install watchdog
 
-When connected, it presents an interactive table of projects and their details.  One of the features is that the table can be downloaded as a CSV file.
-
 By default cannif connects to the REST API of an Annif server running at `http://localhost:5000/v1/`.  You can edit `ANNIF_API` to point at any Annif server, eg. `https://api.annif.org/v1`:
-
-![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/cannif.png?raw=true)
 
 Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
 
+![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/cannif.png?raw=true)
+
+When connected, it presents an interactive table of projects and their details.  The table can be downloaded as a CSV file.
+
 Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the Annif root folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
 
-Now when you select a project in the table, details about that project appear below.
+When you select a project in the table, details about that project and its backend appear below the table.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
 
