@@ -15,7 +15,7 @@ Because Streamlit apps are just regular Python scripts, cannif can also interact
 
 For Annif installations of a few projects, editing projects by hand and managing them isn't too much work.  However, for cases where there are tens of projects or more, it quickly becomes onerous.  Additionally, gathering the output of dozens of evaluations and keeping them organized can be a pain.  These things aren't the job of Annif, so cannif was created.
 
-Why `cannif`?  In Canada we often prepend 'can' to names, so can-Annif, cannif.  From Toronto to Helsinki. 🇨🇦🤝🇫🇮
+Why `cannif`?  In Canada we often prepend 'can' to names, so can-Annif, cannif.  In French, `canif` means `pocket knife` (with an [interesting history](https://fr.wikipedia.org/wiki/Canif)), which is a very useful tool indeed.
 
 ## installation
 
