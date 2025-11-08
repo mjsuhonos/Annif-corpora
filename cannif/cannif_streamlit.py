@@ -10,6 +10,7 @@ from annif.registry import AnnifRegistry
 from annif.project import Access
 
 # TODO: external dependencies
+from readable_number import ReadableNumber
 import iso639
 
 ANNIF_API = "http://localhost:5000/v1"
@@ -26,7 +27,7 @@ def api_request(url):
 
 def get_annif_version():
     response = api_request(f"{ANNIF_API}/")
-    return response["version"] if response else []
+    return response["version"]
 
 def get_vocabs():
     # TODO: check version for field (v1.4.0+)
@@ -50,27 +51,28 @@ def get_api_projects():
     return projects
 
 def get_local_projects():
-    # TODO Add robustness
-
     # Locate the configuration directory
     # Default is "projects.d"
     try:
-        config_path = find_config()
+        registry = AnnifRegistry(
+            projects_config_path=find_config(),
+            datadir="data",
+            init_projects=False
+        )
     except Exception as e:
         st.error(f"Error fetching local projects: {e}")
-
-    # Initialize the Annif registry
-    registry = AnnifRegistry(
-        projects_config_path=config_path,
-        datadir="cannif",
-        init_projects=False
-    )
 
     # Get all available projects
     return registry.get_projects(min_access=Access.private)
 
 def get_evaluation(project):
-    evaldir = 'eval'
+    registry = AnnifRegistry(
+        projects_config_path=find_config(),
+        datadir="data",
+        init_projects=False
+    )
+    
+    evaldir = 'data/eval'
     project_id = project.get('project_id')
 
     filepath = os.path.join(os.getcwd(), evaldir, f"{project_id}.json")
@@ -79,12 +81,12 @@ def get_evaluation(project):
         try:
             with open(filepath, 'r') as f:
                 metrics = json.load(f)
-                
+
+                # Calculate some useful rates 
                 tp = metrics["True_positives"]
                 fp = metrics["False_positives"]
                 fn = metrics["False_negatives"]
             
-                # Calculations
                 false_positive_rate = fp / (fp + tp) if (fp + tp) > 0 else 0
                 false_negative_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
                 
@@ -141,8 +143,6 @@ def list_projects(projects):
 
         st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
-        #st.bar_chart(df, x="name", y=["Recall_microavg"])
-
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
     try:
@@ -179,7 +179,8 @@ def project_details(projects):
 
         if metrics:
             with st.expander("**Metrics**", expanded=True):
-                st.write(f"**Documents Evaluated:** {metrics['Documents_evaluated']}")
+                numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
+                st.write(f"**Documents Evaluated:** {numdocs}")
                 #st.write(f"**F1@5:** {metrics['F1@5']}")
 
                 col1, col2, col3 = st.columns([1,1,1])
@@ -241,14 +242,16 @@ def project_form(project):
     else:
         st.subheader("Not Trained", divider="red")
 
-    st.write(f"**Language:** {lang.name}")
-
     vocabs = get_vocabs()
     vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
     vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
     index = vocab_ids.index(vocab_id)
 
     st.selectbox("**Vocab**", vocab_ids, index)
+    size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+    st.write(f"**Terms:** {size}")
+
+    st.write(f"**Language:** {lang.name}")
 
     analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
     try:
@@ -276,14 +279,14 @@ def project_form(project):
         dt = datetime.fromisoformat(project['modification_time'])
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
+        uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
         
         st.write(f"**Modified:** {formatted_time}")
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
     else:
-        uploaded_file = st.file_uploader("Upload File", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
+        uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
 
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
@@ -364,7 +367,7 @@ def main():
     # Load the CSS file
     local_css("style.css")
     
-    st.set_page_config(page_title="cannif", layout="wide")
+    st.set_page_config(page_title="cannif", layout="wide", page_icon=":material/surgical:")
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
     version = get_annif_version()
