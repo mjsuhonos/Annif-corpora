@@ -143,6 +143,26 @@ def list_projects(projects):
 
         st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
+        # if there are metrics, show graphs
+        # FIXME: better test
+        try:
+            metric_count = df.dropna(subset=["F1@5"]).shape[0]
+            if metric_count:
+                with st.expander("**Comparative Metrics**", expanded=False):
+
+                    col1, col2, col3 = st.columns([1,1,1])
+                    with col1:
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='', color=['#009', '#090', '#900'])
+
+                    with col2:
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='', color=['#009', '#090', '#900'])
+
+                    with col3:
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='', color=['#009', '#090', '#900'])
+        except:
+            pass
+
+
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
     try:
@@ -178,10 +198,9 @@ def project_details(projects):
         metrics = get_evaluation(api_project)
 
         if metrics:
-            with st.expander("**Metrics**", expanded=True):
+            with st.expander("**Project Metrics**", expanded=True):
                 numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
                 st.write(f"**Documents Evaluated:** {numdocs}")
-                #st.write(f"**F1@5:** {metrics['F1@5']}")
 
                 col1, col2, col3 = st.columns([1,1,1])
                 with col1:
