@@ -10,8 +10,11 @@ from annif.registry import AnnifRegistry
 from annif.project import Access
 
 # TODO: external dependencies
-from readable_number import ReadableNumber
-import iso639
+try:
+    from readable_number import ReadableNumber
+    import iso639
+except:
+    pass
 
 ANNIF_API = "http://localhost:5000/v1"
 
@@ -148,17 +151,17 @@ def list_projects(projects):
         try:
             metric_count = df.dropna(subset=["F1@5"]).shape[0]
             if metric_count:
-                with st.expander("**Comparative Metrics**", expanded=False):
+                with st.expander("**Comparative Metrics**", expanded=True):
 
-                    col1, col2, col3 = st.columns([1,1,1])
+                    col1, col2, col3 = st.columns(3)
                     with col1:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='', color=['#009', '#090', '#900'])
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), sort="-F1@5", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='')
 
                     with col2:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='', color=['#009', '#090', '#900'])
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), sort="-F1@5", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='')
 
                     with col3:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='', color=['#009', '#090', '#900'])
+                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), sort="-F1@5", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='')
         except:
             pass
 
@@ -191,64 +194,12 @@ def project_details(projects):
             col1, col2 = st.columns([1,2])
             with col1:
                 project_form(api_project)
+
             with col2:
                 backend_form(project)
 
-        # Display evaluation metrics
-        metrics = get_evaluation(api_project)
-
-        if metrics:
-            with st.expander("**Project Metrics**", expanded=True):
-                numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
-                st.write(f"**Documents Evaluated:** {numdocs}")
-
-                col1, col2, col3 = st.columns([1,1,1])
-                with col1:
-                    data = {
-                        "Cutoff": ["@1", "@3", "@5"],
-                        "Precision": [
-                            metrics["Precision@1"],
-                            metrics["Precision@3"],
-                            metrics["Precision@5"]
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Cutoff")
-                    st.subheader('Precision')
-                    st.bar_chart(df, sort=False)
-
-                with col2:
-                    data = {
-                        "Metric": ["Recall", "FPos", "FNeg"],
-                        "Percent": [
-                            metrics["Recall_microavg"] * 100,
-                            metrics["false_positive_rate"] * 100,
-                            metrics["false_negative_rate"] * 100
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Metric")
-                    st.subheader('Recall')
-                    st.bar_chart(df, sort=False)
-
-                with col3:
-                    data = {
-                        "Cutoff": ["@1", "@5", "@10"],
-                        "NDCG": [
-                            metrics["NDCG"],
-                            metrics["NDCG@5"],
-                            metrics["NDCG@10"]
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Cutoff")
-                    st.subheader('NDCG')
-                    st.bar_chart(df, sort=False)
-
 # Uses an api_project dict
 def project_form(project):
-    lang = iso639.Language.from_part1(project['language'])
-
     if None == project['is_trained']:
         pass
 
@@ -262,15 +213,26 @@ def project_form(project):
         st.subheader("Not Trained", divider="red")
 
     vocabs = get_vocabs()
-    vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
-    vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-    index = vocab_ids.index(vocab_id)
+    if vocabs:
+        vocabs
+    
+        vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
+        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+        index = vocab_ids.index(vocab_id)
 
-    st.selectbox("**Vocab**", vocab_ids, index)
-    size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
-    st.write(f"**Terms:** {size}")
+        st.selectbox("**Vocab**", vocab_ids, index)
+        try:
+            size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+        except:
+            size = metrics[vocabs[index]['size']]
 
-    st.write(f"**Language:** {lang.name}")
+        st.write(f"**Terms:** {size}")
+
+    try:
+        lang = iso639.Language.from_part1(project['language']).name
+    except:
+        lang = project['language']
+    st.write(f"**Language:** {lang}")
 
     analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
     try:
@@ -287,20 +249,28 @@ def project_form(project):
         key=f"{project['project_id']}_transform"
     )
 
+    if project['modification_time']:
+        dt = datetime.fromisoformat(project['modification_time'])
+        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        st.write(f"**Modified:** {formatted_time}")
+
+    metrics = get_evaluation(project)
+
     if None == project['is_trained']:
+        pass
+    
+    elif metrics:
         pass
 
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
+        uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
+
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
     elif project['is_trained']:
-        dt = datetime.fromisoformat(project['modification_time'])
-        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
-
         uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
         
-        st.write(f"**Modified:** {formatted_time}")
         if st.button("Evaluate", key=f"eval_{project['project_id']}"):
             st.info(f"⚙️ Evaluate action triggered for {project['name']}")
 
@@ -310,6 +280,55 @@ def project_form(project):
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
         if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
             st.info(f"⚙️ Train action triggered for {project['name']}")
+
+    if metrics:
+        st.subheader("Evaluation", divider="grey")
+        
+        try:
+            numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
+        except:
+            numdocs = metrics['Documents_evaluated']
+        st.write(f"**Documents Evaluated:** {numdocs}")
+
+        data = {
+            "Cutoff": ["@1", "@3", "@5"],
+            "Precision": [
+                metrics["Precision@1"],
+                metrics["Precision@3"],
+                metrics["Precision@5"]
+            ]
+        }
+
+        df = pd.DataFrame(data).set_index("Cutoff")
+        st.write('**Precision**')
+        st.bar_chart(df, horizontal=True, sort=False)
+
+        data = {
+            "Metric": ["Recall", "FPR", "FNR"],
+            "Percent": [
+                metrics["Recall_microavg"] * 100,
+                metrics["false_positive_rate"] * 100,
+                metrics["false_negative_rate"] * 100
+            ]
+        }
+
+        df = pd.DataFrame(data).set_index("Metric")
+        st.write('**Recall**')
+        st.bar_chart(df, horizontal=True, sort=False)
+
+        data = {
+            "Cutoff": ["@1", "@5", "@10"],
+            "NDCG": [
+                metrics["NDCG"],
+                metrics["NDCG@5"],
+                metrics["NDCG@10"]
+            ]
+        }
+
+        df = pd.DataFrame(data).set_index("Cutoff")
+        st.write('**NDCG**')
+        st.bar_chart(df, horizontal=True, sort=False)
+        # Display evaluation metrics
 
 # Uses a local project object
 def backend_form(project):
@@ -395,10 +414,10 @@ def main():
 
     api_projects = get_api_projects()
     list_projects(api_projects)
-    
     st.caption(f"{len(api_projects)} projects")
-    
+
     project_details(get_local_projects())
+    
 
     st.write("🇨🇦🤝🇫🇮")
 
