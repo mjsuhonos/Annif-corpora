@@ -60,6 +60,7 @@ def get_projects():
 
         if lp := local_projects.get(project_id):
             projects[project_id].update({
+                "analyzer_spec": lp.analyzer_spec,
                 "vocab_spec": lp.vocab_spec,
                 "transform_spec": lp.transform_spec,
                 "default_params": lp.backend.DEFAULT_PARAMETERS,
@@ -170,43 +171,40 @@ def project_form(project):
     else:
         st.subheader("Not Trained", divider="red")
 
-    vocabs = get_vocabs()
-    if vocabs:
-        vocab_id = re.match(r"([^(]+)", project.get('vocab_spec')).group(1)
-        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-        index = vocab_ids.index(vocab_id)
+    with st.container(border=True):
+        vocabs = get_vocabs()
+        if vocabs:
+            vocab_id = re.match(r"([^(]+)", project.get('vocab_spec')).group(1)
+            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+            index = vocab_ids.index(vocab_id)
 
-        st.selectbox("**Vocab**", vocab_ids, index)
+            st.selectbox("**Vocab**", vocab_ids, index)
+            try:
+                from readable_number import ReadableNumber
+                size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+            except:
+                size = vocabs[index]['size']
+
+            st.write(f"**Terms:** {size}")
+
         try:
-            from readable_number import ReadableNumber
-            size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+            import iso639
+            lang = iso639.Language.from_part1(project.get('language')).name
         except:
-            size = vocabs[index]['size']
+            lang = project.get('language')
 
-        st.write(f"**Terms:** {size}")
+        st.write(f"**Language:** {lang}")
 
-    try:
-        import iso639
-        lang = iso639.Language.from_part1(project.get('language')).name
-    except:
-        lang = project.get('language')
+    #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
-    st.write(f"**Language:** {lang}")
-    st.divider()
+    st.text_input("**Analyzer**",
+        value=project.get('analyzer_spec'),
+        key=f"{project.get('analyzer_spec')}_analyzer"
+    )
 
-    analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
-    try:
-        # Find index in list (handle case if not found)
-        analyzer = project.analyzer_spec.split('(')[0]
-        index = analyzers.index(analyzer)
-    except:
-        index = None
-    
-    st.selectbox("**Analyzer**", analyzers, index)
-    
     st.text_input("**Transform:**",
         value=project.get('transform_spec'),
-        key=f"{project.get('project_id')}_transform"
+        key=f"{project.get('transform_spec')}_transform"
     )
 
     if modtime := project.get('modification_time'):

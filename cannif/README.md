@@ -9,8 +9,6 @@ Cannif is a web GUI for the [Annif toolkit](https://annif.org). It provides:
 
 It is a pretty small script built using [Streamlit](https://streamlit.io).
 
-Because Streamlit apps are just regular Python scripts, cannif can also interact with a local copy of Annif directly, potentially providing full functionality.  However, cannif is a development tool and as such, should be used with caution when executing actions that modify data.
-
 ## why
 
 For Annif installations of a few projects, editing projects by hand and managing them isn't too much work.  However, for cases where there are tens of projects or more, it quickly becomes onerous.  Additionally, gathering the output of dozens of evaluations and keeping them organized can be a pain.  These things aren't the job of Annif, so cannif was created.
@@ -24,8 +22,6 @@ The recommended way is to install cannif into a virtual environment.
     python3 -m venv cannif-venv
     source cannif-venv/bin/activate
     pip install annif
-    pip install python-iso639
-	pip install readable-number
     pip install streamlit
 
 Make sure Annif is running:
@@ -60,13 +56,13 @@ When connected, it presents an interactive table of projects and their details. 
 
 Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
 
-Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the Annif root folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
+Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the `Annif` folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
 
 When you select a project in the table, details about that project and its backend appear below the table.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
 
-Cannif looks for evaluation information in the `data/eval` directory.  JSON files in the Annif `--metrics-file` format will be used if they match the name of a project_id.  When metrics are available, they are displayed in both the project table and in a series of charts.
+Cannif looks for evaluation information in the `data/eval` directory.  JSON files in the Annif `--metrics-file` format will be used if they match the name of a project_id.  When metrics are available, they are displayed in both the project details and in a series of comparative charts.
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
 
@@ -77,7 +73,6 @@ Cannif doesn't do some things yet, but they are being developed:
 - load vocabularies
 - create new projects
 - drag-and-drop file upload for training and evaluation
-- more interactive evaluation results
 - split-ensemble creation for reduced memory during training
 
 If you have any other ideas for how to improve cannif, get in touch or submit a pull request!
