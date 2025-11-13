@@ -30,86 +30,72 @@ def get_vocabs():
     response = api_request(f"{ANNIF_API}/vocabs")
     return response["vocabs"] if response else []
 
-def get_api_projects():
+def get_projects():
     response = api_request(f"{ANNIF_API}/projects")
-    projects = response.get("projects")
+    api_projects = response.get("projects") # array
 
-    # Flatten backend and vocab levels
-    for project in projects:
-        backend_info = project.get("backend", {})
-        if isinstance(backend_info, dict) and "backend_id" in backend_info:
-            project["backend"] = backend_info.get("backend_id")
+    projects = {p.get("project_id"): p for p in api_projects}
 
-        vocab = project.get("vocab", {})
-        if isinstance(vocab, dict) and "vocab_id" in vocab:
-            project["vocab"] = vocab.get("vocab_id")
-
-    return projects
-
-def get_local_projects():
-    # Locate the configuration directory
+    # use Annif module to get values not available from API
     try:
         registry = AnnifRegistry(
             projects_config_path=find_config(),
             datadir=DATA_DIR,
             init_projects=False
         )
+        local_projects = registry.get_projects()
     except Exception as e:
         st.error(f"Error fetching local projects: {e}")
 
-    # Get all available projects
-    return registry.get_projects()
+    for project_id, values in projects.items():
+        backend = values.get("backend") or {}
+        vocab = values.get("vocab") or {}
 
-def get_evaluation(project):
-    filepath = os.path.join(os.getcwd(), DATA_DIR, "eval", project.get('project_id') + ".json")
+        # Flatten backend and vocab levels
+        projects[project_id].update({
+            "backend": backend.get("backend_id"),
+            "vocab": vocab.get("vocab_id"),
+            "vocab_size": vocab.get("size"),
+        })
 
-    if os.path.exists(filepath):
+        if lp := local_projects.get(project_id):
+            projects[project_id].update({
+                "vocab_spec": lp.vocab_spec,
+                "transform_spec": lp.transform_spec,
+                "default_params": lp.backend.DEFAULT_PARAMETERS,
+                "backend_params": lp.backend.params,
+            })
+
+        # add evaluation metrics if they exist
+        filepath = os.path.join(os.getcwd(), DATA_DIR, "eval", project_id + ".json")
+
         try:
-            with open(filepath, 'r') as f:
-                metrics = json.load(f)
+            metrics = json.load(open(os.path.join(filepath), 'r'))
 
-                # Calculate some useful rates 
-                tp = metrics["True_positives"]
-                fp = metrics["False_positives"]
-                fn = metrics["False_negatives"]
-            
-                false_positive_rate = fp / (fp + tp) if (fp + tp) > 0 else 0
-                false_negative_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
-                
-                metrics["false_positive_rate"] = false_positive_rate
-                metrics["false_negative_rate"] = false_negative_rate
-
-                return metrics
-
-        except Exception as e:
-            st.error(f"Error loading {filepath}: {e}")
-    else:
-        return {}
-
-# get local evaluation reults if they exist
-def get_evaulations(projects):
-    results = []
-
-    for project in projects:
-        evals = get_evaluation(project)
+            # Calculate some useful rates 
+            tp = metrics["True_positives"]
+            fp = metrics["False_positives"]
+            fn = metrics["False_negatives"]
+    
+            false_positive_rate = fp / (fp + tp) if (fp + tp) > 0 else 0
+            false_negative_rate = fn / (fn + tp) if (fn + tp) > 0 else 0
         
-        if evals:
-            results.append({**project, **evals})
-        else:
-            results.append(project)
+            metrics["false_positive_rate"] = false_positive_rate
+            metrics["false_negative_rate"] = false_negative_rate
+            
+        except (FileNotFoundError, json.JSONDecodeError):
+            metrics = {}
 
-    return results
+        projects[project_id] = {**values, **metrics}
+
+    return projects
 
 # Displays an interactive table of project details
 def list_projects(projects):
-    if not projects:
-        return
+    project_list = list(projects.values())
 
-    # Show a sortable table of all projects
     with st.container():
-        projects = get_evaulations(projects)
-
-        df = pd.DataFrame(projects)        
+        df = pd.DataFrame(project_list)        
         df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "")
 
         column_order = ["name", "vocab", "backend", "language", "modification_time", "available", "F1@5", "NDCG", "Recall_microavg", "false_positive_rate", "false_negative_rate", "Precision@1", "Precision@3", "Precision@5"]
@@ -146,35 +132,23 @@ def list_projects(projects):
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
     table_state = st.session_state.get("table", {})
-
     selected_rows = table_state.get("selection", {}).get("rows", [])
 
     if selected_rows:
         row_index = selected_rows[0]
+        project_list = list(projects.values())
 
-        # FIXME: should we do a key lookup instead of relying on array index?
-        api_project = get_api_projects()[row_index]
-        
-        try:
-            # add vocab data to api_project
-            project = projects.get(api_project.get('project_id'))
+        # FIXME: don't like relying on row index
+        project = project_list[row_index]
 
-            api_project['vocab_spec'] = project.vocab_spec
-            api_project['transform_spec'] = project.transform_spec
-
-        except Exception as e:
-            st.error(f"Error fetching local project: {e}")
-            return []
-
-        with st.expander(f"**{project.name}**", expanded=True):
+        with st.expander(f"**{project.get('name')}**", expanded=True):
             col1, col2 = st.columns([1,2])
             with col1:
-                project_form(api_project)
+                project_form(project)
 
             with col2:
                 backend_form(project)
 
-# Uses an api_project dict
 def project_form(project):
     backend = project.get('backend')
 
@@ -231,11 +205,9 @@ def project_form(project):
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
         st.write(f"**Modified:** {formatted_time}")
 
-    metrics = get_evaluation(project)
-
     if None == project.get('is_trained'):
         pass
-    elif metrics:
+    elif project.get("F1@5"):
         pass
     elif "ensemble" == backend or "yake" == backend:
         upload_action(project, "Evaluate")
@@ -245,27 +217,27 @@ def project_form(project):
         upload_action(project, "Train")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
 
-    if metrics:
+    if project.get("F1@5"):
         st.subheader("Evaluation", divider="grey")
         
         try:
             from readable_number import ReadableNumber
-            numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
+            numdocs = ReadableNumber(project.get('Documents_evaluated'), use_shortform=True)
         except:
-            numdocs = metrics['Documents_evaluated']
+            numdocs = project.get('Documents_evaluated')
 
         st.write(f"**Documents Evaluated:** {numdocs}")
 
         data = {"Cutoff": ["@1", "@3", "@5"],
-                "Precision": [metrics["Precision@1"], metrics["Precision@3"], metrics["Precision@5"]]}
+                "Precision": [project["Precision@1"], project["Precision@3"], project["Precision@5"]]}
         show_bar_chart(data)
 
         data = {"Metric": ["Recall", "FPR", "FNR"],
-                "Percent": [metrics["Recall_microavg"] * 100, metrics["false_positive_rate"] * 100, metrics["false_negative_rate"] * 100]}
+                "Percent": [project["Recall_microavg"] * 100, project["false_positive_rate"] * 100, project["false_negative_rate"] * 100]}
         show_bar_chart(data)
 
         data = {"Cutoff": ["@1", "@5", "@10"],
-                "NDCG": [metrics["NDCG"], metrics["NDCG@5"], metrics["NDCG@10"]]}
+                "NDCG": [project["NDCG"], project["NDCG@5"], project["NDCG@10"]]}
         show_bar_chart(data)
 
 def show_bar_chart(data):
@@ -277,56 +249,53 @@ def show_bar_chart(data):
     st.write(f'**{second_key}**')
     st.bar_chart(df, horizontal=True, sort=False)
 
-
 def upload_action(project, action):
     uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'), type=["tsv", "csv", "json", "jsonl"])
     file_id = f"{action.lower()}_{project.get('project_id')}"
     
     st.button(action, key=file_id, type="primary")
 
-# Uses a local project object
 def backend_form(project):
-    backend = project.backend
+    backend = project.get('backend')
     
     if backend:
-        st.subheader(f"{backend.backend_id} parameters", divider="gray")
+        st.subheader(f"{backend} parameters", divider="gray")
 
         with st.container(border=True):
             response = {
-                "project_id": project.project_id,
-                "name": project.name,
-                "language": project.language,
-                "backend": {"backend_id": backend.backend_id}
+                "project_id": project.get('project_id'),
+                "name": project.get('name'),
+                "language": project.get('language'),
+                "backend": {"backend_id": backend}
             }
 
-            for key, value in backend.DEFAULT_PARAMETERS.items():
+            params = project.get('default_params')
+            for key, value in params.items():
                 col1, col2 = st.columns([2,1])
-                key_id = f"{project.project_id}_{backend.backend_id}_{key}"
+                key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
 
                 col2.caption(f"Default: {value}")
                 with col1:
                     if isinstance(value, bool):
-                        response[key] = st.checkbox(key, value=backend.params.get(key), key=key_id)
+                        response[key] = st.checkbox(key, value=params.get(key), key=key_id)
                     elif isinstance(value, (int, float)):
-                        response[key] = st.number_input(key, value=float(backend.params.get(key)), key=key_id)
+                        response[key] = st.number_input(key, value=float(params.get(key)), key=key_id)
                     else:
-                        response[key] = st.text_input(key, value=str(backend.params.get(key)), key=key_id)
+                        response[key] = st.text_input(key, value=str(params.get(key)), key=key_id)
 
             # Show list of sources for the ensemble
-            if "ensemble" in backend.backend_id:
-                sources = backend.params.get('sources')
+            if "ensemble" in backend:
+                sources = project.get('backend_params').get('sources')
                 source_list = sources.split(",")
 
-                project_ids = [item["project_id"] for item in get_api_projects()]
-                new_sources = st.multiselect("Sources", project_ids, source_list)
+                # FIXME: requires a full list of project_ids
+                #get_api_projects()
+                #project_ids = [item["project_id"] for item in get_api_projects()]
+                #new_sources = st.multiselect("Sources", project_ids, source_list)
+                #response['sources'] = ",".join(new_sources)
 
-            if st.button("Save Configuration", key=f"save_{project.project_id}_{backend.backend_id}", type="primary"):
-                st.success(f"Configuration for **{project.project_id}** saved successfully!")
-
-                try:
-                    response['sources'] = ",".join(new_sources)
-                except NameError:
-                    pass
+            if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
+                st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
 
                 st.json(response)
     else:
@@ -348,9 +317,10 @@ def main():
     if version := get_annif_version():
         st.caption(f"Annif {version} at {ANNIF_API}")
 
-    list_projects(get_api_projects())
+    projects = get_projects()
 
-    project_details(get_local_projects())
+    list_projects(projects)
+    project_details(projects)
 
 if __name__ == "__main__":
     main()
