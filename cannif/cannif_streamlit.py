@@ -5,15 +5,13 @@ import re
 import os
 import json
 from datetime import datetime
-from annif.config import AnnifConfigDirectory, find_config
+from annif.config import find_config
 from annif.registry import AnnifRegistry
-from annif.project import Access
-
-# TODO: external dependencies
-from readable_number import ReadableNumber
-import iso639
 
 ANNIF_API = "http://localhost:5000/v1"
+DATA_DIR = "data"
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def api_request(url):
     try:
@@ -52,30 +50,20 @@ def get_api_projects():
 
 def get_local_projects():
     # Locate the configuration directory
-    # Default is "projects.d"
     try:
         registry = AnnifRegistry(
             projects_config_path=find_config(),
-            datadir="data",
+            datadir=DATA_DIR,
             init_projects=False
         )
     except Exception as e:
         st.error(f"Error fetching local projects: {e}")
 
     # Get all available projects
-    return registry.get_projects(min_access=Access.private)
+    return registry.get_projects()
 
 def get_evaluation(project):
-    registry = AnnifRegistry(
-        projects_config_path=find_config(),
-        datadir="data",
-        init_projects=False
-    )
-    
-    evaldir = 'data/eval'
-    project_id = project.get('project_id')
-
-    filepath = os.path.join(os.getcwd(), evaldir, f"{project_id}.json")
+    filepath = os.path.join(os.getcwd(), DATA_DIR, "eval", project.get('project_id') + ".json")
 
     if os.path.exists(filepath):
         try:
@@ -102,7 +90,6 @@ def get_evaluation(project):
 
 # get local evaluation reults if they exist
 def get_evaulations(projects):
-    evaldir = 'eval'
     results = []
 
     for project in projects:
@@ -124,8 +111,7 @@ def list_projects(projects):
     with st.container():
         projects = get_evaulations(projects)
 
-        df = pd.DataFrame(projects)
-        
+        df = pd.DataFrame(projects)        
         df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "")
 
         column_order = ["name", "vocab", "backend", "language", "modification_time", "available", "F1@5", "NDCG", "Recall_microavg", "false_positive_rate", "false_negative_rate", "Precision@1", "Precision@3", "Precision@5"]
@@ -143,32 +129,29 @@ def list_projects(projects):
 
         st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
 
+        st.caption(f"{len(projects)} projects")
+
         # if there are metrics, show graphs
-        # FIXME: better test
-        try:
-            metric_count = df.dropna(subset=["F1@5"]).shape[0]
-            if metric_count:
-                with st.expander("**Comparative Metrics**", expanded=False):
+        if "F1@5" in df:
+            df = df.set_index("name").dropna(subset=["F1@5"])
+            
+            with st.expander("**Comparative Metrics**", expanded=False):
 
-                    col1, col2, col3 = st.columns([1,1,1])
-                    with col1:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='', color=['#009', '#090', '#900'])
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.bar_chart(df, sort="-F1@5", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='')
 
-                    with col2:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='', color=['#009', '#090', '#900'])
+                with col2:
+                    st.bar_chart(df, sort="-F1@5", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='')
 
-                    with col3:
-                        st.bar_chart(df.set_index("name").dropna(subset=["F1@5"]), horizontal=True, sort="-F1@5", height="stretch", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='', color=['#009', '#090', '#900'])
-        except:
-            pass
-
+                with col3:
+                    st.bar_chart(df, sort="-F1@5", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='')
 
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
-    try:
-        selected_rows = st.session_state.table["selection"]["rows"] if "selection" in st.session_state.table else []
-    except:
-        return
+    table_state = st.session_state.get("table", {})
+
+    selected_rows = table_state.get("selection", {}).get("rows", [])
 
     if selected_rows:
         row_index = selected_rows[0]
@@ -177,9 +160,9 @@ def project_details(projects):
         api_project = get_api_projects()[row_index]
         
         try:
-            project = projects[api_project['project_id']]
             # add vocab data to api_project
-            # TODO: this can come from the Annif /projects API in 1.4+
+            project = projects[api_project['project_id']]
+
             api_project['vocab_spec'] = project.vocab_spec
             api_project['transform_spec'] = project.transform_spec
 
@@ -191,64 +174,12 @@ def project_details(projects):
             col1, col2 = st.columns([1,2])
             with col1:
                 project_form(api_project)
+
             with col2:
                 backend_form(project)
 
-        # Display evaluation metrics
-        metrics = get_evaluation(api_project)
-
-        if metrics:
-            with st.expander("**Project Metrics**", expanded=True):
-                numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
-                st.write(f"**Documents Evaluated:** {numdocs}")
-
-                col1, col2, col3 = st.columns([1,1,1])
-                with col1:
-                    data = {
-                        "Cutoff": ["@1", "@3", "@5"],
-                        "Precision": [
-                            metrics["Precision@1"],
-                            metrics["Precision@3"],
-                            metrics["Precision@5"]
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Cutoff")
-                    st.subheader('Precision')
-                    st.bar_chart(df, sort=False)
-
-                with col2:
-                    data = {
-                        "Metric": ["Recall", "FPos", "FNeg"],
-                        "Percent": [
-                            metrics["Recall_microavg"] * 100,
-                            metrics["false_positive_rate"] * 100,
-                            metrics["false_negative_rate"] * 100
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Metric")
-                    st.subheader('Recall')
-                    st.bar_chart(df, sort=False)
-
-                with col3:
-                    data = {
-                        "Cutoff": ["@1", "@5", "@10"],
-                        "NDCG": [
-                            metrics["NDCG"],
-                            metrics["NDCG@5"],
-                            metrics["NDCG@10"]
-                        ]
-                    }
-
-                    df = pd.DataFrame(data).set_index("Cutoff")
-                    st.subheader('NDCG')
-                    st.bar_chart(df, sort=False)
-
 # Uses an api_project dict
 def project_form(project):
-    lang = iso639.Language.from_part1(project['language'])
-
     if None == project['is_trained']:
         pass
 
@@ -262,15 +193,27 @@ def project_form(project):
         st.subheader("Not Trained", divider="red")
 
     vocabs = get_vocabs()
-    vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
-    vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-    index = vocab_ids.index(vocab_id)
+    if vocabs:
+        vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
+        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+        index = vocab_ids.index(vocab_id)
 
-    st.selectbox("**Vocab**", vocab_ids, index)
-    size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
-    st.write(f"**Terms:** {size}")
+        st.selectbox("**Vocab**", vocab_ids, index)
+        try:
+            from readable_number import ReadableNumber
+            size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+        except:
+            size = vocabs[index]['size']
 
-    st.write(f"**Language:** {lang.name}")
+        st.write(f"**Terms:** {size}")
+
+    try:
+        import iso639
+        lang = iso639.Language.from_part1(project['language']).name
+    except:
+        lang = project['language']
+
+    st.write(f"**Language:** {lang}")
 
     analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
     try:
@@ -287,29 +230,72 @@ def project_form(project):
         key=f"{project['project_id']}_transform"
     )
 
+    if project['modification_time']:
+        dt = datetime.fromisoformat(project['modification_time'])
+        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        st.write(f"**Modified:** {formatted_time}")
+
+    metrics = get_evaluation(project)
+
     if None == project['is_trained']:
+        pass
+    
+    elif metrics:
         pass
 
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
-        if st.button("Evaluate", key=f"eval_{project['project_id']}"):
-            st.info(f"⚙️ Evaluate action triggered for {project['name']}")
+        upload_action(project, "Evaluate")
 
     elif project['is_trained']:
-        dt = datetime.fromisoformat(project['modification_time'])
-        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
-
-        uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
-        
-        st.write(f"**Modified:** {formatted_time}")
-        if st.button("Evaluate", key=f"eval_{project['project_id']}"):
-            st.info(f"⚙️ Evaluate action triggered for {project['name']}")
+        upload_action(project, "Evaluate")
 
     else:
-        uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
-
+        upload_action(project, "Train")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
-        if st.button("Train", key=f"train_{project['project_id']}", type="primary"):
-            st.info(f"⚙️ Train action triggered for {project['name']}")
+
+    if metrics:
+        st.subheader("Evaluation", divider="grey")
+        
+        try:
+            from readable_number import ReadableNumber
+            numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
+        except:
+            numdocs = metrics['Documents_evaluated']
+        st.write(f"**Documents Evaluated:** {numdocs}")
+
+        data = {
+            "Cutoff": ["@1", "@3", "@5"],
+            "Precision": [metrics["Precision@1"], metrics["Precision@3"], metrics["Precision@5"]]
+        }
+        show_bar_chart(data)
+
+        data = {
+            "Metric": ["Recall", "FPR", "FNR"],
+            "Percent": [metrics["Recall_microavg"] * 100, metrics["false_positive_rate"] * 100, metrics["false_negative_rate"] * 100]
+        }
+        show_bar_chart(data)
+
+        data = {
+            "Cutoff": ["@1", "@5", "@10"],
+            "NDCG": [metrics["NDCG"], metrics["NDCG@5"], metrics["NDCG@10"]]
+        }
+        show_bar_chart(data)
+
+def show_bar_chart(data):
+    it = iter(data)
+    first_key = next(it)
+    second_key = next(it)
+
+    df = pd.DataFrame(data).set_index(first_key)
+    st.write(f'**{second_key}**')
+    st.bar_chart(df, horizontal=True, sort=False)
+
+
+def upload_action(project, action):
+    uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
+    file_id = f"{action.lower()}_{project['project_id']}"
+    
+    st.button(action, key=file_id, type="primary")
 
 # Uses a local project object
 def backend_form(project):
@@ -395,10 +381,9 @@ def main():
 
     api_projects = get_api_projects()
     list_projects(api_projects)
-    
-    st.caption(f"{len(api_projects)} projects")
-    
+
     project_details(get_local_projects())
+    
 
     st.write("🇨🇦🤝🇫🇮")
 
