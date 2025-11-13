@@ -10,8 +10,6 @@ from annif.registry import AnnifRegistry
 
 ANNIF_API = "http://localhost:5000/v1"
 DATA_DIR = "data"
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def api_request(url):
     try:
