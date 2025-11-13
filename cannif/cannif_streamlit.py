@@ -10,6 +10,7 @@ from annif.registry import AnnifRegistry
 
 ANNIF_API = "http://localhost:5000/v1"
 DATA_DIR = "data"
+EVAL_DIR = "data/eval"
 
 def api_request(url):
     try:
@@ -68,7 +69,7 @@ def get_projects():
             })
 
         # add evaluation metrics if they exist
-        filepath = os.path.join(os.getcwd(), DATA_DIR, "eval", project_id + ".json")
+        filepath = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
 
         try:
             metrics = json.load(open(os.path.join(filepath), 'r'))
