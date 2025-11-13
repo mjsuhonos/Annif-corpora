@@ -140,10 +140,8 @@ def list_projects(projects):
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     st.bar_chart(df, sort="-F1@5", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='')
-
                 with col2:
                     st.bar_chart(df, sort="-F1@5", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='')
-
                 with col3:
                     st.bar_chart(df, sort="-F1@5", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='')
 
@@ -182,13 +180,10 @@ def project_details(projects):
 def project_form(project):
     if None == project['is_trained']:
         pass
-
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
         st.subheader("Training Not Required", divider="green")
-
     elif project['is_trained']:
         st.subheader("Trained", divider="green")
-
     else:
         st.subheader("Not Trained", divider="red")
 
@@ -239,16 +234,12 @@ def project_form(project):
 
     if None == project['is_trained']:
         pass
-    
     elif metrics:
         pass
-
     elif "ensemble" == project['backend'] or "yake" == project['backend']:
         upload_action(project, "Evaluate")
-
     elif project['is_trained']:
         upload_action(project, "Evaluate")
-
     else:
         upload_action(project, "Train")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
@@ -261,24 +252,19 @@ def project_form(project):
             numdocs = ReadableNumber(metrics['Documents_evaluated'], use_shortform=True)
         except:
             numdocs = metrics['Documents_evaluated']
+
         st.write(f"**Documents Evaluated:** {numdocs}")
 
-        data = {
-            "Cutoff": ["@1", "@3", "@5"],
-            "Precision": [metrics["Precision@1"], metrics["Precision@3"], metrics["Precision@5"]]
-        }
+        data = {"Cutoff": ["@1", "@3", "@5"],
+                "Precision": [metrics["Precision@1"], metrics["Precision@3"], metrics["Precision@5"]]}
         show_bar_chart(data)
 
-        data = {
-            "Metric": ["Recall", "FPR", "FNR"],
-            "Percent": [metrics["Recall_microavg"] * 100, metrics["false_positive_rate"] * 100, metrics["false_negative_rate"] * 100]
-        }
+        data = {"Metric": ["Recall", "FPR", "FNR"],
+                "Percent": [metrics["Recall_microavg"] * 100, metrics["false_positive_rate"] * 100, metrics["false_negative_rate"] * 100]}
         show_bar_chart(data)
 
-        data = {
-            "Cutoff": ["@1", "@5", "@10"],
-            "NDCG": [metrics["NDCG"], metrics["NDCG@5"], metrics["NDCG@10"]]
-        }
+        data = {"Cutoff": ["@1", "@5", "@10"],
+                "NDCG": [metrics["NDCG"], metrics["NDCG@5"], metrics["NDCG@10"]]}
         show_bar_chart(data)
 
 def show_bar_chart(data):
@@ -305,8 +291,6 @@ def backend_form(project):
         st.subheader(f"{backend.backend_id} parameters", divider="gray")
 
         with st.container(border=True):
-
-            # Start response body
             response = {
                 "project_id": project.project_id,
                 "name": project.name,
@@ -316,26 +300,15 @@ def backend_form(project):
 
             for key, value in backend.DEFAULT_PARAMETERS.items():
                 col1, col2 = st.columns([2,1])
+                key_id = f"{project.project_id}_{backend.backend_id}_{key}"
 
                 with col1:
                     if isinstance(value, bool):
-                        response[key] = st.checkbox(
-                            f"{key}",
-                            value=backend.params[key],
-                            key=f"{project.project_id}_{backend.backend_id}_{key}"
-                        )
+                        response[key] = st.checkbox(key, value=backend.params[key], key=key_id)
                     elif isinstance(value, (int, float)):
-                        response[key] = st.number_input(
-                            f"{key}",
-                            value=float(backend.params[key]),
-                            key=f"{project.project_id}_{backend.backend_id}_{key}"
-                        )
+                        response[key] = st.number_input(key, value=float(backend.params[key]), key=key_id)
                     else:
-                        response[key] = st.text_input(
-                            f"{key}",
-                            value=str(backend.params[key]),
-                            key=f"{project.project_id}_{backend.backend_id}_{key}"
-                        )
+                        response[key] = st.text_input(key, value=str(backend.params[key]), key=key_id)
 
                 with col2:
                     st.caption(f"Default: {value}")
@@ -371,8 +344,9 @@ def local_css(file_name):
 def main():
     # Load the CSS file
     local_css("style.css")
-    
-    st.set_page_config(page_title="cannif", layout="wide", page_icon=":material/surgical:")
+
+    st.set_page_config(page_title="cannif", layout="wide")
+
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
     version = get_annif_version()
@@ -383,9 +357,6 @@ def main():
     list_projects(api_projects)
 
     project_details(get_local_projects())
-    
-
-    st.write("🇨🇦🤝🇫🇮")
 
 if __name__ == "__main__":
     main()
