@@ -98,7 +98,11 @@ def list_projects(projects):
         df = pd.DataFrame(project_list)        
         df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "")
 
-        column_order = ["name", "vocab", "backend", "language", "modification_time", "available", "F1@5", "NDCG", "Recall_microavg", "false_positive_rate", "false_negative_rate", "Precision@1", "Precision@3", "Precision@5"]
+        column_order = ["name", "vocab", "backend", "language",
+                        "modification_time", "available", "F1@5", "NDCG",
+                        "Recall_microavg", "false_positive_rate",
+                        "false_negative_rate", "Precision@1", "Precision@3",
+                        "Precision@5"]
         column_config = {
             "name": "Project",
             "vocab": "Vocab",
@@ -111,7 +115,9 @@ def list_projects(projects):
             "false_negative_rate": "FNR"
         }
 
-        st.dataframe(df, hide_index=True, column_config=column_config, column_order=column_order, key="table", selection_mode="single-row", on_select="rerun")
+        st.dataframe(df, hide_index=True, column_config=column_config,
+                    column_order=column_order, key="table",
+                    selection_mode="single-row", on_select="rerun")
 
         st.caption(f"{len(projects)} projects")
 
@@ -123,11 +129,14 @@ def list_projects(projects):
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.bar_chart(df, sort="-F1@5", stack=False, y=["Precision@1","Precision@3","Precision@5"], x_label='')
+                    st.bar_chart(df, sort="-F1@5", stack=False, x_label='',
+                                y=["Precision@1","Precision@3","Precision@5"])
                 with col2:
-                    st.bar_chart(df, sort="-F1@5", stack=False, y=["Recall_microavg", "false_positive_rate", "false_negative_rate"], x_label='')
+                    st.bar_chart(df, sort="-F1@5", stack=False, x_label='',
+                                y=["Recall_microavg", "false_positive_rate", "false_negative_rate"])
                 with col3:
-                    st.bar_chart(df, sort="-F1@5", stack=False, y=["NDCG", "NDCG@5", "NDCG@10"], x_label='')
+                    st.bar_chart(df, sort="-F1@5", stack=False, x_label='',
+                                y=["NDCG", "NDCG@5", "NDCG@10"])
 
 def project_details(projects):
     # Get the selected row index (Streamlit stores it in session state)
@@ -147,7 +156,7 @@ def project_details(projects):
                 project_form(project)
 
             with col2:
-                backend_form(project)
+                backend_form(project, projects.keys())
 
 def project_form(project):
     backend = project.get('backend')
@@ -233,7 +242,9 @@ def project_form(project):
         show_bar_chart(data)
 
         data = {"Metric": ["Recall", "FPR", "FNR"],
-                "Percent": [project["Recall_microavg"] * 100, project["false_positive_rate"] * 100, project["false_negative_rate"] * 100]}
+                "Percent": [project["Recall_microavg"] * 100,
+                            project["false_positive_rate"] * 100,
+                            project["false_negative_rate"] * 100]}
         show_bar_chart(data)
 
         data = {"Cutoff": ["@1", "@5", "@10"],
@@ -250,12 +261,13 @@ def show_bar_chart(data):
     st.bar_chart(df, horizontal=True, sort=False)
 
 def upload_action(project, action):
-    uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'), type=["tsv", "csv", "json", "jsonl"])
+    uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'),
+                                    type=["tsv", "csv", "json", "jsonl"])
     file_id = f"{action.lower()}_{project.get('project_id')}"
     
     st.button(action, key=file_id, type="primary")
 
-def backend_form(project):
+def backend_form(project, keys):
     backend = project.get('backend')
     
     if backend:
@@ -269,12 +281,14 @@ def backend_form(project):
                 "backend": {"backend_id": backend}
             }
 
-            params = project.get('default_params')
-            for key, value in params.items():
+            default_params = project.get('default_params')
+            params = project.get('backend_params')
+
+            for key, value in default_params.items():
                 col1, col2 = st.columns([2,1])
                 key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
 
-                col2.caption(f"Default: {value}")
+                col2.caption(f"Default: {default_params.get(key)}")
                 with col1:
                     if isinstance(value, bool):
                         response[key] = st.checkbox(key, value=params.get(key), key=key_id)
@@ -285,14 +299,9 @@ def backend_form(project):
 
             # Show list of sources for the ensemble
             if "ensemble" in backend:
-                sources = project.get('backend_params').get('sources')
-                source_list = sources.split(",")
-
-                # FIXME: requires a full list of project_ids
-                #get_api_projects()
-                #project_ids = [item["project_id"] for item in get_api_projects()]
-                #new_sources = st.multiselect("Sources", project_ids, source_list)
-                #response['sources'] = ",".join(new_sources)
+                source_list = params.get('sources').split(",")
+                new_sources = st.multiselect("Sources", keys, source_list)
+                response['sources'] = ",".join(new_sources)
 
             if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
                 st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
