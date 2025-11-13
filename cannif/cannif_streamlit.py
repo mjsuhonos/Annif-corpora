@@ -32,17 +32,17 @@ def get_vocabs():
 
 def get_api_projects():
     response = api_request(f"{ANNIF_API}/projects")
-    projects = response["projects"]
-    
+    projects = response.get("projects")
+
     # Flatten backend and vocab levels
     for project in projects:
         backend_info = project.get("backend", {})
         if isinstance(backend_info, dict) and "backend_id" in backend_info:
-            project["backend"] = backend_info["backend_id"]
+            project["backend"] = backend_info.get("backend_id")
 
         vocab = project.get("vocab", {})
         if isinstance(vocab, dict) and "vocab_id" in vocab:
-            project["vocab"] = vocab["vocab_id"]
+            project["vocab"] = vocab.get("vocab_id")
 
     return projects
 
@@ -157,7 +157,7 @@ def project_details(projects):
         
         try:
             # add vocab data to api_project
-            project = projects[api_project['project_id']]
+            project = projects.get(api_project.get('project_id'))
 
             api_project['vocab_spec'] = project.vocab_spec
             api_project['transform_spec'] = project.transform_spec
@@ -176,18 +176,20 @@ def project_details(projects):
 
 # Uses an api_project dict
 def project_form(project):
-    if None == project['is_trained']:
+    backend = project.get('backend')
+
+    if None == project.get('is_trained'):
         pass
-    elif "ensemble" == project['backend'] or "yake" == project['backend']:
+    elif "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
-    elif project['is_trained']:
+    elif project.get('is_trained'):
         st.subheader("Trained", divider="green")
     else:
         st.subheader("Not Trained", divider="red")
 
     vocabs = get_vocabs()
     if vocabs:
-        vocab_id = re.match(r"([^(]+)", project['vocab_spec']).group(1)
+        vocab_id = re.match(r"([^(]+)", project.get('vocab_spec')).group(1)
         vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
         index = vocab_ids.index(vocab_id)
 
@@ -202,11 +204,12 @@ def project_form(project):
 
     try:
         import iso639
-        lang = iso639.Language.from_part1(project['language']).name
+        lang = iso639.Language.from_part1(project.get('language')).name
     except:
-        lang = project['language']
+        lang = project.get('language')
 
     st.write(f"**Language:** {lang}")
+    st.divider()
 
     analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
     try:
@@ -219,24 +222,24 @@ def project_form(project):
     st.selectbox("**Analyzer**", analyzers, index)
     
     st.text_input("**Transform:**",
-        value=project['transform_spec'],
-        key=f"{project['project_id']}_transform"
+        value=project.get('transform_spec'),
+        key=f"{project.get('project_id')}_transform"
     )
 
-    if project['modification_time']:
-        dt = datetime.fromisoformat(project['modification_time'])
+    if modtime := project.get('modification_time'):
+        dt = datetime.fromisoformat(modtime)
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
         st.write(f"**Modified:** {formatted_time}")
 
     metrics = get_evaluation(project)
 
-    if None == project['is_trained']:
+    if None == project.get('is_trained'):
         pass
     elif metrics:
         pass
-    elif "ensemble" == project['backend'] or "yake" == project['backend']:
+    elif "ensemble" == backend or "yake" == backend:
         upload_action(project, "Evaluate")
-    elif project['is_trained']:
+    elif project.get('is_trained'):
         upload_action(project, "Evaluate")
     else:
         upload_action(project, "Train")
@@ -276,8 +279,8 @@ def show_bar_chart(data):
 
 
 def upload_action(project, action):
-    uploaded_file = st.file_uploader("**Upload File**", key=project['project_id'], type=["tsv", "csv", "json", "jsonl"])
-    file_id = f"{action.lower()}_{project['project_id']}"
+    uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'), type=["tsv", "csv", "json", "jsonl"])
+    file_id = f"{action.lower()}_{project.get('project_id')}"
     
     st.button(action, key=file_id, type="primary")
 
@@ -300,28 +303,23 @@ def backend_form(project):
                 col1, col2 = st.columns([2,1])
                 key_id = f"{project.project_id}_{backend.backend_id}_{key}"
 
+                col2.caption(f"Default: {value}")
                 with col1:
                     if isinstance(value, bool):
-                        response[key] = st.checkbox(key, value=backend.params[key], key=key_id)
+                        response[key] = st.checkbox(key, value=backend.params.get(key), key=key_id)
                     elif isinstance(value, (int, float)):
-                        response[key] = st.number_input(key, value=float(backend.params[key]), key=key_id)
+                        response[key] = st.number_input(key, value=float(backend.params.get(key)), key=key_id)
                     else:
-                        response[key] = st.text_input(key, value=str(backend.params[key]), key=key_id)
+                        response[key] = st.text_input(key, value=str(backend.params.get(key)), key=key_id)
 
-                with col2:
-                    st.caption(f"Default: {value}")
-
+            # Show list of sources for the ensemble
             if "ensemble" in backend.backend_id:
-                # Show list of sources for the ensemble
-                sources = backend.params['sources']
-
-                # split sources by comma and display a textbox for each (for now)
+                sources = backend.params.get('sources')
                 source_list = sources.split(",")
 
-                projects = get_api_projects()
-                project_ids = [item["project_id"] for item in projects]
+                project_ids = [item["project_id"] for item in get_api_projects()]
                 new_sources = st.multiselect("Sources", project_ids, source_list)
-            
+
             if st.button("Save Configuration", key=f"save_{project.project_id}_{backend.backend_id}", type="primary"):
                 st.success(f"Configuration for **{project.project_id}** saved successfully!")
 
@@ -347,12 +345,10 @@ def main():
 
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
-    version = get_annif_version()
-    if version:
+    if version := get_annif_version():
         st.caption(f"Annif {version} at {ANNIF_API}")
 
-    api_projects = get_api_projects()
-    list_projects(api_projects)
+    list_projects(get_api_projects())
 
     project_details(get_local_projects())
 
