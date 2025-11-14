@@ -4,13 +4,18 @@ import requests
 import re
 import os
 import json
+import time
+import threading
+import subprocess
+
 from datetime import datetime
 from annif.config import find_config
 from annif.registry import AnnifRegistry
 
 ANNIF_API = "http://localhost:5000/v1"
 DATA_DIR = "data"
-EVAL_DIR = "data/eval"
+EVAL_DIR = os.path.join("data", "eval")
+UPLOADS_DIR = "uploads"
 
 def api_request(url):
     try:
@@ -156,6 +161,7 @@ def project_details(projects):
             col1, col2 = st.columns([1,2])
             with col1:
                 project_form(project)
+                eval_results(project)
 
             with col2:
                 backend_form(project, projects.keys())
@@ -173,8 +179,7 @@ def project_form(project):
         st.subheader("Not Trained", divider="red")
 
     with st.container(border=True):
-        vocabs = get_vocabs()
-        if vocabs:
+        if vocabs := get_vocabs():
             vocab_id = re.match(r"([^(]+)", project.get('vocab_spec')).group(1)
             vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
             index = vocab_ids.index(vocab_id)
@@ -225,6 +230,7 @@ def project_form(project):
         upload_action(project, "Train")
         st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
 
+def eval_results(project):
     if project.get("F1@5"):
         st.subheader("Evaluation", divider="grey")
         
@@ -260,11 +266,50 @@ def show_bar_chart(data):
     st.bar_chart(df, horizontal=True, sort=False)
 
 def upload_action(project, action):
+    # Initialize session state
+    task_id = f"{project.get('project_id')}_{action.lower()}"
+    
+    if task_id not in st.session_state:
+        st.session_state[task_id] = None
+
+    def is_task_running(task_id):
+        proc = st.session_state.get(task_id)
+        if proc is None:
+            return False
+        return proc.poll() is None
+    
+    # Show status
+    if is_task_running(task_id):
+        st.info(f":material/hourglass: {action} is running")
+        return
+    #elif st.session_state["task_proc"] is not None:
+    #    st.success(f"{action} for **{project.get('project_id')}** successful!")
+    
     uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'),
                                     type=["tsv", "csv", "json", "jsonl"])
     file_id = f"{action.lower()}_{project.get('project_id')}"
     
-    st.button(action, key=file_id, type="primary")
+    # Save file to uploads folder
+    if uploaded_file:
+        base, ext = os.path.splitext(uploaded_file.name)
+        file_path = os.path.join(UPLOADS_DIR, f"{file_id}{ext}")
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+    if st.button(action, key=file_id, type="primary"):
+        if uploaded_file:
+            source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{file_id}{ext}")
+            dest_path = os.path.join(os.getcwd(), EVAL_DIR, project.get('project_id') + ".json")
+
+            if not is_task_running(task_id):
+                st.session_state[task_id] = subprocess.Popen(
+                    ["annif", "eval", project.get('project_id'), source_path, "-M", dest_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+                st.info(f":material/hourglass: {action} is running")
+        else:
+            st.error("No file uploaded")
 
 def backend_form(project, keys):
     backend = project.get('backend')
