@@ -4,11 +4,8 @@ import requests
 import re
 import os
 import json
-import time
-import threading
 import subprocess
 
-from datetime import datetime
 from annif.config import find_config
 from annif.registry import AnnifRegistry
 
@@ -25,16 +22,16 @@ def api_request(url):
 
     except Exception as e:
         st.error(f"Error connecting to Annif: {e}")
-        return []
+        return {}
 
 def get_annif_version():
     response = api_request(f"{ANNIF_API}/")
-    return response["version"]
+    return response.get("version")
 
 def get_vocabs():
     # TODO: check version for field (v1.4.0+)
     response = api_request(f"{ANNIF_API}/vocabs")
-    return response["vocabs"] if response else []
+    return response.get("vocabs") if response else []
 
 def get_projects():
     response = api_request(f"{ANNIF_API}/projects")
@@ -65,13 +62,18 @@ def get_projects():
         })
 
         if lp := local_projects.get(project_id):
-            projects[project_id].update({
-                "analyzer_spec": lp.analyzer_spec,
-                "vocab_spec": lp.vocab_spec,
-                "transform_spec": lp.transform_spec,
-                "default_params": lp.backend.DEFAULT_PARAMETERS,
-                "backend_params": lp.backend.params,
-            })
+            if lp.backend:
+                projects[project_id].update({
+                    "analyzer_spec": lp.analyzer_spec,
+                    "vocab_spec": lp.vocab_spec,
+                    "transform_spec": lp.transform_spec,
+                    "default_params": lp.backend.default_params(),
+                    "backend_params": lp.backend.params,
+                })
+            else:
+                projects[project_id].update({
+                    "is_trained": None,
+                })
 
         # add evaluation metrics if they exist
         filepath = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
@@ -102,8 +104,8 @@ def list_projects(projects):
     project_list = list(projects.values())
 
     with st.container():
-        df = pd.DataFrame(project_list)        
-        df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "")
+        df = pd.DataFrame(project_list)
+        df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
 
         column_order = ["name", "vocab", "backend", "language",
                         "modification_time", "available", "F1@5", "NDCG",
@@ -170,7 +172,7 @@ def project_form(project):
     backend = project.get('backend')
 
     if None == project.get('is_trained'):
-        pass
+        st.subheader("Not Available", divider="red")
     elif "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
     elif project.get('is_trained'):
@@ -180,19 +182,18 @@ def project_form(project):
 
     with st.container(border=True):
         if vocabs := get_vocabs():
-            vocab_id = re.match(r"([^(]+)", project.get('vocab_spec')).group(1)
-            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-            index = vocab_ids.index(vocab_id)
+            if vocab_spec := project.get('vocab_spec'):
+                vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
+                vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+                index = vocab_ids.index(vocab_id)
 
-            st.selectbox("**Vocab**", vocab_ids, index)
-            try:
-                from readable_number import ReadableNumber
-                size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
-            except:
-                size = vocabs[index]['size']
-
-            st.write(f"**Terms:** {size}")
-
+                st.selectbox("**Vocab**", vocab_ids, index)
+                try:
+                    from readable_number import ReadableNumber
+                    size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+                except:
+                    size = vocabs[index]['size']
+                st.write(f"**Terms:** {size}")
         try:
             import iso639
             lang = iso639.Language.from_part1(project.get('language')).name
@@ -203,19 +204,25 @@ def project_form(project):
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
-    st.text_input("**Analyzer**",
-        value=project.get('analyzer_spec'),
-        key=f"{project.get('analyzer_spec')}_analyzer"
-    )
+    if analyzer_spec := project.get('analyzer_spec'):
+        st.text_input("**Analyzer**",
+            value=analyzer_spec,
+            key=f"{analyzer_spec}_analyzer"
+        )
 
-    st.text_input("**Transform:**",
-        value=project.get('transform_spec'),
-        key=f"{project.get('transform_spec')}_transform"
-    )
+    if transform_spec := project.get('transform_spec'):
+        st.text_input("**Transform:**",
+            value=transform_spec,
+            key=f"{transform_spec}_transform"
+        )
 
     if modtime := project.get('modification_time'):
-        dt = datetime.fromisoformat(modtime)
-        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(modtime)
+            formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        except:
+            formatted_time = modtime
         st.write(f"**Modified:** {formatted_time}")
 
     if None == project.get('is_trained'):
@@ -228,7 +235,7 @@ def project_form(project):
         upload_action(project, "Evaluate")
     else:
         upload_action(project, "Train")
-        st.badge("Training can be very resource-intensive!", color="orange", icon="⚠️")
+        st.warning("Training is very resource-intensive!", icon=":material/warning:")
 
 def eval_results(project):
     if project.get("F1@5"):
@@ -280,7 +287,7 @@ def upload_action(project, action):
     
     # Show status
     if is_task_running(task_id):
-        st.info(f":material/hourglass: {action} is running")
+        st.info(f"{action} is running", icon=":material/hourglass:")
         return
     #elif st.session_state["task_proc"] is not None:
     #    st.success(f"{action} for **{project.get('project_id')}** successful!")
@@ -298,34 +305,43 @@ def upload_action(project, action):
 
     if st.button(action, key=file_id, type="primary"):
         if uploaded_file:
-            source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{file_id}{ext}")
-            dest_path = os.path.join(os.getcwd(), EVAL_DIR, project.get('project_id') + ".json")
-
             if not is_task_running(task_id):
-                st.session_state[task_id] = subprocess.Popen(
-                    ["annif", "eval", project.get('project_id'), source_path, "-M", dest_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE
-                )
-                st.info(f":material/hourglass: {action} is running")
+                if "Evaluate" == action:
+                    source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{file_id}{ext}")
+                    dest_path = os.path.join(os.getcwd(), EVAL_DIR, project.get('project_id') + ".json")
+                    st.session_state[task_id] = subprocess.Popen(
+                        ["annif", "eval", project.get('project_id'), source_path, "-M", dest_path],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE
+                    )
+                    st.info(f"Evaluation is running", icon=":material/hourglass:")
+
+                elif "Train" == action:
+                    st.error(f"Training is not implemented yet", icon=":material/warning:")
+            # elif (task is running)
         else:
             st.error("No file uploaded")
 
 def backend_form(project, keys):
     backend = project.get('backend')
+    if not backend:
+        st.error(f"Error fetching backend.")
+        return
     
-    if backend:
-        st.subheader(f"{backend} parameters", divider="gray")
+    st.subheader(f"{backend} parameters", divider="gray")
 
-        with st.container(border=True):
-            response = {
-                "project_id": project.get('project_id'),
-                "name": project.get('name'),
-                "language": project.get('language'),
-                "backend": {"backend_id": backend}
+    with st.container(border=True):
+        response = {
+            "project_id": project.get('project_id'),
+            "name": project.get('name'),
+            "language": project.get('language'),
+            "backend": {
+                "backend_id": backend,
+                "params": {}
             }
+        }
 
-            default_params = project.get('default_params')
+        if default_params := project.get('default_params'):
             params = project.get('backend_params')
 
             for key, value in default_params.items():
@@ -335,24 +351,30 @@ def backend_form(project, keys):
                 col2.caption(f"Default: {default_params.get(key)}")
                 with col1:
                     if isinstance(value, bool):
-                        response[key] = st.checkbox(key, value=params.get(key), key=key_id)
+                        response['backend']['params'][key] = st.checkbox(key, value=params.get(key), key=key_id)
                     elif isinstance(value, (int, float)):
-                        response[key] = st.number_input(key, value=float(params.get(key)), key=key_id)
+                        response['backend']['params'][key] = st.number_input(key, value=float(params.get(key)), key=key_id)
                     else:
-                        response[key] = st.text_input(key, value=str(params.get(key)), key=key_id)
+                        response['backend']['params'][key] = st.text_input(key, value=str(params.get(key)), key=key_id)
 
             # Show list of sources for the ensemble
             if "ensemble" in backend:
-                source_list = params.get('sources').split(",")
+                sources = params.get('sources')
+
+                if ":" in sources:
+                    source_list = [s.split(":")[0] for s in sources.split(",")]
+                else:
+                    source_list = sources.split(",")
+
                 new_sources = st.multiselect("Sources", keys, source_list)
-                response['sources'] = ",".join(new_sources)
+                response['backend']['params']['sources'] = ",".join(new_sources)
+                
+                if ":" in sources:
+                    st.warning("Source weights have been ignored", icon=":material/warning:")
 
             if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
                 st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
-
                 st.json(response)
-    else:
-        st.error(f"Error fetching backend.")
 
 # Function to load custom CSS
 def local_css(file_name):
