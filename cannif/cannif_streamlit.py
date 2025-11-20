@@ -104,6 +104,17 @@ def list_projects(projects):
     project_list = list(projects.values())
 
     with st.container():
+        column_config = {
+            "name": "Project",
+            "vocab": "Vocab",
+            "backend": "Backend",
+            "language": "Language",
+            "modification_time": st.column_config.DatetimeColumn("Modified"),
+            "is_trained": "Available",
+            "Recall_microavg": "Recall",
+            "false_positive_rate": "FPR",
+            "false_negative_rate": "FNR"
+        }
         column_order = ["name", "vocab", "backend", "language",
                         "modification_time", "is_trained", "F1@5",
                         "Precision@1", "Precision@3", "Precision@5",
@@ -118,18 +129,6 @@ def list_projects(projects):
 
         df = pd.DataFrame(filtered_projects)
         df["is_trained"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
-
-        column_config = {
-            "name": "Project",
-            "vocab": "Vocab",
-            "backend": "Backend",
-            "language": "Language",
-            "modification_time": st.column_config.DatetimeColumn("Modified"),
-            "is_trained": "Available",
-            "Recall_microavg": "Recall",
-            "false_positive_rate": "FPR",
-            "false_negative_rate": "FNR"
-        }
 
         st.dataframe(df, hide_index=True, column_config=column_config,
                     column_order=column_order, key="table",
@@ -383,17 +382,10 @@ def backend_form(project, keys):
                 st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
                 st.json(response)
 
-# Function to load custom CSS
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
 def main():
-    # Load the CSS file
-    local_css("style.css")
-
     st.set_page_config(page_title="cannif", layout="wide")
 
+    st.markdown("<style>#cannif { font-family: Jost, sans-serif; }</style>", unsafe_allow_html=True)
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
     if version := get_annif_version():
