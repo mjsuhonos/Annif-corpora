@@ -104,21 +104,28 @@ def list_projects(projects):
     project_list = list(projects.values())
 
     with st.container():
-        df = pd.DataFrame(project_list)
-        df["available"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
-
         column_order = ["name", "vocab", "backend", "language",
-                        "modification_time", "available", "F1@5", "NDCG",
-                        "Recall_microavg", "false_positive_rate",
-                        "false_negative_rate", "Precision@1", "Precision@3",
-                        "Precision@5"]
+                        "modification_time", "is_trained", "F1@5",
+                        "Precision@1", "Precision@3", "Precision@5",
+                        "Recall_microavg", "false_positive_rate", "false_negative_rate", 
+                        "NDCG", "NDCG@5", "NDCG@10"]
+
+        # strip columns not required for dataframe display
+        filtered_projects = [
+            {k: d.get(k) for k in column_order}
+            for d in project_list
+        ]
+
+        df = pd.DataFrame(filtered_projects)
+        df["is_trained"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
+
         column_config = {
             "name": "Project",
             "vocab": "Vocab",
             "backend": "Backend",
             "language": "Language",
             "modification_time": st.column_config.DatetimeColumn("Modified"),
-            "available": "Available",
+            "is_trained": "Available",
             "Recall_microavg": "Recall",
             "false_positive_rate": "FPR",
             "false_negative_rate": "FNR"
