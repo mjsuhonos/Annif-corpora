@@ -138,7 +138,7 @@ def list_projects(projects):
         if "F1@5" in df:
             df = df.set_index("name").dropna(subset=["F1@5"])
             
-            with st.expander("**Comparative Metrics**", expanded=False):
+            with st.expander("**Comparative Metrics**", expanded=False, icon=":material/bar_chart:"):
 
                 col1, col2, col3 = st.columns(3)
                 with col1:
@@ -163,7 +163,7 @@ def project_details(projects):
         # FIXME: don't like relying on row index
         project = project_list[row_index]
 
-        with st.expander(f"**{project.get('name')}**", expanded=True):
+        with st.expander(f"**{project.get('name')}**", expanded=True, icon=":material/assignment:"):
             col1, col2 = st.columns([1,2])
             with col1:
                 project_form(project)
@@ -177,6 +177,8 @@ def project_form(project):
 
     if None == project.get('is_trained'):
         st.subheader("Not Available", divider="red")
+    if False == project.get('is_trained'):
+        st.subheader("New Project", divider="grey")
     elif "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
     elif project.get('is_trained'):
@@ -185,40 +187,48 @@ def project_form(project):
         st.subheader("Not Trained", divider="red")
 
     with st.container(border=True):
+        # Annif 1.4+ required for vocabs
         if vocabs := get_vocabs():
             if vocab_spec := project.get('vocab_spec'):
                 vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
                 vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
                 index = vocab_ids.index(vocab_id)
 
-                st.selectbox("**Vocab**", vocab_ids, index)
-                try:
-                    from readable_number import ReadableNumber
-                    size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
-                except:
-                    size = vocabs[index]['size']
-                st.write(f"**Terms:** {size}")
+            else:
+                vocab_ids = [item["vocab_id"] for item in vocabs]
+                index = None
+
+            st.selectbox("**Vocab**", vocab_ids, index)
+
         try:
             import iso639
             lang = iso639.Language.from_part1(project.get('language')).name
         except:
             lang = project.get('language')
 
-        st.write(f"**Language:** {lang}")
+        if lang:
+            st.write(f"**Language:** {lang}")
+        else:
+            lang = st.selectbox("**Language**", ("en", "fi", "fr", "sv"), index=None)
+
+        if index:
+            try:
+                from readable_number import ReadableNumber
+                size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+            except:
+                size = vocabs[index]['size']
+            st.write(f"**Terms:** {size}")
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
-    if analyzer_spec := project.get('analyzer_spec'):
-        st.text_input("**Analyzer**",
-            value=analyzer_spec,
-            key=f"{analyzer_spec}_analyzer"
-        )
+    st.text_input("**Analyzer**",
+        value=project.get('analyzer_spec'),
+        key=f"project.get('analyzer_spec')_analyzer")
 
-    if transform_spec := project.get('transform_spec'):
-        st.text_input("**Transform:**",
-            value=transform_spec,
-            key=f"{transform_spec}_transform"
-        )
+    st.text_input("**Transform:**",
+        value=project.get('transform_spec'),
+        key=f"project.get('transform_spec')_transform"
+    )
 
     if modtime := project.get('modification_time'):
         try:
@@ -231,6 +241,9 @@ def project_form(project):
 
     if None == project.get('is_trained'):
         pass
+    if False == project.get('is_trained'):
+        if st.button('Create Project', key='save-project', type="primary"):
+            st.error(f"Create project is not implemented yet", icon=":material/warning:")
     elif project.get("F1@5"):
         pass
     elif "ensemble" == backend or "yake" == backend:
@@ -320,8 +333,8 @@ def upload_action(project_id, action):
                         stderr=subprocess.PIPE)
 
                     st.info(f"Evaluation is running", icon=":material/hourglass:")
-                elif "Train" == action:
-                    st.error(f"Training is not implemented yet", icon=":material/warning:")
+                else:
+                    st.error(f"{action} is not implemented yet", icon=":material/warning:")
             # elif (task is running)
         else:
             st.error("No file uploaded")
@@ -380,6 +393,35 @@ def backend_form(project, keys):
                 st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
                 st.json(response)
 
+def new_buttons():
+    @st.dialog("New Vocab")
+    def vocab_modal():
+        if vocabs := get_vocabs():
+            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+            st.selectbox("**Vocab**", vocab_ids)
+            upload_action('load-vocab', "Load Vocab")
+
+    if st.session_state.get("vocab_modal", False):
+        st.session_state.vocab_modal = False
+        vocab_modal()
+
+    @st.dialog("Create Project")
+    def project_modal():
+        project_form({'is_trained': False})
+
+    if st.session_state.get("project_modal", False):
+        st.session_state.project_modal = False
+        project_modal()
+
+    with st.container(horizontal=True, horizontal_alignment="right"):
+        if st.button("New Vocab", icon=":material/add_box:"):
+            st.session_state.vocab_modal = True
+            st.rerun()
+
+        if st.button("New Project", icon=":material/add_box:"):
+            st.session_state.project_modal = True
+            st.rerun()
+
 def main():
     st.set_page_config(page_title="cannif", layout="wide")
 
@@ -388,13 +430,16 @@ def main():
 
     if version := get_annif_version():
         st.caption(f"Annif {version} at {ANNIF_API}")
+    
+    #new_buttons()
 
     projects = get_projects()
 
     list_projects(projects)
-    st.caption(f"{len(projects)} projects")
 
     project_details(projects)
+
+    st.caption(f"{len(projects)} projects")
 
 if __name__ == "__main__":
     main()
