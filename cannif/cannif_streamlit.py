@@ -175,10 +175,10 @@ def project_details(projects):
 def project_form(project):
     backend = project.get('backend')
 
-    if None == project.get('is_trained'):
+    if {'is_trained': False} == project:
+        pass
+    elif None == project.get('is_trained'):
         st.subheader("Not Available", divider="red")
-    if False == project.get('is_trained'):
-        st.subheader("New Project", divider="grey")
     elif "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
     elif project.get('is_trained'):
@@ -405,7 +405,7 @@ def new_buttons():
         st.session_state.vocab_modal = False
         vocab_modal()
 
-    @st.dialog("Create Project")
+    @st.dialog("New Project")
     def project_modal():
         project_form({'is_trained': False})
 
@@ -431,7 +431,7 @@ def main():
     if version := get_annif_version():
         st.caption(f"Annif {version} at {ANNIF_API}")
     
-    #new_buttons()
+    new_buttons()
 
     projects = get_projects()
 
