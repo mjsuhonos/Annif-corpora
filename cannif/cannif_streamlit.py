@@ -134,8 +134,6 @@ def list_projects(projects):
                     column_order=column_order, key="table",
                     selection_mode="single-row", on_select="rerun")
 
-        st.caption(f"{len(projects)} projects")
-
         # if there are metrics, show graphs
         if "F1@5" in df:
             df = df.set_index("name").dropna(subset=["F1@5"])
@@ -236,11 +234,11 @@ def project_form(project):
     elif project.get("F1@5"):
         pass
     elif "ensemble" == backend or "yake" == backend:
-        upload_action(project, "Evaluate")
+        upload_action(project.get('project_id'), "Evaluate")
     elif project.get('is_trained'):
-        upload_action(project, "Evaluate")
+        upload_action(project.get('project_id'), "Evaluate")
     else:
-        upload_action(project, "Train")
+        upload_action(project.get('project_id'), "Train")
         st.warning("Training is very resource-intensive!", icon=":material/warning:")
 
 def eval_results(project):
@@ -278,9 +276,9 @@ def show_bar_chart(data):
     st.write(f'**{second_key}**')
     st.bar_chart(df, horizontal=True, sort=False)
 
-def upload_action(project, action):
+def upload_action(project_id, action):
     # Initialize session state
-    task_id = f"{project.get('project_id')}_{action.lower()}"
+    task_id = f"{project_id}_{action.lower()}"
     
     if task_id not in st.session_state:
         st.session_state[task_id] = None
@@ -296,11 +294,11 @@ def upload_action(project, action):
         st.info(f"{action} is running", icon=":material/hourglass:")
         return
     #elif st.session_state["task_proc"] is not None:
-    #    st.success(f"{action} for **{project.get('project_id')}** successful!")
+    #    st.success(f"{action} for **{project_id}** successful!")
     
-    uploaded_file = st.file_uploader("**Upload File**", key=project.get('project_id'),
+    uploaded_file = st.file_uploader("**Upload File**", key=project_id,
                                     type=["tsv", "csv", "json", "jsonl"])
-    file_id = f"{action.lower()}_{project.get('project_id')}"
+    file_id = f"{action.lower()}_{project_id}"
     
     # Save file to uploads folder
     if uploaded_file:
@@ -314,14 +312,14 @@ def upload_action(project, action):
             if not is_task_running(task_id):
                 if "Evaluate" == action:
                     source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{file_id}{ext}")
-                    dest_path = os.path.join(os.getcwd(), EVAL_DIR, project.get('project_id') + ".json")
-                    st.session_state[task_id] = subprocess.Popen(
-                        ["annif", "eval", project.get('project_id'), source_path, "-M", dest_path],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE
-                    )
-                    st.info(f"Evaluation is running", icon=":material/hourglass:")
+                    dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
 
+                    st.session_state[task_id] = subprocess.Popen(
+                        ["annif", "eval", project_id, source_path, "-M", dest_path],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
+
+                    st.info(f"Evaluation is running", icon=":material/hourglass:")
                 elif "Train" == action:
                     st.error(f"Training is not implemented yet", icon=":material/warning:")
             # elif (task is running)
@@ -394,6 +392,8 @@ def main():
     projects = get_projects()
 
     list_projects(projects)
+    st.caption(f"{len(projects)} projects")
+
     project_details(projects)
 
 if __name__ == "__main__":
