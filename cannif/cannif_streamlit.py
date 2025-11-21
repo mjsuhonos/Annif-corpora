@@ -225,10 +225,14 @@ def project_form(project):
         value=project.get('analyzer_spec'),
         key=f"project.get('analyzer_spec')_analyzer")
 
-    st.text_input("**Transform:**",
+    st.text_input("**Transform**",
         value=project.get('transform_spec'),
         key=f"project.get('transform_spec')_transform"
     )
+
+    if {'is_trained': False} == project:
+        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
+        st.selectbox("**Backend**", backends)
 
     if modtime := project.get('modification_time'):
         try:
@@ -398,22 +402,30 @@ def new_buttons():
     def vocab_modal():
         if vocabs := get_vocabs():
             vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-            st.selectbox("**Vocab**", vocab_ids)
-            upload_action('load-vocab', "Load Vocab")
+        else:
+            vocab_ids = []
 
-    if st.session_state.get("vocab_modal", False):
-        st.session_state.vocab_modal = False
-        vocab_modal()
+        vocab_id = st.selectbox("**Vocab ID**", vocab_ids, index=None, accept_new_options=True)
+        st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
+
+        lang = st.selectbox("**Language**", ("en", "fi", "fr", "sv"), index=None, accept_new_options=True)
+        st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
+
+        upload_action(vocab_id, "Load Vocab")
 
     @st.dialog("New Project")
     def project_modal():
         project_form({'is_trained': False})
 
+    if st.session_state.get("vocab_modal", False):
+        st.session_state.vocab_modal = False
+        vocab_modal()
+
     if st.session_state.get("project_modal", False):
         st.session_state.project_modal = False
         project_modal()
 
-    with st.container(horizontal=True, horizontal_alignment="right"):
+    with st.container(horizontal=True):
         if st.button("New Vocab", icon=":material/add_box:"):
             st.session_state.vocab_modal = True
             st.rerun()
