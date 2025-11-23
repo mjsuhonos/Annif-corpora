@@ -245,7 +245,7 @@ def project_form(project):
 
     if None == project.get('is_trained'):
         pass
-    if False == project.get('is_trained'):
+    if {'is_trained': False} == project:
         if st.button('Create Project', key='save-project', type="primary"):
             st.error(f"Create project is not implemented yet", icon=":material/warning:")
     elif project.get("F1@5"):
@@ -365,22 +365,24 @@ def backend_form(project, keys):
         if default_params := project.get('default_params'):
             params = project.get('backend_params')
 
-            for key, value in default_params.items():
-                col1, col2 = st.columns([2,1])
+            for key, default_value in default_params.items():
                 key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
-
-                col2.caption(f"Default: {default_params.get(key)}")
-                with col1:
-                    if isinstance(value, bool):
-                        response['backend']['params'][key] = st.checkbox(key, value=params.get(key), key=key_id)
-                    elif isinstance(value, (int, float)):
-                        response['backend']['params'][key] = st.number_input(key, value=float(params.get(key)), key=key_id)
-                    else:
-                        response['backend']['params'][key] = st.text_input(key, value=str(params.get(key)), key=key_id)
+                value = params.get(key)
+                
+                if None == value:
+                    pass
+                if isinstance(default_value, bool):
+                    response['backend']['params'][key] = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=value, key=key_id)
+                elif isinstance(default_value, int):
+                    response['backend']['params'][key] = st.number_input(key, value=int(value), key=key_id, placeholder=default_params.get(key))
+                elif isinstance(default_value, float):
+                    response['backend']['params'][key] = st.number_input(key, value=float(value), key=key_id, placeholder=default_params.get(key))
+                else:
+                    response['backend']['params'][key] = st.text_input(key, value=str(value), key=key_id, placeholder=default_params.get(key))
 
             # Show list of sources for the ensemble
             if "ensemble" in backend:
-                sources = params.get('sources')
+                sources = project.get('backend_params').get('sources')
 
                 if ":" in sources:
                     source_list = [s.split(":")[0] for s in sources.split(",")]
