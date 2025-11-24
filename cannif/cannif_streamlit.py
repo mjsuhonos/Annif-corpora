@@ -345,7 +345,14 @@ def backend_form(project, keys):
     if not backend:
         st.error(f"Error fetching backend.")
         return
-    
+
+    default_params = project.get('default_params')
+    if not default_params:
+        st.error(f"Error fetching default parameters.")
+        return
+
+    params = project.get('backend_params')
+
     st.subheader(f"{backend} parameters", divider="gray")
 
     with st.container(border=True):
@@ -354,55 +361,56 @@ def backend_form(project, keys):
             "name": project.get('name'),
             "language": project.get('language'),
             "backend": {
-                "backend_id": backend,
-                "params": project.get('backend_params')
+                "backend_id": backend
             }
         }
 
+        filtered_backend = {}
+
         # FIXME: this needs to be refactored
-        if default_params := project.get('default_params'):
-            params = project.get('backend_params')
-        
-            filtered_backend = {}
+        for key, default_value in default_params.items():
+            key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
 
-            for key, default_value in default_params.items():
-                key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
+            if key in params:
+                try:
+                    # Convert backend value to the type of default value
+                    backend_value = type(default_value)(params[key])
+                except (TypeError, ValueError):
+                    backend_value = None
 
-                if key in params:
-                    try:
-                        # Convert backend value to the type of default value
-                        backend_value = type(default_value)(params[key])
-                    except (TypeError, ValueError):
-                        backend_value = None
+                if backend_value != default_value:
+                    filtered_backend[key_id] = backend_value
 
-                    if backend_value != default_value:
-                        filtered_backend[key_id] = backend_value
+            if isinstance(default_value, bool):
+                form_value = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key), key=key_id)
+            elif isinstance(default_value, (int, float)):
+                form_value = st.number_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
+            else:
+                form_value = st.text_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
 
-                if isinstance(default_value, bool):
-                    response['backend']['params'][key] = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key), key=key_id)
-                elif isinstance(default_value, (int, float)):
-                    response['backend']['params'][key] = st.number_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
-                else:
-                    response['backend']['params'][key] = st.text_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
+            if None != form_value:
+                filtered_backend[key] = form_value
 
-            # Show list of sources for the ensemble
-            if "ensemble" in backend:
-                sources = project.get('backend_params').get('sources')
+        response['backend']['params'] = filtered_backend
 
-                if ":" in sources:
-                    source_list = [s.split(":")[0] for s in sources.split(",")]
-                else:
-                    source_list = sources.split(",")
+        # Show list of sources for the ensemble
+        if "ensemble" in backend:
+            sources = project.get('backend_params').get('sources')
 
-                new_sources = st.multiselect("Sources", keys, source_list)
-                response['backend']['params']['sources'] = ",".join(new_sources)
-                
-                if ":" in sources:
-                    st.warning("Source weights have been ignored", icon=":material/warning:")
+            if ":" in sources:
+                source_list = [s.split(":")[0] for s in sources.split(",")]
+            else:
+                source_list = sources.split(",")
 
-            if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
-                st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
-                st.json(response)
+            new_sources = st.multiselect("Sources", keys, source_list)
+            response['backend']['params']['sources'] = ",".join(new_sources)
+            
+            if ":" in sources:
+                st.warning("Source weights have been ignored", icon=":material/warning:")
+
+        if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
+            st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
+            st.json(response)
 
 def new_buttons():
     @st.dialog("New Vocab")
