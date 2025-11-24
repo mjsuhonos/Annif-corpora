@@ -193,11 +193,9 @@ def project_form(project):
                 vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
                 vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
                 index = vocab_ids.index(vocab_id)
-
             else:
                 vocab_ids = [item["vocab_id"] for item in vocabs]
                 index = None
-
             st.selectbox("**Vocab**", vocab_ids, index)
 
         try:
@@ -358,27 +356,35 @@ def backend_form(project, keys):
             "language": project.get('language'),
             "backend": {
                 "backend_id": backend,
-                "params": {}
+                "params": project.get('backend_params')
             }
         }
 
+        # FIXME: this needs to be refactored badly
         if default_params := project.get('default_params'):
             params = project.get('backend_params')
+        
+            filtered_backend = {}
 
             for key, default_value in default_params.items():
                 key_id = f"{project.get('project_id')}_{project.get('backend_id')}_{key}"
-                value = params.get(key)
-                
-                if None == value:
-                    pass
+
+                if key in params:
+                    try:
+                        # Convert backend value to the type of default value
+                        backend_value = type(default_value)(params[key])
+                    except (TypeError, ValueError):
+                        backend_value = None
+
+                    if backend_value != default_value:
+                        filtered_backend[key_id] = backend_value
+
                 if isinstance(default_value, bool):
-                    response['backend']['params'][key] = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=value, key=key_id)
-                elif isinstance(default_value, int):
-                    response['backend']['params'][key] = st.number_input(key, value=int(value), key=key_id, placeholder=default_params.get(key))
-                elif isinstance(default_value, float):
-                    response['backend']['params'][key] = st.number_input(key, value=float(value), key=key_id, placeholder=default_params.get(key))
+                    response['backend']['params'][key] = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key), key=key_id)
+                elif isinstance(default_value, (int, float)):
+                    response['backend']['params'][key] = st.number_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
                 else:
-                    response['backend']['params'][key] = st.text_input(key, value=str(value), key=key_id, placeholder=default_params.get(key))
+                    response['backend']['params'][key] = st.text_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
 
             # Show list of sources for the ensemble
             if "ensemble" in backend:
@@ -439,6 +445,7 @@ def new_buttons():
 def main():
     st.set_page_config(page_title="cannif", layout="wide")
 
+    st.markdown('<style>span[class^="st-"] { max-width: 100%; }</style>', unsafe_allow_html=True)
     st.markdown("<style>#cannif { font-family: Jost, sans-serif; }</style>", unsafe_allow_html=True)
     st.markdown("# <span style='color:red;'>can</span><span style='color:#002D72;'>nif</span>", unsafe_allow_html=True)
 
