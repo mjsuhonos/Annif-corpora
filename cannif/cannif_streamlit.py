@@ -164,7 +164,7 @@ def project_details(projects):
         project = project_list[row_index]
 
         with st.expander(f"**{project.get('name')}**", expanded=True, icon=":material/assignment:"):
-            col1, col2 = st.columns([1,2])
+            col1, col2 = st.columns(2)
             with col1:
                 project_form(project)
                 eval_results(project)
@@ -360,7 +360,7 @@ def backend_form(project, keys):
             }
         }
 
-        # FIXME: this needs to be refactored badly
+        # FIXME: this needs to be refactored
         if default_params := project.get('default_params'):
             params = project.get('backend_params')
         
