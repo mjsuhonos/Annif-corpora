@@ -29,9 +29,8 @@ def get_annif_version():
     return response.get("version")
 
 def get_vocabs():
-    # TODO: check version for field (v1.4.0+)
     response = api_request(f"{ANNIF_API}/vocabs")
-    return response.get("vocabs") if response else []
+    return response.get("vocabs")
 
 def get_projects():
     response = api_request(f"{ANNIF_API}/projects")
@@ -451,6 +450,8 @@ def main():
 
     if version := get_annif_version():
         st.caption(f"Annif {version} at {ANNIF_API}")
+    else:
+        exit()
     
     new_buttons()
 
