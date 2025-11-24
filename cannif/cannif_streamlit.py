@@ -197,6 +197,7 @@ def project_form(project):
         pass
     elif None == project.get('is_trained'):
         st.subheader("Not Available", divider="red")
+        return
     elif "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
     elif project.get('is_trained'):
@@ -207,32 +208,47 @@ def project_form(project):
     with st.container(border=True):
         # Annif 1.4+ required for vocabs
         if vocabs := get_vocabs():
+            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+            
             if vocab_spec := project.get('vocab_spec'):
                 vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
-                vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
                 index = vocab_ids.index(vocab_id)
+                vocab = vocabs[index]
+                is_loaded = vocab.get('loaded')
             else:
-                vocab_ids = [item["vocab_id"] for item in vocabs]
+                vocab_id = ''
+                vocab = {}
+                is_loaded = False
                 index = None
-            st.selectbox("**Vocab**", vocab_ids, index)
 
-        try:
-            import iso639
-            lang = iso639.Language.from_part1(project.get('language')).name
-        except:
-            lang = project.get('language')
+            vocab_id = st.selectbox("**Vocab ID**", vocab_ids, index=index, accept_new_options=True)
+            if not is_loaded:
+                st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
 
-        if lang:
-            st.write(f"**Language:** {lang}")
-        else:
-            lang = st.selectbox("**Language**", ("en", "fi", "fr", "sv"), index=None)
+            try:
+                import iso639
+                lang = iso639.Language.from_part1(project.get('language')).name
+            except:
+                lang = project.get('language')
 
-        if index:
+            codes = ["en", "fi", "fr", "sv"]
+            try:
+                index = codes.index(lang)
+            except:
+                index = None
+
+            lang = st.selectbox("**Language**", codes, index=index, accept_new_options=True)
+            if not is_loaded:
+                st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
+
+            if not is_loaded:
+                upload_action(vocab_id, "Load Vocab")
+
             try:
                 from readable_number import ReadableNumber
-                size = ReadableNumber(vocabs[index]['size'], use_shortform=True)
+                size = ReadableNumber(vocab.get('size'), use_shortform=True)
             except:
-                size = vocabs[index]['size']
+                size = vocab.get('size')
             st.write(f"**Terms:** {size}")
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
@@ -432,38 +448,15 @@ def backend_form(project, keys):
             st.json(response)
 
 def new_buttons():
-    @st.dialog("New Vocab")
-    def vocab_modal():
-        if vocabs := get_vocabs():
-            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-        else:
-            vocab_ids = []
-
-        vocab_id = st.selectbox("**Vocab ID**", vocab_ids, index=None, accept_new_options=True)
-        st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
-
-        lang = st.selectbox("**Language**", ("en", "fi", "fr", "sv"), index=None, accept_new_options=True)
-        st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
-
-        upload_action(vocab_id, "Load Vocab")
-
     @st.dialog("New Project")
     def project_modal():
         project_form({'is_trained': False})
-
-    if st.session_state.get("vocab_modal", False):
-        st.session_state.vocab_modal = False
-        vocab_modal()
 
     if st.session_state.get("project_modal", False):
         st.session_state.project_modal = False
         project_modal()
 
     with st.container(horizontal=True):
-        if st.button("New Vocab", icon=":material/add_box:"):
-            st.session_state.vocab_modal = True
-            st.rerun()
-
         if st.button("New Project", icon=":material/add_box:"):
             st.session_state.project_modal = True
             st.rerun()
