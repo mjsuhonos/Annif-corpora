@@ -128,26 +128,7 @@ def list_projects(projects):
         df = pd.DataFrame(filtered_projects)
         df["is_trained"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
 
-        # backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
-        def color_backend(val):
-            match val:
-                case 'yake':
-                    color = 'azure'
-                case 'mllm':
-                    color = 'ghostwhite'
-                case 'ensemble':
-                    color = 'floralwhite'
-                case 'nn_ensemble':
-                    color = 'aliceblue'
-                case 'stwfsa':
-                    color = 'mintcream'
-                case 'tfidf':
-                    color = 'seashell'
-                case _:
-                    color = ''
-            return f'background-color: {color}'
-
-        st.dataframe(df.style.map(color_backend, subset=['backend']), hide_index=True, column_config=column_config,
+        st.dataframe(df, hide_index=True, column_config=column_config,
                     column_order=column_order, key="table",
                     selection_mode="single-row", on_select="rerun")
 
