@@ -98,7 +98,6 @@ def get_projects():
 
     return projects
 
-# Displays an interactive table of project details
 def list_projects(projects):
     project_list = list(projects.values())
 
@@ -209,7 +208,13 @@ def project_form(project):
         # Annif 1.4+ required for vocabs
         if vocabs := get_vocabs():
             vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-            
+
+            try:
+                import iso639
+                lang = iso639.Language.from_part1(project.get('language')).name
+            except:
+                lang = project.get('language')
+
             if vocab_spec := project.get('vocab_spec'):
                 vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
                 index = vocab_ids.index(vocab_id)
@@ -221,15 +226,15 @@ def project_form(project):
                 is_loaded = False
                 index = None
 
-            vocab_id = st.selectbox("**Vocab ID**", vocab_ids, index=index, accept_new_options=True)
+            if vocab_id := st.selectbox("**Vocab ID**", vocab_ids, index=index, accept_new_options=True):
+                if vocab_id in vocab_ids:
+                    index = vocab_ids.index(vocab_id)
+                    vocab = vocabs[index]
+                    is_loaded = True
+                    lang = vocab.get('languages')[0]
+
             if not is_loaded:
                 st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
-
-            try:
-                import iso639
-                lang = iso639.Language.from_part1(project.get('language')).name
-            except:
-                lang = project.get('language')
 
             codes = ["en", "fi", "fr", "sv"]
             try:
@@ -241,15 +246,15 @@ def project_form(project):
             if not is_loaded:
                 st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
 
-            if not is_loaded:
+            if is_loaded:
+                try:
+                    from readable_number import ReadableNumber
+                    size = ReadableNumber(vocab.get('size'), use_shortform=True)
+                except:
+                    size = vocab.get('size')
+                st.write(f"**Terms:** {size}")
+            else:
                 upload_action(vocab_id, "Load Vocab")
-
-            try:
-                from readable_number import ReadableNumber
-                size = ReadableNumber(vocab.get('size'), use_shortform=True)
-            except:
-                size = vocab.get('size')
-            st.write(f"**Terms:** {size}")
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
