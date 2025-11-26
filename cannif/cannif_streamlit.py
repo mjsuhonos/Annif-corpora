@@ -235,6 +235,7 @@ def project_form(project):
                     size = vocab.get('size')
                 st.write(f"**Terms:** {size}")
             else:
+                # FIXME: maybe not upload_action()
                 upload_action(vocab_id, "Load Vocab")
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
