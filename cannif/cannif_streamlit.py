@@ -214,7 +214,7 @@ def vocab_form(project):
         if not is_loaded:
             st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
 
-        codes = ["en", "fi", "fr", "sv"]
+        codes = vocab.get('languages') or ["en", "fi", "fr", "sv"]
         try:
             index = codes.index(lang)
         except:
@@ -236,12 +236,14 @@ def vocab_form(project):
             except:
                 size = vocab.get('size')
             st.write(f"**Terms:** {size}")
+    
+    return f"{vocab_id}({lang_id})"
 
 def project_form(project):
     backend = project.get('backend')
 
     if {'is_trained': False} == project:
-        st.text_input("**Name**", key='project_name')
+        project['name'] = st.text_input("**Name**", key='project_name')
     elif None == project.get('is_trained'):
         st.subheader("Not Available", divider="red")
         return
@@ -252,15 +254,15 @@ def project_form(project):
     else:
         st.subheader("Not Trained", divider="red")
 
-    vocab_form(project)
+    project['vocab_spec'] = vocab_form(project)
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
-    st.text_input("**Analyzer**",
+    project['analyzer_spec'] = st.text_input("**Analyzer**",
         value=project.get('analyzer_spec'),
         key=f"project.get('analyzer_spec')_analyzer")
 
-    st.text_input("**Transform**",
+    project['transform_spec'] = st.text_input("**Transform**",
         value=project.get('transform_spec'),
         key=f"project.get('transform_spec')_transform"
     )
@@ -276,20 +278,28 @@ def project_form(project):
 
     if None == project.get('is_trained'):
         pass
-    elif "dummy" == backend:
-        pass
-    elif {'is_trained': False} == project:
-        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
-        st.selectbox("**Backend**", backends)
-
-        if st.button('Create Project', key='save-project', type="primary"):
-            st.error(f"Create project is not implemented yet", icon=":material/warning:")
     elif project.get("F1@5"):
         pass
+    elif "dummy" == backend:
+        pass
+
     elif "ensemble" == backend or "yake" == backend:
         upload_action(project.get('project_id'), "Evaluate")
+
     elif project.get('is_trained'):
         upload_action(project.get('project_id'), "Evaluate")
+
+    elif False == project.get('is_trained'):
+        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
+        project['backend'] = st.selectbox("**Backend**", backends)
+
+        if st.button('Create Project', key='save-project', type="primary"):
+            # TODO: make this smarter
+            project['project_id'] = f"{project['vocab_spec']}_{project['backend']}".lower().replace(" ", "_")
+            
+            st.warning(f"Create project is not implemented yet", icon=":material/warning:")
+            st.json(project)            
+
     else:
         upload_action(project.get('project_id'), "Train")
         st.warning("Training is very resource-intensive!", icon=":material/warning:")
@@ -412,18 +422,17 @@ def upload_action(project_id, action):
                         st.error("Error loading vocab:")
                         st.code(e.stderr)
             else:
-                st.error(f"{action} is not implemented yet", icon=":material/warning:")
-
+                st.warning(f"{action} is not implemented yet", icon=":material/warning:")
 
 def backend_form(project, keys):
     backend = project.get('backend')
     if not backend:
-        st.error(f"Error fetching backend.")
+        st.error(f"Error fetching backend")
         return
 
     default_params = project.get('default_params')
     if not default_params:
-        st.error(f"Error fetching default parameters.")
+        st.error(f"Error fetching default parameters")
         return
 
     params = project.get('backend_params')
@@ -484,7 +493,7 @@ def backend_form(project, keys):
                 st.warning("Source weights have been ignored", icon=":material/warning:")
 
         if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
-            st.success(f"Configuration for **{project.get('project_id')}** saved successfully!")
+            st.warning(f"Save configuration is not implemented yet", icon=":material/warning:")
             st.json(response)
 
 def new_buttons():
