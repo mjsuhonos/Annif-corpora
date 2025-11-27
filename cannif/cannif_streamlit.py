@@ -6,12 +6,16 @@ import os
 import json
 import subprocess
 
+from tomlkit import document
+from tomlkit import table
+from tomlkit.toml_file import TOMLFile
+
 from annif.config import find_config
 from annif.registry import AnnifRegistry
 
 ANNIF_API = "http://localhost:5000/v1"
 DATA_DIR = "data"
-EVAL_DIR = os.path.join("data", "eval")
+EVAL_DIR = os.path.join(DATA_DIR, "eval")
 UPLOADS_DIR = "uploads"
 
 def api_request(url):
@@ -29,7 +33,7 @@ def get_annif_version():
     return response.get("version")
 
 def get_vocabs():
-    response = api_request(f"{ANNIF_API}/vocabs")
+    response = api_request(f"{ANNIF_API}/vocabs") # Annif 1.4+ required for vocabs
     return response.get("vocabs")
 
 def get_projects():
@@ -170,73 +174,85 @@ def project_details(projects):
             with col2:
                 backend_form(project, projects.keys())
 
+def vocab_form(project):
+    vocabs = get_vocabs()
+
+    if not vocabs:
+        return
+        
+    with st.container(border=True):
+        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+
+        lang_code = project.get("language")
+        try:
+            import iso639
+            lang = iso639.Language.from_part1(lang_code).name
+        except Exception:
+            lang = lang_code
+
+        vocab_spec = project.get("vocab_spec")     # Present for loaded projects
+        if vocab_spec:
+            vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
+            index = vocab_ids.index(vocab_id)
+            vocab = vocabs[index]
+            is_loaded = vocab.get("loaded", False)
+            disabled = True
+        else:
+            vocab_id, vocab, is_loaded, index = "", {}, False, None
+            disabled = False
+
+        selected_id = st.selectbox("**Vocab ID**", vocab_ids, index=index, disabled=disabled, accept_new_options=True)
+    
+        if selected_id:
+            vocab_id = selected_id
+            if vocab_id in vocab_ids:
+                index = vocab_ids.index(vocab_id)
+                vocab = vocabs[index]
+                is_loaded = True
+                lang = vocab.get("languages", [lang])[0]
+
+        if not is_loaded:
+            st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
+
+        codes = ["en", "fi", "fr", "sv"]
+        try:
+            index = codes.index(lang)
+        except:
+            index = None
+
+        lang_id = st.selectbox("**Language**", codes, index=index, disabled=disabled, accept_new_options=True)
+
+        if not is_loaded:
+            st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
+        
+        if lang_id:
+            if not is_loaded and vocab_id and lang_id:
+                upload_action(f"{vocab_id}_{lang_id}", "Load Vocab")
+
+        if is_loaded:
+            try:
+                from readable_number import ReadableNumber
+                size = ReadableNumber(vocab.get('size'), use_shortform=True)
+            except:
+                size = vocab.get('size')
+            st.write(f"**Terms:** {size}")
+
 def project_form(project):
     backend = project.get('backend')
 
     if {'is_trained': False} == project:
-        pass
+        st.text_input("**Name**", key='project_name')
     elif None == project.get('is_trained'):
         st.subheader("Not Available", divider="red")
         return
-    elif "ensemble" == backend or "yake" == backend:
+    elif "dummy" == backend or "ensemble" == backend or "yake" == backend:
         st.subheader("Training Not Required", divider="green")
     elif project.get('is_trained'):
         st.subheader("Trained", divider="green")
     else:
         st.subheader("Not Trained", divider="red")
 
-    with st.container(border=True):
-        # Annif 1.4+ required for vocabs
-        if vocabs := get_vocabs():
-            vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-
-            try:
-                import iso639
-                lang = iso639.Language.from_part1(project.get('language')).name
-            except:
-                lang = project.get('language')
-
-            if vocab_spec := project.get('vocab_spec'):
-                vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
-                index = vocab_ids.index(vocab_id)
-                vocab = vocabs[index]
-                is_loaded = vocab.get('loaded')
-            else:
-                vocab_id = ''
-                vocab = {}
-                is_loaded = False
-                index = None
-
-            if vocab_id := st.selectbox("**Vocab ID**", vocab_ids, index=index, accept_new_options=True):
-                if vocab_id in vocab_ids:
-                    index = vocab_ids.index(vocab_id)
-                    vocab = vocabs[index]
-                    is_loaded = True
-                    lang = vocab.get('languages')[0]
-
-            if not is_loaded:
-                st.badge("Use only letters, numbers, and underscores", icon=":material/check:")
-
-            codes = ["en", "fi", "fr", "sv"]
-            try:
-                index = codes.index(lang)
-            except:
-                index = None
-
-            lang = st.selectbox("**Language**", codes, index=index, accept_new_options=True)
-            if not is_loaded:
-                st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
-
-            if is_loaded:
-                try:
-                    from readable_number import ReadableNumber
-                    size = ReadableNumber(vocab.get('size'), use_shortform=True)
-                except:
-                    size = vocab.get('size')
-                st.write(f"**Terms:** {size}")
-            else:
-                # FIXME: maybe not upload_action()
-                upload_action(vocab_id, "Load Vocab")
+    vocab_form(project)
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
@@ -249,10 +265,6 @@ def project_form(project):
         key=f"project.get('transform_spec')_transform"
     )
 
-    if {'is_trained': False} == project:
-        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
-        st.selectbox("**Backend**", backends)
-
     if modtime := project.get('modification_time'):
         try:
             from datetime import datetime
@@ -264,7 +276,12 @@ def project_form(project):
 
     if None == project.get('is_trained'):
         pass
-    if {'is_trained': False} == project:
+    elif "dummy" == backend:
+        pass
+    elif {'is_trained': False} == project:
+        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
+        st.selectbox("**Backend**", backends)
+
         if st.button('Create Project', key='save-project', type="primary"):
             st.error(f"Create project is not implemented yet", icon=":material/warning:")
     elif project.get("F1@5"):
@@ -313,9 +330,9 @@ def show_bar_chart(data):
     st.bar_chart(df, horizontal=True, sort=False)
 
 def upload_action(project_id, action):
-    # Initialize session state
-    task_id = f"{project_id}_{action.lower()}"
-    
+    # TODO: use something more robust to mint IDs
+    task_id = f"{project_id}_{action}".lower().replace(" ", "_")
+
     if task_id not in st.session_state:
         st.session_state[task_id] = None
 
@@ -334,33 +351,69 @@ def upload_action(project_id, action):
     
     uploaded_file = st.file_uploader("**Upload File**", key=project_id,
                                     type=["tsv", "csv", "json", "jsonl"])
-    file_id = f"{action.lower()}_{project_id}"
-    
+
     # Save file to uploads folder
     if uploaded_file:
         base, ext = os.path.splitext(uploaded_file.name)
-        file_path = os.path.join(UPLOADS_DIR, f"{file_id}{ext}")
+        file_path = os.path.join(UPLOADS_DIR, f"{task_id}{ext}")
         with open(file_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 
-    if st.button(action, key=file_id, type="primary"):
-        if uploaded_file:
-            if not is_task_running(task_id):
-                if "Evaluate" == action:
-                    source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{file_id}{ext}")
-                    dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
+    placeholder = st.empty()
 
-                    st.session_state[task_id] = subprocess.Popen(
-                        ["annif", "eval", project_id, source_path, "-M", dest_path],
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE)
-
-                    st.info(f"Evaluation is running", icon=":material/hourglass:")
-                else:
-                    st.error(f"{action} is not implemented yet", icon=":material/warning:")
-            # elif (task is running)
-        else:
+    if placeholder.button(action, key=f"{task_id}_button", type="primary"):
+        if not uploaded_file:
             st.error("No file uploaded")
+            return
+
+        if not is_task_running(task_id):
+            source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{task_id}{ext}")
+
+            if "Evaluate" == action:
+                dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
+
+                st.session_state[task_id] = subprocess.Popen(
+                    ["annif", "eval", project_id, source_path, "-M", dest_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                st.info(f"Evaluation is running", icon=":material/hourglass:")
+
+            elif "Load Vocab" == action:
+                vocab_id, lang = project_id.split('_', 1)
+
+                if '' == vocab_id:
+                    st.error('Please provide a vocab ID')
+                    return
+
+                if 'None' == lang:
+                    st.error('Please provide a language code')
+                    return
+
+                # Write a temporary project TOML file
+                proj_path = os.path.join(os.getcwd(), find_config(), task_id + ".cfg")
+                with open(proj_path, "w") as file:
+                    file.write(f"[{task_id}]\n")
+                    file.write(f"backend = dummy\n")
+                    file.write(f"language = {lang}\n")
+                    file.write(f"vocab = {vocab_id}({lang})\n")
+
+                with st.spinner("Loading vocab..."):
+                    try:
+                        result = subprocess.run(
+                            ["annif", "load-vocab", "-L", lang, vocab_id, source_path],
+                            capture_output=True, text=True, check=True)
+
+                        st.success("Vocab loaded successfully!")
+                        placeholder.write(' ') # Clear the button
+
+                        # TODO: trigger reloading of the vocab part of the modal
+
+                    except subprocess.CalledProcessError as e:
+                        st.error("Error loading vocab:")
+                        st.code(e.stderr)
+            else:
+                st.error(f"{action} is not implemented yet", icon=":material/warning:")
+
 
 def backend_form(project, keys):
     backend = project.get('backend')
