@@ -6,10 +6,6 @@ import os
 import json
 import subprocess
 
-from tomlkit import document
-from tomlkit import table
-from tomlkit.toml_file import TOMLFile
-
 from annif.config import find_config
 from annif.registry import AnnifRegistry
 
@@ -259,11 +255,11 @@ def project_form(project):
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
     project['analyzer_spec'] = st.text_input("**Analyzer**",
-        value=project.get('analyzer_spec'),
+        value=project.get('analyzer_spec'), disabled=project.get('is_trained'),
         key=f"project.get('analyzer_spec')_analyzer")
 
     project['transform_spec'] = st.text_input("**Transform**",
-        value=project.get('transform_spec'),
+        value=project.get('transform_spec'), disabled=project.get('is_trained'),
         key=f"project.get('transform_spec')_transform"
     )
 
@@ -294,6 +290,15 @@ def project_form(project):
         project['backend'] = st.selectbox("**Backend**", backends)
 
         if st.button('Create Project', key='save-project', type="primary"):
+            # Check form values
+            if '' == project.get('name'):
+                st.error('Please provide a project name')
+                return
+
+            if 'None' in project.get('vocab_spec'):
+                st.error('Please select a vocab')
+                return
+
             # TODO: make this smarter
             project['project_id'] = f"{project['vocab_spec']}_{project['backend']}".lower().replace(" ", "_")
             
