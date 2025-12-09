@@ -218,13 +218,6 @@ def vocab_form(project):
 
         lang_id = st.selectbox("**Language**", codes, index=index, disabled=disabled, accept_new_options=True)
 
-        if not is_loaded:
-            st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
-        
-        if lang_id:
-            if not is_loaded and vocab_id and lang_id:
-                upload_action(f"{vocab_id}_{lang_id}", "Load Vocab")
-
         if is_loaded:
             try:
                 from readable_number import ReadableNumber
@@ -232,8 +225,17 @@ def vocab_form(project):
             except:
                 size = vocab.get('size')
             st.write(f"**Terms:** {size}")
-    
-    return f"{vocab_id}({lang_id})"
+        else:
+            st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
+
+            if vocab_id and lang_id:
+                if upload_action(f"{vocab_id}_{lang_id}", "Load Vocab"):
+                    is_loaded = True
+
+    project['is_loaded'] = is_loaded
+    project['vocab_id'] = vocab_id
+    project['lang'] = lang_id
+    project['vocab_spec'] = f"{vocab_id}({lang_id})"
 
 def project_form(project):
     backend = project.get('backend')
@@ -249,8 +251,8 @@ def project_form(project):
         st.subheader("Trained", divider="green")
     else:
         st.subheader("Not Trained", divider="red")
-
-    project['vocab_spec'] = vocab_form(project)
+    
+    vocab_form(project)
 
     #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
 
@@ -278,33 +280,43 @@ def project_form(project):
         pass
     elif "dummy" == backend:
         pass
-
     elif "ensemble" == backend or "yake" == backend:
         upload_action(project.get('project_id'), "Evaluate")
-
     elif project.get('is_trained'):
         upload_action(project.get('project_id'), "Evaluate")
-
     elif False == project.get('is_trained'):
+        
         backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
         project['backend'] = st.selectbox("**Backend**", backends)
 
         if st.button('Create Project', key='save-project', type="primary"):
+            project
+
             # Check form values
             if '' == project.get('name'):
                 st.error('Please provide a project name')
                 return
-
-            if 'None' in project.get('vocab_spec'):
+            
+            # FIXME: ideally these should be in vocab_form()
+            if not project.get('vocab_id'):
                 st.error('Please select a vocab')
                 return
 
-            # TODO: make this smarter
-            project['project_id'] = f"{project['vocab_spec']}_{project['backend']}".lower().replace(" ", "_")
+            if not project.get('lang'):
+                st.error('Please select a language')
+                return
             
-            st.warning(f"Create project is not implemented yet", icon=":material/warning:")
-            st.json(project)            
+            if not project.get('is_loaded'):
+                st.error('Please load the vocab first')
+                return
 
+            # TODO: use something more robust to mint IDs
+            project['project_id'] = f"{project.get('vocab_id')}_{project.get('lang')}_{project.get('backend')}".lower().replace(" ", "_")
+
+            save_project(project)
+
+            st.success("Project created successfully!")
+            #st.rerun()
     else:
         upload_action(project.get('project_id'), "Train")
         st.warning("Training is very resource-intensive!", icon=":material/warning:")
@@ -421,13 +433,39 @@ def upload_action(project_id, action):
                         st.success("Vocab loaded successfully!")
                         placeholder.write(' ') # Clear the button
 
-                        # TODO: trigger reloading of the vocab part of the modal
+                        # TODO: trigger reloading of the vocab part of the modal?
 
                     except subprocess.CalledProcessError as e:
                         st.error("Error loading vocab:")
                         st.code(e.stderr)
             else:
                 st.warning(f"{action} is not implemented yet", icon=":material/warning:")
+
+        return uploaded_file
+
+def save_project(project):
+    # TODO: check required values
+    project_id = project.get('project_id')
+    name = project.get('name')
+    backend = project.get('backend')
+    lang = project.get('lang')
+    vocab_id = project.get('vocab_id')
+    vocab_spec = project.get('vocab_spec')
+
+    proj_path = os.path.join(os.getcwd(), find_config(), project_id + ".cfg")
+
+    with open(proj_path, "w") as file:
+        file.write(f"[{project_id}]\n")
+        file.write(f"name = {name}\n")
+        file.write(f"backend = {backend}\n")
+        file.write(f"language = {lang}\n")
+        file.write(f"vocab = {vocab_spec}\n")
+        # TODO: other values if they exist
+
+    test_path = os.path.join(os.getcwd(), find_config(), f"{vocab_id}_{lang}_load_vocab.cfg")
+
+    if os.path.exists(test_path):
+        os.remove(test_path)
 
 def backend_form(project, keys):
     backend = project.get('backend')
