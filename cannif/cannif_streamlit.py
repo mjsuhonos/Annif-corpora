@@ -285,9 +285,14 @@ def project_form(project):
     elif project.get('is_trained'):
         upload_action(project.get('project_id'), "Evaluate")
     elif False == project.get('is_trained'):
-        
+
         backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
-        project['backend'] = st.selectbox("**Backend**", backends)
+        if backend:
+            backend_index = backends.index(backend)
+        else:
+            backend_index = 0
+
+        project['backend'] = st.selectbox("**Backend**", backends, index=backend_index)
 
         if st.button('Create Project', key='save-project', type="primary"):
             # Check form values
