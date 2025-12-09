@@ -290,8 +290,6 @@ def project_form(project):
         project['backend'] = st.selectbox("**Backend**", backends)
 
         if st.button('Create Project', key='save-project', type="primary"):
-            project
-
             # Check form values
             if '' == project.get('name'):
                 st.error('Please provide a project name')
