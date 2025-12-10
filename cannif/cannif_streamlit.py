@@ -78,7 +78,7 @@ def get_projects():
         filepath = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
 
         try:
-            metrics = json.load(open(os.path.join(filepath), 'r'))
+            metrics = json.load(open(filepath, 'r'))
 
             # Calculate some useful rates 
             tp = metrics["True_positives"]
@@ -126,6 +126,7 @@ def list_projects(projects):
         ]
 
         df = pd.DataFrame(filtered_projects)
+
         df["is_trained"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
 
         st.dataframe(df, hide_index=True, column_config=column_config,
@@ -133,7 +134,7 @@ def list_projects(projects):
                     selection_mode="single-row", on_select="rerun")
 
         # if there are metrics, show graphs
-        if "F1@5" in df:
+        if df["F1@5"].notna().any():
             df = df.set_index("name").dropna(subset=["F1@5"])
             
             with st.expander("**Comparative Metrics**", expanded=False, icon=":material/bar_chart:"):
@@ -172,6 +173,9 @@ def project_details(projects):
 
 def vocab_form(project):
     vocabs = get_vocabs()
+
+    x = st.session_state.get('new_vocab')
+    x
 
     if not vocabs:
         return
@@ -225,44 +229,62 @@ def vocab_form(project):
             except:
                 size = vocab.get('size')
             st.write(f"**Terms:** {size}")
+            
+            project['vocab'] = vocab_id
+            project['language'] = lang_id
+
         else:
             st.badge("Use only 2-letter ISO 639-1 language codes", icon=":material/check:")
 
-            if vocab_id and lang_id:
+            if not vocab_id:
+                st.error('Please select a vocab')
+            elif not lang_id:
+                st.error('Please select a language')
+            else:
                 if upload_action(f"{vocab_id}_{lang_id}", "Load Vocab"):
                     is_loaded = True
+                    st.session_state.new_vocab = [vocab_id, lang_id]
+                #else:
+                #    st.error('Please load the vocab first')
 
-    project['is_loaded'] = is_loaded
-    project['vocab_id'] = vocab_id
-    project['lang'] = lang_id
-    project['vocab_spec'] = f"{vocab_id}({lang_id})"
+        #project['vocab_spec'] = f"{vocab_id}({lang_id})"
 
 def project_form(project):
+    ############################
+    with st.expander('project'):
+        st.json(project)
+    ############################
+    
     backend = project.get('backend')
+    backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nn_ensemble",
+                "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
+    backend_index = backends.index(backend) if backend else 0
 
-    if {'is_trained': False} == project:
-        project['name'] = st.text_input("**Name**", key='project_name')
-    elif None == project.get('is_trained'):
+    is_trained = True if project.get('is_trained') else False
+    trainable = False if "dummy" == backend or "ensemble" == backend or "yake" == backend else True
+    evaluable = True if is_trained or not trainable else False
+
+    if None == is_trained: # can't load backend
         st.subheader("Not Available", divider="red")
         return
-    elif "dummy" == backend or "ensemble" == backend or "yake" == backend:
+    elif project.get('is_new'):
+        project['name'] = st.text_input("**Name**", key='project_name')
+    elif not trainable:
         st.subheader("Training Not Required", divider="green")
-    elif project.get('is_trained'):
+    elif is_trained:
         st.subheader("Trained", divider="green")
     else:
         st.subheader("Not Trained", divider="red")
     
     vocab_form(project)
 
-    #analyzers = ["simple", "snowball", "simplemma", "voikko", "spacy", "estnltk"]
-
     project['analyzer_spec'] = st.text_input("**Analyzer**",
-        value=project.get('analyzer_spec'), disabled=project.get('is_trained'),
-        key=f"project.get('analyzer_spec')_analyzer")
+        value=project.get('analyzer_spec'), disabled=is_trained,
+        key=f"{project.get('analyzer_spec')}_analyzer")
 
     project['transform_spec'] = st.text_input("**Transform**",
-        value=project.get('transform_spec'), disabled=project.get('is_trained'),
-        key=f"project.get('transform_spec')_transform"
+        value=project.get('transform_spec'), disabled=is_trained,
+        key=f"{project.get('transform_spec')}_transform"
     )
 
     if modtime := project.get('modification_time'):
@@ -274,55 +296,47 @@ def project_form(project):
             formatted_time = modtime
         st.write(f"**Modified:** {formatted_time}")
 
-    if None == project.get('is_trained'):
-        pass
-    elif project.get("F1@5"):
-        pass
-    elif "dummy" == backend:
-        pass
-    elif "ensemble" == backend or "yake" == backend:
-        upload_action(project.get('project_id'), "Evaluate")
-    elif project.get('is_trained'):
-        upload_action(project.get('project_id'), "Evaluate")
-    elif False == project.get('is_trained'):
-
-        backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nnensemble", "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
-        if backend:
-            backend_index = backends.index(backend)
-        else:
-            backend_index = 0
-
+    if project.get('is_new'):
         project['backend'] = st.selectbox("**Backend**", backends, index=backend_index)
 
         if st.button('Create Project', key='save-project', type="primary"):
             # Check form values
-            if '' == project.get('name'):
+            if not project.get('name'):
                 st.error('Please provide a project name')
                 return
-            
-            # FIXME: ideally these should be in vocab_form()
-            if not project.get('vocab_id'):
-                st.error('Please select a vocab')
-                return
 
-            if not project.get('lang'):
-                st.error('Please select a language')
+            if new_vocab := st.session_state.get('new_vocab'):
+                project['language'] = new_vocab[1]
+                project['vocab'] = new_vocab[0]
+
+            if not project.get('vocab'):
+                st.error('Please select a loaded vocab')
                 return
-            
-            if not project.get('is_loaded'):
-                st.error('Please load the vocab first')
+            elif not project.get('language'):
+                st.error('Please select a language')
                 return
 
             # TODO: use something more robust to mint IDs
-            project['project_id'] = f"{project.get('vocab_id')}_{project.get('lang')}_{project.get('backend')}".lower().replace(" ", "_")
+            project['project_id'] = f"{project.get('vocab')}_{project.get('language')}_{project.get('backend')}".lower().replace(" ", "_")
 
             save_project(project)
 
+            test_path = os.path.join(os.getcwd(), find_config(), f"{project.get('vocab')}_{project.get('language')}_load_vocab.cfg")
+
+            if os.path.exists(test_path):
+                os.remove(test_path)
+
             st.success("Project created successfully!")
+            
             #st.rerun()
-    else:
+    elif evaluable:
+        upload_action(project.get('project_id'), "Evaluate")
+    elif trainable:
         upload_action(project.get('project_id'), "Train")
         st.warning("Training is very resource-intensive!", icon=":material/warning:")
+        
+    #if project.get("F1@5"): # already evaluated
+    #elif "dummy" == backend:
 
 def eval_results(project):
     if project.get("F1@5"):
@@ -378,6 +392,9 @@ def upload_action(project_id, action):
         return
     #elif st.session_state["task_proc"] is not None:
     #    st.success(f"{action} for **{project_id}** successful!")
+    
+    # FIXME: this isn't right but throws an error:
+    # streamlit.errors.StreamlitValueAssignmentNotAllowedError: Values for the widget with key 'wd1k_en_load_vocab' cannot be set using st.session_state.
     
     uploaded_file = st.file_uploader("**Upload File**", key=project_id,
                                     type=["tsv", "csv", "json", "jsonl"])
@@ -446,29 +463,26 @@ def upload_action(project_id, action):
 
         return uploaded_file
 
+    # TODO: remove the button if a vocab is loaded in session
+    #if st.session_state.get('new_vocab'):
+    #    placeholder.write(' ')
+
 def save_project(project):
     # TODO: check required values
     project_id = project.get('project_id')
     name = project.get('name')
     backend = project.get('backend')
-    lang = project.get('lang')
-    vocab_id = project.get('vocab_id')
-    vocab_spec = project.get('vocab_spec')
+    vocab_id = project.get('vocab')
+    lang = project.get('language')
 
     proj_path = os.path.join(os.getcwd(), find_config(), project_id + ".cfg")
-
     with open(proj_path, "w") as file:
         file.write(f"[{project_id}]\n")
         file.write(f"name = {name}\n")
         file.write(f"backend = {backend}\n")
         file.write(f"language = {lang}\n")
-        file.write(f"vocab = {vocab_spec}\n")
+        file.write(f"vocab = {vocab_id}({lang})\n")
         # TODO: other values if they exist
-
-    test_path = os.path.join(os.getcwd(), find_config(), f"{vocab_id}_{lang}_load_vocab.cfg")
-
-    if os.path.exists(test_path):
-        os.remove(test_path)
 
 def backend_form(project, keys):
     backend = project.get('backend')
@@ -486,15 +500,6 @@ def backend_form(project, keys):
     st.subheader(f"{backend} parameters", divider="gray")
 
     with st.container(border=True):
-        response = {
-            "project_id": project.get('project_id'),
-            "name": project.get('name'),
-            "language": project.get('language'),
-            "backend": {
-                "backend_id": backend
-            }
-        }
-
         filtered_backend = {}
 
         # FIXME: this needs to be refactored
@@ -509,7 +514,7 @@ def backend_form(project, keys):
                     backend_value = None
 
                 if backend_value != default_value:
-                    filtered_backend[key_id] = backend_value
+                    filtered_backend[key] = backend_value
 
             if isinstance(default_value, bool):
                 form_value = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key), key=key_id)
@@ -521,7 +526,17 @@ def backend_form(project, keys):
             if None != form_value:
                 filtered_backend[key] = form_value
 
-        response['backend']['params'] = filtered_backend
+        response = {
+            "project_id": project.get('project_id'),
+            "name": project.get('name'),
+            "language": project.get('language'),
+            "vocab": project.get('vocab'),
+            "vocab_spec": project.get('vocab_spec'),
+            "backend": {
+                "backend_id": backend,
+                "params": filtered_backend
+            }
+        }
 
         # Show list of sources for the ensemble
         if "ensemble" in backend:
@@ -539,13 +554,12 @@ def backend_form(project, keys):
                 st.warning("Source weights have been ignored", icon=":material/warning:")
 
         if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
-            st.warning(f"Save configuration is not implemented yet", icon=":material/warning:")
-            st.json(response)
+            save_project(response)
 
 def new_buttons():
     @st.dialog("New Project")
     def project_modal():
-        project_form({'is_trained': False})
+        project_form({'is_new': True})
 
     if st.session_state.get("project_modal", False):
         st.session_state.project_modal = False
@@ -567,6 +581,10 @@ def main():
         st.caption(f"Annif {version} at {ANNIF_API}")
     else:
         exit()
+    
+    ############################
+    st.session_state
+    ############################
     
     new_buttons()
 
