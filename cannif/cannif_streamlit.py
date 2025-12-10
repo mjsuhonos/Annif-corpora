@@ -15,7 +15,6 @@ DATA_DIR = "data"
 EVAL_DIR = os.path.join(DATA_DIR, "eval")
 UPLOADS_DIR = "uploads"
 
-
 def service_is_up(url):
     try:
         return requests.get(url, timeout=2).status_code == 200
@@ -43,6 +42,7 @@ def api_request(url):
 
     for _ in range(30):  # ~90 seconds
         if service_is_up(url):
+            #st.session_state["annif_starting"] = False
             st.rerun()
         time.sleep(3)
 
@@ -125,6 +125,9 @@ def get_projects():
 def list_projects(projects):
     project_list = list(projects.values())
 
+    if not project_list:
+        return
+
     with st.container():
         column_config = {
             "name": "Project",
@@ -197,13 +200,13 @@ def project_details(projects):
 
 def vocab_form(project):
     vocabs = get_vocabs()
-
-    if not vocabs:
-        return
+    
+    if vocabs:
+        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
+    else:
+        vocab_ids = []
         
     with st.container(border=True):
-        vocab_ids = [item["vocab_id"] for item in vocabs if "vocab_id" in item]
-
         lang_code = project.get("language")
         try:
             import iso639
@@ -211,11 +214,12 @@ def vocab_form(project):
         except Exception:
             lang = lang_code
 
-        vocab_spec = project.get("vocab_spec")     # Present for loaded projects
-        if vocab_spec:
+        if vocab_spec := project.get("vocab_spec"):     # Present for loaded projects
             vocab_id = re.match(r"([^(]+)", vocab_spec).group(1)
+
             index = vocab_ids.index(vocab_id)
             vocab = vocabs[index]
+
             is_loaded = vocab.get("loaded", False)
             disabled = True
         else:
@@ -340,14 +344,14 @@ def project_form(project):
             if os.path.exists(test_path):
                 os.remove(test_path)
 
-            st.success("Project created successfully!")
-            placeholder2.write(' ') # Clear the button
-
             # Reload Annif if we've started it
-            proc = st.session_state.get('annif_process')
-            if proc:
+            if proc := st.session_state.get('annif_process'):
                 proc.kill()
                 proc.wait()
+                st.session_state["annif_starting"] = False
+
+            st.success("Project created successfully!")
+            placeholder2.write(' ') # Clear the button
             st.rerun()
 
     #elif "dummy" == backend:
@@ -492,6 +496,10 @@ def save_project(project):
     vocab_id = project.get('vocab')
     lang = project.get('language')
 
+    # Optional values
+    analyzer = project.get('analyzer_spec')
+    transform = project.get('transform_spec')
+
     proj_path = os.path.join(os.getcwd(), find_config(), project_id + ".cfg")
     with open(proj_path, "w") as file:
         file.write(f"[{project_id}]\n")
@@ -499,7 +507,12 @@ def save_project(project):
         file.write(f"backend = {backend}\n")
         file.write(f"language = {lang}\n")
         file.write(f"vocab = {vocab_id}({lang})\n")
+
         # TODO: other values if they exist
+        if analyzer:
+            file.write(f"analyzer = {analyzer}\n")
+        if transform:
+            file.write(f"transform = {transform}\n")
 
 def backend_form(project, keys):
     backend = project.get('backend')
