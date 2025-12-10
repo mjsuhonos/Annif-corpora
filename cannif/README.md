@@ -72,11 +72,4 @@ New projects can be created through the "New Project" pop-up.  A project require
 
 ## that's all folks
 
-Cannif doesn't do some things yet, but they are being developed:
-
-- load vocabularies
-- create new projects
-- drag-and-drop file upload for training and evaluation
-- split-ensemble creation for reduced memory during training
-
-If you have any other ideas for how to improve cannif, get in touch or submit a pull request!
+If you have any other ideas for how to improve cannif, get in touch or submit an issue!
