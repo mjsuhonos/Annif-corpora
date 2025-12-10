@@ -135,7 +135,7 @@ def list_projects(projects):
             "backend": "Backend",
             "language": "Language",
             "modification_time": st.column_config.DatetimeColumn("Modified"),
-            "is_trained": "Available",
+            "is_trained": "Trained",
             "Recall_microavg": "Recall",
             "false_positive_rate": "FPR",
             "false_negative_rate": "FNR"
@@ -154,7 +154,7 @@ def list_projects(projects):
 
         df = pd.DataFrame(filtered_projects)
 
-        df["is_trained"] = df["is_trained"].apply(lambda x: "✓" if x else "-")
+        df["is_trained"] = df["is_trained"].apply(lambda x: "✔" if x else "-")
 
         st.dataframe(df, hide_index=True, column_config=column_config,
                     column_order=column_order, key="table",
@@ -163,6 +163,10 @@ def list_projects(projects):
         # if there are metrics, show graphs
         if df["F1@5"].notna().any():
             df = df.set_index("name").dropna(subset=["F1@5"])
+            df = df.rename(columns={
+                            "Recall_microavg": "Recall",
+                            "false_positive_rate": "FPR",
+                            "false_negative_rate": "FNR"})
             
             with st.expander("**Comparative Metrics**", expanded=False, icon=":material/bar_chart:"):
 
@@ -172,7 +176,7 @@ def list_projects(projects):
                                 y=["Precision@1","Precision@3","Precision@5"])
                 with col2:
                     st.bar_chart(df, sort="-F1@5", stack=False, x_label='',
-                                y=["Recall_microavg", "false_positive_rate", "false_negative_rate"])
+                                y=["Recall", "FPR", "FNR"])
                 with col3:
                     st.bar_chart(df, sort="-F1@5", stack=False, x_label='',
                                 y=["NDCG", "NDCG@5", "NDCG@10"])
@@ -439,16 +443,7 @@ def upload_action(project_id, action):
         if not is_task_running(task_id):
             source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{task_id}{ext}")
 
-            if "Evaluate" == action:
-                dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
-
-                st.session_state[task_id] = subprocess.Popen(
-                    ["annif", "eval", project_id, source_path, "-M", dest_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-                st.info(f"Evaluation is running", icon=":material/hourglass:")
-
-            elif "Load Vocab" == action:
+            if "Load Vocab" == action:
                 vocab_id, lang = project_id.split('_', 1)
 
                 if '' == vocab_id:
@@ -479,6 +474,23 @@ def upload_action(project_id, action):
                     except subprocess.CalledProcessError as e:
                         st.error("Error loading vocab:")
                         st.code(e.stderr)
+
+            elif "Train" == action:
+                st.session_state[task_id] = subprocess.Popen(
+                    ["annif", "train", project_id, source_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                st.info(f"{action} is running", icon=":material/hourglass:")
+
+            elif "Evaluate" == action:
+                dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
+
+                st.session_state[task_id] = subprocess.Popen(
+                    ["annif", "eval", project_id, source_path, "-M", dest_path],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                st.info(f"{action} is running", icon=":material/hourglass:")
+
             else:
                 st.warning(f"{action} is not implemented yet", icon=":material/warning:")
 
