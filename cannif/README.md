@@ -66,10 +66,6 @@ When metrics are available, they are displayed in both the project details and i
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
 
-New projects can be created, including loading new vocabularies.
-
-![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/new.png?raw=true)
-
 ## that's all folks
 
 Cannif doesn't do some things yet, but they are being developed:
