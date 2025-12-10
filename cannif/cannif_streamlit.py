@@ -174,9 +174,6 @@ def project_details(projects):
 def vocab_form(project):
     vocabs = get_vocabs()
 
-    x = st.session_state.get('new_vocab')
-    x
-
     if not vocabs:
         return
         
@@ -244,17 +241,8 @@ def vocab_form(project):
                 if upload_action(f"{vocab_id}_{lang_id}", "Load Vocab"):
                     is_loaded = True
                     st.session_state.new_vocab = [vocab_id, lang_id]
-                #else:
-                #    st.error('Please load the vocab first')
-
-        #project['vocab_spec'] = f"{vocab_id}({lang_id})"
 
 def project_form(project):
-    ############################
-    with st.expander('project'):
-        st.json(project)
-    ############################
-    
     backend = project.get('backend')
     backends = ["dummy", "ensemble", "fasttext", "http", "mllm", "nn_ensemble",
                 "omikuji", "pav", "stwfsa", "svc", "tfidf", "yake"]
@@ -299,7 +287,8 @@ def project_form(project):
     if project.get('is_new'):
         project['backend'] = st.selectbox("**Backend**", backends, index=backend_index)
 
-        if st.button('Create Project', key='save-project', type="primary"):
+        placeholder2 = st.empty()
+        if placeholder2.button('Create Project', key='save-project', type="primary"):
             # Check form values
             if not project.get('name'):
                 st.error('Please provide a project name')
@@ -308,6 +297,7 @@ def project_form(project):
             if new_vocab := st.session_state.get('new_vocab'):
                 project['language'] = new_vocab[1]
                 project['vocab'] = new_vocab[0]
+                del st.session_state.new_vocab
 
             if not project.get('vocab'):
                 st.error('Please select a loaded vocab')
@@ -327,16 +317,16 @@ def project_form(project):
                 os.remove(test_path)
 
             st.success("Project created successfully!")
-            
-            #st.rerun()
+            placeholder2.write(' ') # Clear the button
+
+    #elif "dummy" == backend:
+    elif project.get("F1@5"): # already evaluated
+        pass
     elif evaluable:
         upload_action(project.get('project_id'), "Evaluate")
     elif trainable:
         upload_action(project.get('project_id'), "Train")
         st.warning("Training is very resource-intensive!", icon=":material/warning:")
-        
-    #if project.get("F1@5"): # already evaluated
-    #elif "dummy" == backend:
 
 def eval_results(project):
     if project.get("F1@5"):
@@ -390,9 +380,7 @@ def upload_action(project_id, action):
     if is_task_running(task_id):
         st.info(f"{action} is running", icon=":material/hourglass:")
         return
-    #elif st.session_state["task_proc"] is not None:
-    #    st.success(f"{action} for **{project_id}** successful!")
-    
+
     # FIXME: this isn't right but throws an error:
     # streamlit.errors.StreamlitValueAssignmentNotAllowedError: Values for the widget with key 'wd1k_en_load_vocab' cannot be set using st.session_state.
     
@@ -554,7 +542,9 @@ def backend_form(project, keys):
                 st.warning("Source weights have been ignored", icon=":material/warning:")
 
         if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
-            save_project(response)
+            st.json(project)
+            st.json(response)
+            #save_project(response)
 
 def new_buttons():
     @st.dialog("New Project")
@@ -581,10 +571,6 @@ def main():
         st.caption(f"Annif {version} at {ANNIF_API}")
     else:
         exit()
-    
-    ############################
-    st.session_state
-    ############################
     
     new_buttons()
 
