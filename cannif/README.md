@@ -24,15 +24,6 @@ The recommended way is to install cannif into a virtual environment.
     pip install annif
     pip install streamlit
 
-Make sure Annif is running:
-
-    annif run
-
-    INFO:     Started server process [58021]
-    INFO:     Waiting for application startup.
-    INFO:     Application startup complete.
-    INFO:     Uvicorn running on http://127.0.0.1:5000 (Press CTRL+C to quit)
-
 Open a new terminal.  Start up the application:
 
     streamlit run cannif_streamlit.py
@@ -48,7 +39,7 @@ You should see:
 
     $ pip install watchdog
 
-By default cannif connects to the REST API of an Annif server running at `http://localhost:5000/v1/`.  You can edit `ANNIF_API` to point at any Annif server, eg. `https://api.annif.org/v1`.  Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
+By default cannif will automatically try to start an Annif REST server running at `http://localhost:5000/v1/`.  Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
 
 Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the `Annif` folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
 

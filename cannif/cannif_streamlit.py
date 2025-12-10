@@ -5,6 +5,7 @@ import re
 import os
 import json
 import subprocess
+import time
 
 from annif.config import find_config
 from annif.registry import AnnifRegistry
@@ -14,15 +15,38 @@ DATA_DIR = "data"
 EVAL_DIR = os.path.join(DATA_DIR, "eval")
 UPLOADS_DIR = "uploads"
 
-def api_request(url):
-    try:
-        r = requests.get(url)
-        r.raise_for_status()
-        return r.json()
 
-    except Exception as e:
-        st.error(f"Error connecting to Annif: {e}")
-        return {}
+def service_is_up(url):
+    try:
+        return requests.get(url, timeout=2).status_code == 200
+    except Exception:
+        return False
+
+def api_request(url):
+    if service_is_up(url):
+        try:
+            return requests.get(url).json()
+        except Exception:
+            st.error(f"Error connecting to Annif: {e}")
+            st.code(e.stderr)
+            #return {}
+
+    # Start service if not already starting
+    if not st.session_state.get("annif_starting"):
+        st.session_state["annif_starting"] = True
+        st.session_state["annif_process"] = subprocess.Popen(
+            ["annif", "run", "--host", "0.0.0.0"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        
+    st.info(f"Loading Annif...", icon=":material/hourglass:")
+
+    for _ in range(30):  # ~90 seconds
+        if service_is_up(url):
+            st.rerun()
+        time.sleep(3)
+
+    return {}
 
 def get_annif_version():
     response = api_request(f"{ANNIF_API}/")
@@ -319,6 +343,13 @@ def project_form(project):
             st.success("Project created successfully!")
             placeholder2.write(' ') # Clear the button
 
+            # Reload Annif if we've started it
+            proc = st.session_state.get('annif_process')
+            if proc:
+                proc.kill()
+                proc.wait()
+            st.rerun()
+
     #elif "dummy" == backend:
     elif project.get("F1@5"): # already evaluated
         pass
@@ -441,8 +472,6 @@ def upload_action(project_id, action):
                         st.success("Vocab loaded successfully!")
                         placeholder.write(' ') # Clear the button
 
-                        # TODO: trigger reloading of the vocab part of the modal?
-
                     except subprocess.CalledProcessError as e:
                         st.error("Error loading vocab:")
                         st.code(e.stderr)
@@ -451,9 +480,9 @@ def upload_action(project_id, action):
 
         return uploaded_file
 
-    # TODO: remove the button if a vocab is loaded in session
-    #if st.session_state.get('new_vocab'):
-    #    placeholder.write(' ')
+    # remove the button if a vocab is loaded in session
+    if st.session_state.get('new_vocab'):
+        placeholder.write(' ')
 
 def save_project(project):
     # TODO: check required values
@@ -532,14 +561,12 @@ def backend_form(project, keys):
 
             if ":" in sources:
                 source_list = [s.split(":")[0] for s in sources.split(",")]
+                st.warning("Source weights have been ignored", icon=":material/warning:")
             else:
                 source_list = sources.split(",")
 
             new_sources = st.multiselect("Sources", keys, source_list)
             response['backend']['params']['sources'] = ",".join(new_sources)
-            
-            if ":" in sources:
-                st.warning("Source weights have been ignored", icon=":material/warning:")
 
         if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
             st.json(project)
