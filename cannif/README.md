@@ -66,6 +66,10 @@ When metrics are available, they are displayed in both the project details and i
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
 
+### creating projects
+
+New projects can be created through the "New Project" pop-up.  A project requires a name, a loaded vocabulary, a language, and a backend.  New vocabularies can be loaded for a project by entering a vocab ID and a language, and uploading a vocabulary file.  Once loaded, the vocabulary can be used in any new project.
+
 ## that's all folks
 
 Cannif doesn't do some things yet, but they are being developed:
