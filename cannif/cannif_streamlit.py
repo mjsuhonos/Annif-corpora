@@ -15,7 +15,7 @@ ANNIF_RUN = ["annif", "run", "--host", "0.0.0.0"]
 
 UPLOADS_DIR = "uploads"
 DATA_DIR = "data"
-EVAL_DIR = os.path.join(DATA_DIR, "eval")
+EVAL_DIR = "data/eval"
 
 def service_is_up():
     try:
@@ -300,9 +300,11 @@ def project_form(project):
     
     vocab_form(project)
 
-    project['analyzer_spec'] = st.text_input("**Analyzer**",
-        value=project.get('analyzer_spec'), disabled=is_trained,
-        key=f"{project.get('analyzer_spec')}_analyzer")
+    analyzer_spec = st.selectbox("**Analyzer**", ['simple', 'snowball', 'simplemma'], disabled=is_trained)
+
+    #project['analyzer_spec'] = st.text_input("**Analyzer**",
+    #    value=project.get('analyzer_spec'), disabled=is_trained,
+    #    key=f"{project.get('analyzer_spec')}_analyzer")
 
     project['transform_spec'] = st.text_input("**Transform**",
         value=project.get('transform_spec'), disabled=is_trained,
@@ -339,6 +341,26 @@ def project_form(project):
             elif not project.get('language'):
                 st.error('Please select a language')
                 return
+            
+            # add language to analyzer if necessary
+            if 'snowball' == analyzer_spec:
+                snowball_languages = {'ar': 'arabic', 'da': 'danish', 'nl': 'dutch', 
+                                      'en': 'english', 'fi': 'finnish', 'fr': 'french', 
+                                      'de': 'german', 'hu': 'hungarian', 'it': 'italian', 
+                                      'no': 'norwegian', 'po': 'portuguese', 
+                                      'ro': 'romanian', 'ru': 'russian', 'sp': 'spanish', 
+                                      'sw': 'swedish'}                
+
+                if lang := snowball_languages.get(project.get('language')):
+                    project['analyzer_spec'] = f"snowball({lang})"
+                else:
+                    st.error('Language not supported by analyzer')
+                    return
+
+            elif 'simplemma' == analyzer_spec:
+                project['analyzer_spec'] = f"simplemma({project.get('language')})"
+            else:
+                project['analyzer_spec'] = analyzer_spec
 
             placeholder2.write(' ') # Clear the button
 
