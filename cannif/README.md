@@ -35,13 +35,7 @@ You should see:
     Local URL: http://localhost:8501
     Network URL: http://192.168.1.107:8501
 
-    For better performance, install the Watchdog module:
-
-    $ pip install watchdog
-
-By default cannif will automatically try to start an Annif REST server running at `http://localhost:5000/v1/`.  Depending on how and where Annif is installed on your system, the local version may not match the version at the REST API.  This is usually OK, but ideally they should be as similar as possible.
-
-Cannif looks for project information in the default location, `projects.d`.  If cannif is run from the `Annif` folder, it will use the projects defined there.  I like to run it from its own folder, with a symlink to `Annif/projects.d`.
+cannif will automatically try to start an Annif REST server running at `http://localhost:5000/v1/`. cannif looks for project information in the default location, `projects.d`.  If cannif is run from the `Annif` folder, it will use the projects defined there.
 
 ## usage
 
@@ -59,7 +53,14 @@ When metrics are available, they are displayed in both the project details and i
 
 ### creating projects
 
-New projects can be created through the "New Project" pop-up.  A project requires a name, a loaded vocabulary, a language, and a backend.  New vocabularies can be loaded for a project by entering a vocab ID and a language, and uploading a vocabulary file.  Once loaded, the vocabulary can be used in any new project.
+Projects can be created through the "New Project" pop-up.  A project requires:
+- a name
+- a loaded vocabulary
+- a language
+- an analyzer
+- a backend
+
+Vocabularies can be loaded for a project by entering a vocab ID and a language, and uploading a vocabulary file.  Once loaded, the vocabulary can then be used in any new project.
 
 ## that's all folks
 
