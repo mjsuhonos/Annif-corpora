@@ -290,7 +290,7 @@ def project_form(project):
         st.subheader("Not Available", divider="red")
         return
     elif project.get('is_new'):
-        project['name'] = st.text_input("**Name**", key='project_name')
+        project['name'] = st.text_input("**Name**")
     elif not trainable:
         st.subheader("Training Not Required", divider="green")
     elif is_trained:
@@ -303,8 +303,7 @@ def project_form(project):
     analyzer_spec = st.selectbox("**Analyzer**", ['simple', 'snowball', 'simplemma'], disabled=is_trained)
 
     project['transform_spec'] = st.text_input("**Transform**",
-        value=project.get('transform_spec'), disabled=is_trained,
-        key=f"{project.get('transform_spec')}_transform"
+        value=project.get('transform_spec'), disabled=is_trained
     )
 
     if modtime := project.get('modification_time'):
@@ -320,7 +319,7 @@ def project_form(project):
         project['backend'] = st.selectbox("**Backend**", backends, index=backend_index)
 
         placeholder2 = st.empty()
-        if placeholder2.button('Create Project', key='save-project', type="primary"):
+        if placeholder2.button('Create Project', type="primary"):
             # Check form values
             if not project.get('name'):
                 st.error('Please provide a project name')
@@ -427,27 +426,18 @@ def upload_action(project_id, action):
     # TODO: use something more robust to mint IDs
     task_id = f"{project_id}_{action}".lower().replace(" ", "_")
 
-    #if task_id not in st.session_state:
-    #    st.session_state[task_id] = None
-
     def is_task_running(task_id):
         proc = st.session_state.get(task_id)
         if proc is None:
             return False
         return proc.poll() is None
 
-    st.session_state
-    st.write(is_task_running(task_id))
-
     # Show status
-    #if is_task_running(task_id):
-    #    st.info(f"{action} is running", icon=":material/hourglass:")
-    #    return
+    if is_task_running(task_id):
+        st.info(f"{action} is running", icon=":material/hourglass:")
+        return
 
-    # FIXME: this isn't right but throws an error:
-    # streamlit.errors.StreamlitValueAssignmentNotAllowedError: Values for the widget with key 'wd1k_en_load_vocab' cannot be set using st.session_state.
-    
-    uploaded_file = st.file_uploader("**Upload File**", key=project_id,
+    uploaded_file = st.file_uploader("**Upload File**", key=f"{task_id}_file",
                                     type=["tsv", "csv", "json", "jsonl"])
 
     # Save file to uploads folder
@@ -459,7 +449,7 @@ def upload_action(project_id, action):
 
     placeholder = st.empty()
 
-    if placeholder.button(action, key=f"{task_id}_button", type="primary"):
+    if placeholder.button(action, type="primary"):
         if not uploaded_file:
             st.error("No file uploaded")
             return
@@ -574,11 +564,11 @@ def backend_form(project, keys):
                     filtered_backend[key] = backend_value
 
             if isinstance(default_value, bool):
-                form_value = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key), key=key_id)
+                form_value = st.checkbox(f"{key} :gray-badge[Default: {default_params.get(key)}]", value=params.get(key))
             elif isinstance(default_value, (int, float)):
-                form_value = st.number_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
+                form_value = st.number_input(key, value=filtered_backend.get(key), placeholder=default_params.get(key))
             else:
-                form_value = st.text_input(key, value=filtered_backend.get(key), key=key_id, placeholder=default_params.get(key))
+                form_value = st.text_input(key, value=filtered_backend.get(key), placeholder=default_params.get(key))
 
             if None != form_value:
                 filtered_backend[key] = form_value
@@ -608,7 +598,7 @@ def backend_form(project, keys):
             new_sources = st.multiselect("Sources", keys, source_list)
             response['backend']['params']['sources'] = ",".join(new_sources)
 
-        if st.button("Save Configuration", key=f"save_{project.get('project_id')}_{backend}", type="primary"):
+        if st.button("Save Configuration", type="primary"):
             st.json(project)
             st.json(response)
             #save_project(response)
