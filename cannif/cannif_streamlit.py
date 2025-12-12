@@ -17,12 +17,6 @@ UPLOADS_DIR = "uploads"
 DATA_DIR = "data"
 EVAL_DIR = "data/eval"
 
-def service_is_up():
-    try:
-        return requests.get(ANNIF_API, timeout=2).status_code == 200
-    except Exception:
-        return False
-
 @st.cache_resource()
 def get_persistent_process(command: list):
     return subprocess.Popen(
@@ -33,6 +27,12 @@ def get_persistent_process(command: list):
     )
 
 def api_request(url):
+    def service_is_up():
+        try:
+            return requests.get(ANNIF_API, timeout=2).status_code == 200
+        except Exception:
+            return False
+    
     if service_is_up():
         try:
             return requests.get(url).json()
@@ -302,10 +302,6 @@ def project_form(project):
 
     analyzer_spec = st.selectbox("**Analyzer**", ['simple', 'snowball', 'simplemma'], disabled=is_trained)
 
-    #project['analyzer_spec'] = st.text_input("**Analyzer**",
-    #    value=project.get('analyzer_spec'), disabled=is_trained,
-    #    key=f"{project.get('analyzer_spec')}_analyzer")
-
     project['transform_spec'] = st.text_input("**Transform**",
         value=project.get('transform_spec'), disabled=is_trained,
         key=f"{project.get('transform_spec')}_transform"
@@ -431,19 +427,22 @@ def upload_action(project_id, action):
     # TODO: use something more robust to mint IDs
     task_id = f"{project_id}_{action}".lower().replace(" ", "_")
 
-    if task_id not in st.session_state:
-        st.session_state[task_id] = None
+    #if task_id not in st.session_state:
+    #    st.session_state[task_id] = None
 
     def is_task_running(task_id):
         proc = st.session_state.get(task_id)
         if proc is None:
             return False
         return proc.poll() is None
-    
+
+    st.session_state
+    st.write(is_task_running(task_id))
+
     # Show status
-    if is_task_running(task_id):
-        st.info(f"{action} is running", icon=":material/hourglass:")
-        return
+    #if is_task_running(task_id):
+    #    st.info(f"{action} is running", icon=":material/hourglass:")
+    #    return
 
     # FIXME: this isn't right but throws an error:
     # streamlit.errors.StreamlitValueAssignmentNotAllowedError: Values for the widget with key 'wd1k_en_load_vocab' cannot be set using st.session_state.
@@ -465,54 +464,51 @@ def upload_action(project_id, action):
             st.error("No file uploaded")
             return
 
-        if not is_task_running(task_id):
-            source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{task_id}{ext}")
+        source_path = os.path.join(os.getcwd(), UPLOADS_DIR, f"{task_id}{ext}")
 
-            if "Load Vocab" == action:
-                vocab_id, lang = project_id.split('_', 1)
+        if "Load Vocab" == action:
+            vocab_id, lang = project_id.split('_', 1)
 
-                if '' == vocab_id:
-                    st.error('Please provide a vocab ID')
-                    return
+            if '' == vocab_id:
+                st.error('Please provide a vocab ID')
+                return
 
-                if 'None' == lang:
-                    st.error('Please provide a language code')
-                    return
+            if 'None' == lang:
+                st.error('Please provide a language code')
+                return
 
-                # Write a temporary project TOML file
-                proj_path = os.path.join(os.getcwd(), find_config(), task_id + ".cfg")
-                with open(proj_path, "w") as file:
-                    file.write(f"[{task_id}]\n")
-                    file.write(f"backend = dummy\n")
-                    file.write(f"language = {lang}\n")
-                    file.write(f"vocab = {vocab_id}({lang})\n")
+            # Write a temporary project TOML file
+            proj_path = os.path.join(os.getcwd(), find_config(), task_id + ".cfg")
+            with open(proj_path, "w") as file:
+                file.write(f"[{task_id}]\n")
+                file.write(f"backend = dummy\n")
+                file.write(f"language = {lang}\n")
+                file.write(f"vocab = {vocab_id}({lang})\n")
 
-                with st.spinner("Loading vocab..."):
-                    try:
-                        result = subprocess.run(
-                            ["annif", "load-vocab", "-L", lang, vocab_id, source_path],
-                            capture_output=True, text=True, check=True)
+            with st.spinner("Loading vocab..."):
+                try:
+                    result = subprocess.run(
+                        ["annif", "load-vocab", "-L", lang, vocab_id, source_path],
+                        capture_output=True, text=True, check=True)
+                    st.success("Vocab loaded successfully!")
 
-                        st.success("Vocab loaded successfully!")
-                        placeholder.write(' ') # Clear the button
+                except subprocess.CalledProcessError as e:
+                    st.error("Error loading vocab:")
+                    st.code(e.stderr)
 
-                    except subprocess.CalledProcessError as e:
-                        st.error("Error loading vocab:")
-                        st.code(e.stderr)
+        elif "Train" == action:
+            st.session_state[task_id] = get_persistent_process(["annif", "train", project_id, source_path])
+            st.info(f"{action} is running", icon=":material/hourglass:")
 
-            elif "Train" == action:
-                st.session_state[task_id] = get_persistent_process(["annif", "train", project_id, source_path])
-                st.info(f"{action} is running", icon=":material/hourglass:")
+        elif "Evaluate" == action:
+            dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
+            st.session_state[task_id] = get_persistent_process(["annif", "eval", project_id, source_path, "-M", dest_path])
+            st.info(f"{action} is running", icon=":material/hourglass:")
 
-            elif "Evaluate" == action:
-                dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
+        else:
+            st.warning(f"{action} is not implemented yet", icon=":material/warning:")
 
-                st.session_state[task_id] = get_persistent_process(["annif", "eval", project_id, source_path, "-M", dest_path])
-                st.info(f"{action} is running", icon=":material/hourglass:")
-
-            else:
-                st.warning(f"{action} is not implemented yet", icon=":material/warning:")
-
+        placeholder.write(' ') # Clear the button
         return uploaded_file
 
     # remove the button if a vocab is loaded in session
