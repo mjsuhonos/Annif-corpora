@@ -43,14 +43,6 @@ When connected, it presents an interactive table of projects and their details. 
 
 ![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/cannif.png?raw=true)
 
-When you select a project in the table, details about that project and its backend appear below the table.
-
-![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
-
-When metrics are available, they are displayed in both the project details and in a series of comparative charts.  Cannif looks for evaluation information in the `data/eval` directory.  JSON files in the Annif `--metrics-file` format will be used if they match the name of a project_id.
-
-![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
-
 ### creating projects
 
 Projects can be created through the "New Project" pop-up.  A project requires:
@@ -60,7 +52,28 @@ Projects can be created through the "New Project" pop-up.  A project requires:
 - an analyzer
 - a backend
 
-Vocabularies can be loaded for a project by entering a vocab ID and a language, and uploading a vocabulary file.  Once loaded, the vocabulary can then be used in any new project.
+Vocabularies can be loaded for a project by entering a vocab ID and a language, and uploading a vocabulary file.  Once loaded, the vocabulary can then be used in any new project.  Annif will reload when a new project is created.
+
+
+### project details
+
+When you select a project in the table, details about that project and its backend appear below the table.
+
+![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/project.png?raw=true)
+
+Updating project configuration is coming!
+
+### training
+
+Projects can be trained by uploading a training corpus file.  Training is started in the background; **training may take a long time and use a lot of resources**.  When a project is trained a ✔ will appear in the table.
+
+### evaluation
+
+Projects can be evaluated by uploading an evaluation corpus file.  Evluation is started in the background.  When a project has been evaluated, metrics will appear in both the project details and in a series of comparative charts.  
+
+Cannif looks for evaluation information in the `data/eval` directory.  JSON files in the Annif `--metrics-file` format will be used if they match the name of a project_id.
+
+![a screenshot](https://github.com/mjsuhonos/Annif-corpora/blob/master/cannif/metrics.png?raw=true)
 
 ## that's all folks
 
