@@ -11,42 +11,43 @@ from annif.config import find_config
 from annif.registry import AnnifRegistry
 
 ANNIF_API = "http://localhost:5000/v1"
+ANNIF_RUN = ["annif", "run", "--host", "0.0.0.0"]
+
+UPLOADS_DIR = "uploads"
 DATA_DIR = "data"
 EVAL_DIR = os.path.join(DATA_DIR, "eval")
-UPLOADS_DIR = "uploads"
 
-def service_is_up(url):
+def service_is_up():
     try:
-        return requests.get(url, timeout=2).status_code == 200
+        return requests.get(ANNIF_API, timeout=2).status_code == 200
     except Exception:
         return False
 
+@st.cache_resource()
+def get_persistent_process(command: list):
+    return subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
 def api_request(url):
-    if service_is_up(url):
+    if service_is_up():
         try:
             return requests.get(url).json()
-        except Exception:
-            st.error(f"Error connecting to Annif: {e}")
-            st.code(e.stderr)
-            #return {}
-
-    # Start service if not already starting
-    if not st.session_state.get("annif_starting"):
-        st.session_state["annif_starting"] = True
-        st.session_state["annif_process"] = subprocess.Popen(
-            ["annif", "run", "--host", "0.0.0.0"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE)
-        
+        except Exception as e:
+            st.error(f"Error connecting to Annif: {e}")        
+            return {}
+    
+    # Try to run Annif server
     st.info(f"Loading Annif...", icon=":material/hourglass:")
+    process = get_persistent_process(ANNIF_RUN)
 
-    for _ in range(30):  # ~90 seconds
-        if service_is_up(url):
-            #st.session_state["annif_starting"] = False
+    for _ in range(30):  # Wait for ~90 seconds
+        if service_is_up():
             st.rerun()
         time.sleep(3)
-
-    return {}
 
 def get_annif_version():
     response = api_request(f"{ANNIF_API}/")
@@ -57,6 +58,7 @@ def get_vocabs():
     return response.get("vocabs")
 
 def get_projects():
+    # This can take a while on the first request as Annif buffers
     response = api_request(f"{ANNIF_API}/projects")
     api_projects = response.get("projects") # array
 
@@ -338,6 +340,8 @@ def project_form(project):
                 st.error('Please select a language')
                 return
 
+            placeholder2.write(' ') # Clear the button
+
             # TODO: use something more robust to mint IDs
             project['project_id'] = f"{project.get('vocab')}_{project.get('language')}_{project.get('backend')}".lower().replace(" ", "_")
 
@@ -348,14 +352,13 @@ def project_form(project):
             if os.path.exists(test_path):
                 os.remove(test_path)
 
-            # Reload Annif if we've started it
-            if proc := st.session_state.get('annif_process'):
-                proc.kill()
-                proc.wait()
-                st.session_state["annif_starting"] = False
+            # Kill Annif and restart it
+            if process := get_persistent_process(ANNIF_RUN):
+                process.kill()
+                process.wait()
+                get_persistent_process.clear(ANNIF_RUN)
 
             st.success("Project created successfully!")
-            placeholder2.write(' ') # Clear the button
             st.rerun()
 
     #elif "dummy" == backend:
@@ -476,19 +479,13 @@ def upload_action(project_id, action):
                         st.code(e.stderr)
 
             elif "Train" == action:
-                st.session_state[task_id] = subprocess.Popen(
-                    ["annif", "train", project_id, source_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                st.session_state[task_id] = get_persistent_process(["annif", "train", project_id, source_path])
                 st.info(f"{action} is running", icon=":material/hourglass:")
 
             elif "Evaluate" == action:
                 dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
 
-                st.session_state[task_id] = subprocess.Popen(
-                    ["annif", "eval", project_id, source_path, "-M", dest_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+                st.session_state[task_id] = get_persistent_process(["annif", "eval", project_id, source_path, "-M", dest_path])
                 st.info(f"{action} is running", icon=":material/hourglass:")
 
             else:
