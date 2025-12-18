@@ -10,8 +10,9 @@ import time
 from annif.config import find_config
 from annif.registry import AnnifRegistry
 
-ANNIF_API = "http://localhost:5000/v1"
-ANNIF_RUN = ["annif", "run", "--host", "0.0.0.0"]
+ANNIF_API = "http://127.0.0.1:5000/v1"
+ANNIF_CMD = ["annif"]
+ANNIF_RUN = ANNIF_CMD + ["run", "--host", "0.0.0.0"]
 
 UPLOADS_DIR = "uploads"
 DATA_DIR = "data"
@@ -478,7 +479,7 @@ def upload_action(project_id, action):
             with st.spinner("Loading vocab..."):
                 try:
                     result = subprocess.run(
-                        ["annif", "load-vocab", "-L", lang, vocab_id, source_path],
+                        ANNIF_CMD + ["load-vocab", "-L", lang, vocab_id, source_path],
                         capture_output=True, text=True, check=True)
                     st.success("Vocab loaded successfully!")
 
@@ -487,12 +488,12 @@ def upload_action(project_id, action):
                     st.code(e.stderr)
 
         elif "Train" == action:
-            st.session_state[task_id] = get_persistent_process(["annif", "train", project_id, source_path])
+            st.session_state[task_id] = get_persistent_process(ANNIF_CMD + ["train", project_id, source_path])
             st.info(f"{action} is running", icon=":material/hourglass:")
 
         elif "Evaluate" == action:
             dest_path = os.path.join(os.getcwd(), EVAL_DIR, project_id + ".json")
-            st.session_state[task_id] = get_persistent_process(["annif", "eval", project_id, source_path, "-M", dest_path])
+            st.session_state[task_id] = get_persistent_process(ANNIF_CMD + ["eval", project_id, source_path, "-M", dest_path])
             st.info(f"{action} is running", icon=":material/hourglass:")
 
         else:
@@ -506,6 +507,20 @@ def upload_action(project_id, action):
         placeholder.write(' ')
 
 def save_project(project):
+    '''
+    {
+      "project_id": "my-project",
+      "name": "My Project",
+      "language": "en",
+      "backend": {
+        "backend_id": "my-backend"
+      },
+      "vocab": {
+        "vocab_id": "yso",
+      },
+      "vocab_language": "en",
+    }
+    '''
     # TODO: check required values
     project_id = project.get('project_id')
     name = project.get('name')
