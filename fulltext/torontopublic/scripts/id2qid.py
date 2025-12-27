@@ -1,4 +1,4 @@
-# for a in *.tsv ; do python3 ../id2qid.py $a ../id2qid.sorted.tsv ../qids/$a; done
+# for a in *.tsv ; do python3 ../id2qid.py $a ../id2qid.tsv ../qids/$a; done
 
 import sys
 import csv
