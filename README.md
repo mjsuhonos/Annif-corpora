@@ -1,12 +1,12 @@
-# Corpora
- Document corpora for training [Annif](https://github.com/NatLibFi/Annif/) automated classification
+# CANNIF HAS MOVED
+👉👉👉 https://github.com/mjsuhonos/cannif 👈👈👈
 
-## Folder Index
+## THIS REPOSITORY IS NOW DEFUNCT
+Document corpora for training [Annif](https://github.com/NatLibFi/Annif/) automated classification
 
-- **cannif**: Streamlit web GUI for Annif
-- **data**: vocabularies and trained projects
-- **evaluations**: output of evaluation runs
+### Folder Index
 - **fulltext**: training data in a supported corpus format
+- **hyperopt**: results of hyperparameter optimization
 - **projects.d**: project configurations
 - **scripts**: helper scripts
 - **vocab**: source vocabularies
